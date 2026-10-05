@@ -437,6 +437,44 @@ details.nerd .usage{border-bottom:0}
 .pvbars text.v{font:600 11px var(--f-mono);fill:var(--ink)}
 .res-o{color:var(--good);font-weight:600}.res-u{color:var(--bad);font-weight:600}
 .prop-m.link{background:none;border:0;padding:0;font:inherit;font-weight:600;color:inherit;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.ladder td,.ladder th{white-space:nowrap}
+.ladder tr.mainrung td{background:var(--accent-soft)}
+.ladder tr.valrung td:first-child{box-shadow:inset 3px 0 0 var(--good)}
+.ladder .addp{padding:1px 7px;font-size:11px}
+.pbuild{display:grid;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:12px}
+.pleg{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.pleg-main{flex:1 1 220px;min-width:0}
+.pleg-main b{display:block}.pleg-main small{color:var(--muted);font-size:12px}
+.pleg select,.pleg input,#parUnits{font:13px var(--f-mono);padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface2);color:var(--ink)}
+.pleg-p{font:700 18px var(--f-display);min-width:44px;text-align:right}
+.ptot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ptot div{background:var(--surface2);border-radius:10px;padding:8px 10px}
+.ptot span{display:block;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.ptot b{font:700 22px var(--f-display)}
+.gradecard{display:flex;gap:16px;align-items:center;margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px}
+.grade{flex:none;width:72px;height:72px;border-radius:18px;display:grid;place-items:center;font:700 44px var(--f-display);color:#fff}
+.g-A{background:var(--good)}.g-B{background:color-mix(in srgb,var(--good) 65%,var(--accent))}.g-C{background:var(--warn)}.g-D{background:color-mix(in srgb,var(--warn) 50%,var(--bad))}.g-F{background:var(--bad)}
+.pgrid.compact{grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:10px}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:0}
+.pcard-h{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.pcard-h .logo{width:24px;height:24px}
+.pcard-h b{font:700 16px var(--f-display);letter-spacing:.3px}
+.pcard-h .note{margin-left:auto;font-size:11.5px;text-align:right}
+.prow2{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;align-items:center;width:100%;padding:6px 10px;background:none;border:0;border-top:1px solid var(--line);font:inherit;color:inherit;text-align:left;cursor:pointer}
+.pcard-h + .prow2{border-top:0}
+.prow2:hover{background:var(--surface2)}
+.prow2 .m{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow2 .m span{font-family:var(--f-mono);font-weight:500}
+.prow2 .m i{font-style:normal;font-size:10.5px;color:var(--accent)}
+.prow2 .lean{font:700 13px var(--f-mono);white-space:nowrap}
+.prow2 .lean.o{color:var(--good)}.prow2 .lean.u{color:var(--accent)}
+.prow2 .meta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:3px 10px;font-size:11.5px;color:var(--muted)}
+.prow2 .meta b{color:var(--ink);font-family:var(--f-mono);font-weight:500}
+.mdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px;vertical-align:middle;background:var(--muted)}
+.mdot.great{background:var(--good)}.mdot.tough{background:var(--bad)}
+.tag2{font:600 10.5px var(--f-body);padding:0 6px;border-radius:999px}
+.tag2.bounce,.tag2.real,.tag2.td{background:var(--good-soft);color:var(--good)}.tag2.regress{background:var(--warn-soft);color:var(--warn)}.tag2.role{background:var(--bad-soft);color:var(--bad)}
+.tag2.fire{background:color-mix(in srgb,var(--gold) 18%,var(--surface));color:var(--gold)}.tag2.ice{background:var(--accent-soft);color:var(--accent)}
 </style>
 
 <header>
@@ -453,6 +491,7 @@ details.nerd .usage{border-bottom:0}
     <button role="tab" id="tab-players" data-tab="players" aria-selected="false">Players</button>
     <button role="tab" id="tab-teams" data-tab="teams" aria-selected="false">Teams</button>
     <button role="tab" id="tab-shop" data-tab="shop" aria-selected="false">Line shop</button>
+    <button role="tab" id="tab-parlay" data-tab="parlay" aria-selected="false">Parlay</button>
     <button role="tab" id="tab-bets" data-tab="bets" aria-selected="false">Bets</button>
   </nav>
 </header>
@@ -471,6 +510,9 @@ details.nerd .usage{border-bottom:0}
     <h2 style="margin-top:26px">Trap watch</h2>
     <p class="note">Lines that look too good for the side casual bettors love, while the evidence (line moving the other way, key numbers, cheaper prices, the models, and the sharpest book when we have its odds) points the other way. Moves that injury news explains are discounted. It's a lean, not a lock, so the record of fading these is tracked below.</p>
     <div id="traps"></div>
+    <h2 style="margin-top:26px">Best alternate lines</h2>
+    <p class="note">Rungs of Kalshi's live ladders where our numbers say the price is good after fees. Every alternate line for a player is on his page (tap the prop).</p>
+    <div id="altpicks"></div>
     </div>
   </div>
 
@@ -516,6 +558,7 @@ details.nerd .usage{border-bottom:0}
         <button class="chip" data-pos="WR" aria-pressed="false">WR</button>
         <button class="chip" data-pos="TE" aria-pressed="false">TE</button>
       </div>
+      <div class="row" id="pf-all"><button class="chip" data-pfall="0" aria-pressed="true">Best leans</button><button class="chip" data-pfall="1" aria-pressed="false">All props</button></div>
       <select id="pf-sort" aria-label="Sort props">
         <option value="trend">Strongest trend</option>
         <option value="move">Line movement</option>
@@ -523,7 +566,7 @@ details.nerd .usage{border-bottom:0}
         <option value="team">Team and position</option>
       </select>
     </div>
-    <p class="note">Bars show his last 5 games (oldest on the left) against the dashed prop line, with snap % in blue underneath; faded bars are last season. "Due" badges only appear when his usage backs the streak up. Lines are DraftKings via ESPN, so check your book for the price.</p>
+    <p class="note">One line per prop: our lean and chance, how often that side hit in his last 5 and 10 games, our projection, and the matchup. Tap any line for the full breakdown: game log, chart, and every alternate line with live prices.</p>
     <div id="props"></div>
   </div>
 
@@ -551,6 +594,12 @@ details.nerd .usage{border-bottom:0}
     <h2>Line shop</h2>
     <p class="note" id="shopNote"></p>
     <div class="shop" id="shop"></div>
+  </div>
+
+  <div id="view-parlay" hidden>
+    <div class="toolbar"><h2 style="margin:0">Parlay builder</h2></div>
+    <p class="note">Add legs from anywhere (picks, props, alternate-line ladders, game details), switch any leg to an alternate line, enter your app's odds if they differ, then grade it.</p>
+    <div id="parlay"></div>
   </div>
 
   <div id="view-bets" hidden>
@@ -1270,6 +1319,7 @@ function propView(p, propsRow, pr, g) {
     <div class="scroll"><table><tr><th>Game</th><th>Opp</th><th class="n">${esc(td ? 'TDs' : pr.m)}</th><th>Result</th><th class="n">Snap</th></tr>
       ${games.map(x => `<tr><td>${x.y !== S.slate?.season ? x.y + ' ' : ''}Wk ${x.w}</td><td>${x.h ? 'vs' : '@'} ${esc(x.o)}</td><td class="n">${fmtV(x.v)}</td>
         <td class="${x.v > line ? 'res-o' : x.v < line ? 'res-u' : ''}">${td ? (x.v > 0 ? 'Scored' : 'No TD') : x.v > line ? 'Over' : x.v < line ? 'Under' : 'Push'}</td><td class="n">${x.snap != null ? Math.round(x.snap * 100) + '%' : '–'}</td></tr>`).join('')}</table></div>
+    ${propLadder(p, propsRow, pr, g)}
   </div>`;
 }
 function renderPlayers() {
@@ -1399,14 +1449,14 @@ function renderSlip() {
 }
 document.addEventListener('click', async e => {
   const al = e.target.closest('[data-addleg]');
-  if (al) { const [gid, kind, side, pid, m] = al.dataset.addleg.split('|'); addLeg(makeLeg(gid, kind, side, pid, m)); return; }
+  if (al) { const [gid, kind, side, pid, m, line] = al.dataset.addleg.split('|'); addLeg(makeLeg(gid, kind, side, pid, m, line)); return; }
   if (e.target.closest('#slipBtn')) { PAR.open = !PAR.open; renderSlip(); return; }
   if (e.target.closest('[data-slip-close]')) { PAR.open = false; renderSlip(); return; }
   const del = e.target.closest('[data-legdel]'); if (del) { PAR.legs.splice(+del.dataset.legdel, 1); saveParlay(); renderSlip(); return; }
   if (e.target.closest('[data-slip-clear]')) { PAR.legs = []; saveParlay(); renderSlip(); return; }
   if (e.target.closest('[data-slip-track]')) {
     if (!S.db) { toast('Bets save once the board is connected'); return; }
-    const d = PAR.legs.reduce((x, l) => x * amToDec(+l.odds || -110), 1), units = +($('#slipUnits')?.value || 1);
+    const d = PAR.legs.reduce((x, l) => x * amToDec(+l.odds || -110), 1), units = +(($('#parUnits') || $('#slipUnits'))?.value || 1);
     const kicks = PAR.legs.map(l => S.slate.games.find(g => g.id === l.gid)?.date).filter(Boolean).sort();
     try {
       await S.db.collection('bets').add({ market: 'parlay', gameId: null, label: `${PAR.legs.length}-leg parlay`, desc: PAR.legs.map(l => l.label).join(' + '),
@@ -1433,12 +1483,16 @@ document.addEventListener('change', e => {
 });
 // a parlay grades itself once every leg can be graded: any loss loses; pushed legs drop out
 function gradeParlay(b) {
-  const res = (b.legs || []).map(l => l.kind === 'prop' ? 'pending' : gradeBet({ gameId: l.gid, market: l.kind, side: l.side, line: l.line }));
+  const res = (b.legs || []).map(l => {
+    if (l.kind === 'prop') return 'pending';
+    if (l.kind === 'tt') { const r = S.results?.games?.[l.gid]; if (!r || r.st !== 'post' || r.hs == null) return 'pending'; const pts = l.team === r.h ? r.hs : r.as, d = pts - l.line;
+      return d === 0 ? 'push' : (d > 0) === (l.side === 'over') ? 'win' : 'loss'; }
+    return gradeBet({ gameId: l.gid, market: l.kind, side: l.side, line: l.line }); });
   if (res.includes('loss')) return 'loss';
   if (res.includes('pending')) return 'pending';
   return res.includes('win') ? 'win' : 'push';
 }
-renderSlip();
+queueMicrotask(renderSlip);  // after the whole script has loaded
 
 ICON.trend = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 14h12M4 11V8m4 3V4m4 7V6"/></svg>';
 function renderTrendTable() {
@@ -1564,6 +1618,365 @@ function trapBlock(g) {
     : '<p class="note">No trap signals: the line isn\'t moving against the popular side in a way news doesn\'t explain.</p>';
 }
 
+// ------------------------------------------------------------ alternate lines: one ladder, same columns, for every market
+// our chance at any line uses the same model and the same rule as projections.py, so main and alternate lines line up
+const DISTJS = { 'Pass yds': ['ln', .28], 'Pass+rush yds': ['ln', .27], 'Rush yds': ['ln', .55], 'Rec yds': ['ln', .65], 'Rush+rec yds': ['ln', .5],
+  'Long rec': ['ln', .55], 'Pass att': ['n', .16], 'Completions': ['n', .2], 'Receptions': ['po'], 'Carries': ['po'], 'Pass TD': ['po'], 'INT': ['po'] };
+const ALT_STEP = { 'Pass yds': 25, 'Pass+rush yds': 25, 'Rush yds': 10, 'Rec yds': 10, 'Rush+rec yds': 15, 'Long rec': 5, 'Pass att': 2, 'Completions': 2,
+  'Receptions': 1, 'Carries': 2, 'Pass TD': 1, 'INT': 1, 'Anytime TD': 1 };
+const poissonAtLeast = (lam, k) => { let s = 0, t = Math.exp(-lam); for (let i = 0; i < k; i++) { s += t; t *= lam / (i + 1); } return 1 - s; };
+// With a Kalshi ladder, the market's own curve gives the shape (it prices blowout games far better than any formula);
+// we slide that curve by half the gap between our median and the market's. Without a ladder we use our distribution.
+function ladderCurve(pr) {
+  const pts = (pr.alt || []).filter(r => r.ya != null && r.ya < 0.99).map(r => ({ l: r.l, p: kMid(r) })).sort((a, b) => a.l - b.l);
+  for (let i = 1; i < pts.length; i++) pts[i].p = Math.min(pts[i].p, pts[i - 1].p);   // chance can only fall as the line rises
+  return pts;
+}
+function curveAt(pts, x) {
+  if (x <= pts[0].l) return pts[0].p; if (x >= pts[pts.length - 1].l) return pts[pts.length - 1].p;
+  for (let i = 1; i < pts.length; i++) if (x <= pts[i].l) { const a = pts[i - 1], b = pts[i]; return a.p + (b.p - a.p) * (x - a.l) / (b.l - a.l); }
+}
+function curveMedian(pts) {
+  for (let i = 1; i < pts.length; i++) if (pts[i - 1].p >= 0.5 && pts[i].p < 0.5) { const a = pts[i - 1], b = pts[i]; return a.l + (a.p - 0.5) / (a.p - b.p) * (b.l - a.l); }
+  return null;
+}
+function ourMedian(pr) { const d = DISTJS[pr.m] || ['ln', .5]; return d[0] === 'ln' ? pr.proj / Math.sqrt(1 + d[1] ** 2) : d[0] === 'po' ? Math.max(0, pr.proj - 1 / 3) : pr.proj; }
+function propChance(pr, L) {
+  if (pr.proj == null) return null;
+  if (pr.m === 'Anytime TD') { const k = Math.max(1, Math.ceil(L)); return Math.min(k === 1 ? 0.75 : 0.97, poissonAtLeast(pr.proj, k)); }
+  const pts = ladderCurve(pr), M = pts.length >= 3 ? curveMedian(pts) : null;
+  if (M != null) return Math.max(0.02, Math.min(0.98, curveAt(pts, L - 0.5 * (ourMedian(pr) - M))));
+  const d = DISTJS[pr.m] || ['ln', .5], mu = pr.proj; let p;
+  if (mu <= 0) return 0.03;
+  if (d[0] === 'po') p = poissonAtLeast(mu, Math.floor(L) + 1);
+  else if (d[0] === 'n') p = 1 - normCdf((L - mu) / Math.max(mu * d[1], 0.5));
+  else { const s2 = Math.log(1 + d[1] ** 2); p = 1 - normCdf((Math.log(Math.max(L, 0.01)) - (Math.log(mu) - s2 / 2)) / Math.sqrt(s2)); }
+  p = 0.5 + 0.85 * (p - 0.5);
+  return Math.max(0.03, Math.min(0.97, p));
+}
+const teamTotalChance = (g, abbr, L) => { const p = g.proj; if (!p) return null; const mu = abbr === g.home.abbr ? p.h : p.a; return 1 - normCdf((L - mu) / 9.5); };
+const fairAm = p => p == null || p <= 0 || p >= 1 ? null : p >= 0.5 ? Math.round(-100 * p / (1 - p)) : Math.round(100 * (1 - p) / p);
+// Kalshi: buy Yes at the ask plus its trading fee (about 7% of p x (1 - p) per contract); a winning contract pays $1
+const kCost = ask => ask == null ? null : ask + 0.07 * ask * (1 - ask);
+const kMid = r => r.yb != null && r.ya != null ? (r.yb + r.ya) / 2 : r.ya;
+function kalshiEV(pOurs, r, side) {
+  if (!r || pOurs == null) return null;
+  const ask = side === 'over' ? r.ya : r.na; if (ask == null || ask >= 0.99) return null;
+  const mkt = side === 'over' ? kMid(r) : 1 - kMid(r);
+  const p = 0.5 * (side === 'over' ? pOurs : 1 - pOurs) + 0.5 * mkt;   // blended with the market, like everywhere else
+  return { p, cost: kCost(ask), ev: p / kCost(ask) - 1, ask };
+}
+const centsAm = c => c == null ? null : fairAm(c);   // a Kalshi price as American odds (before fees)
+
+// every rung for one prop: Kalshi's ladder plus the main line, filled in around it when Kalshi has few rungs
+function propRungs(pr) {
+  const set = new Map();
+  (pr.alt || []).forEach(r => set.set(r.l, r));
+  if (pr.m !== 'Anytime TD' && !set.has(pr.l)) set.set(pr.l, null);
+  if (set.size < 5 && pr.m !== 'Anytime TD') { const st = ALT_STEP[pr.m] || 1; for (let k = -3; k <= 3; k++) { const L = +(pr.l + k * st).toFixed(1); if (L > 0 && !set.has(L)) set.set(L, null); } }
+  if (pr.m === 'Anytime TD') [0.5, 1.5].forEach(L => { if (!set.has(L)) set.set(L, null); });
+  return [...set.entries()].sort((a, b) => a[0] - b[0]).map(([l, k]) => ({ l, k }));
+}
+function hitCount(games, L, over) { return games.filter(v => over ? v > L : v < L).length; }
+
+function ladderTable(rows, opts) {
+  // rows: {label, l, p, k (kalshi rung|null), l5, l10, main, add: {over, under}}
+  const anyK = rows.some(r => r.k), anyH = rows.some(r => r.l10 != null);
+  return `<div class="scroll"><table class="ladder"><tr><th>${esc(opts.head)}</th><th class="n">Our %</th><th class="n">Fair</th>${anyH ? '<th class="n">L5</th><th class="n">L10</th>' : ''}${anyK ? '<th class="n">Kalshi yes / no</th><th class="n">Value</th>' : ''}<th></th></tr>
+    ${rows.map(r => {
+      const judge = r.p != null && r.p >= 0.25 && r.p <= 0.9 && !opts.noValue;
+      const evO = judge ? kalshiEV(r.p, r.k, 'over') : null, evU = judge ? kalshiEV(r.p, r.k, 'under') : null;
+      const best = [evO && { s: 'over', ...evO }, evU && { s: 'under', ...evU }].filter(Boolean).sort((a, b) => b.ev - a.ev)[0];
+      const good = best && best.ev >= 0.04;
+      return `<tr class="${r.main ? 'mainrung' : ''}${good ? ' valrung' : ''}"><td>${esc(r.label)}${r.main ? ' <span class="rk">main</span>' : ''}</td>
+        <td class="n">${r.p == null ? '–' : Math.round(r.p * 100) + '%'}</td><td class="n">${fmtOdds(fairAm(r.p))}</td>
+        ${anyH ? `<td class="n">${r.l5 ?? '–'}</td><td class="n">${r.l10 ?? '–'}</td>` : ''}
+        ${anyK ? `<td class="n">${r.k ? `${r.k.ya != null ? Math.round(r.k.ya * 100) + '¢' : '–'} / ${r.k.na != null ? Math.round(r.k.na * 100) + '¢' : '–'}` : '–'}</td>
+          <td class="n">${best ? `<span class="${best.ev >= 0 ? 'pos' : 'neg'}">${best.s === 'over' ? opts.yes : opts.no} ${evS(best.ev).replace(' EV', '')}</span>` : r.k && !judge ? '<span class="note">long shot</span>' : '–'}</td>` : ''}
+        <td class="n"><button class="addp" data-addleg="${r.add.over}" title="Add ${esc(opts.yes)} ${r.l} to parlay">+${esc(opts.yes)}</button> <button class="addp" data-addleg="${r.add.under}" title="Add ${esc(opts.no)} ${r.l} to parlay">+${esc(opts.no)}</button></td></tr>`;
+    }).join('')}</table></div>`;
+}
+const ALT_NOTE = `<p class="note">Our % is the chance from our projection at that exact number. Fair is the price where that bet breaks even; any app paying more than fair is a good price. Kalshi shows live Yes/No contract prices (cents ≈ chance) and Value is the expected return after Kalshi's fee, using our chance blended 50/50 with Kalshi's; long shots (under 25% or over 90%) aren't rated because no one can price those reliably. When Kalshi has a ladder, our chances follow its shape, shifted toward our projection.</p>`;
+
+function propLadder(p, propsRow, pr, g) {
+  const games = (p?.last?.length && PAGE_STAT[pr.m]) ? p.last.map(r => PAGE_STAT[pr.m].reduce((s, k) => s + (r[k] || 0), 0))
+    : propRow(propsRow, pr, g).games.slice().reverse().map(x => x.v);
+  const td = pr.m === 'Anytime TD';
+  const rows = propRungs(pr).map(({ l, k }) => ({ l, k, main: l === pr.l && !td || td && l === 0.5, p: propChance(pr, l),
+    label: td ? (l < 1 ? 'Anytime TD (1+)' : `${Math.ceil(l)}+ TDs`) : `${pr.m} ${Math.ceil(l)}+ (o${l})`,
+    l5: games.length ? `${hitCount(games.slice(0, 5), l, true)}/${Math.min(5, games.length)}` : null, l10: games.length ? `${hitCount(games, l, true)}/${games.length}` : null,
+    add: { over: `${g.id}|prop|over|${propsRow.id}|${pr.m}|${l}`, under: `${g.id}|prop|under|${propsRow.id}|${pr.m}|${l}` } }));
+  return `<h3 style="margin:4px 0 0">Alternate lines</h3>${ladderTable(rows, { head: 'Line', yes: td ? 'Yes' : 'Over', no: td ? 'No' : 'Under', noValue: td })}${td ? '<p class="note">Touchdowns are the hardest thing to project, so we show our chance and fair odds but do not rate value against Kalshi here.</p>' : ''}${ALT_NOTE}`;
+}
+
+function gameLadders(g) {
+  const o = g.odds || {}, k = g.kalshi || {}, A = g.away, H = g.home;
+  if (!g.proj || g.state !== 'pre') return '';
+  // spreads, from the favorite's side: "X wins by more than N" is Yes, the other side (+N) is No
+  const fav = (o.hs ?? 0) <= 0 ? H : A, dog = fav === H ? A : H, side = fav === H ? 'home' : 'away';
+  const main = o.hs != null ? Math.abs(o.hs) : 0;
+  const lines = new Map((k.spread?.[fav.abbr] || []).map(r => [r.l, r]));
+  for (let d = -3; d <= 3; d++) { const L = +(Math.max(0.5, main + d)).toFixed(1); if (!lines.has(L)) lines.set(L, null); }
+  const srows = [...lines.entries()].sort((a, b) => a[0] - b[0]).map(([l, kr]) => ({ l, k: kr, main: l === main, p: ourChance(g, 'spread', side, -l),
+    label: `${fav.abbr} -${l} / ${dog.abbr} +${l}`, add: { over: `${g.id}|spread|${side}|||${-l}`, under: `${g.id}|spread|${side === 'home' ? 'away' : 'home'}|||${l}` } }));
+  const tl = new Map((k.total || []).map(r => [r.l, r]));
+  if (o.t != null) for (let d = -6; d <= 6; d += 2) { const L = +(o.t + d).toFixed(1); if (!tl.has(L)) tl.set(L, null); }
+  const trows = [...tl.entries()].filter(([l]) => o.t == null || Math.abs(l - o.t) <= 14).sort((a, b) => a[0] - b[0]).map(([l, kr]) => ({ l, k: kr, main: l === o.t,
+    p: ourChance(g, 'total', 'over', l), label: `Total ${l}`, add: { over: `${g.id}|total|over|||${l}`, under: `${g.id}|total|under|||${l}` } }));
+  const team = t => { const rs = (k.tt?.[t.abbr] || []).filter(r => (r.ya ?? 0) > 0.05 && (r.ya ?? 1) < 0.95);
+    return rs.length ? ladderTable(rs.map(r => ({ l: r.l, k: r, p: teamTotalChance(g, t.abbr, r.l), label: `${t.abbr} over ${r.l}`, add: { over: `${g.id}|tt|over|${t.abbr}||${r.l}`, under: `${g.id}|tt|under|${t.abbr}||${r.l}` } })), { head: `${t.abbr} team total`, yes: 'Over', no: 'Under' }) : ''; };
+  const ml = k.ml ? `<p class="offer">Kalshi moneyline: ${[A, H].map(t => k.ml[t.abbr] ? `${esc(t.abbr)} ${Math.round(k.ml[t.abbr].ya * 100)}¢ (${fmtOdds(centsAm(k.ml[t.abbr].ya))})` : '').filter(Boolean).join(' · ')} · our win chance ${esc(H.abbr)} ${Math.round(g.proj.pHome * 100)}%</p>` : '';
+  return `<div style="grid-column:1/-1;min-width:0"><h3>Alternate lines</h3>${ml}
+    ${ladderTable(srows, { head: 'Spread', yes: fav.abbr, no: dog.abbr })}<br>${ladderTable(trows, { head: 'Total', yes: 'Over', no: 'Under' })}${team(A)}${team(H)}${ALT_NOTE}</div>`;
+}
+
+// the best-priced alternate lines anywhere on the slate (needs Kalshi prices to judge value)
+function altValuePicks() {
+  const out = [];
+  for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) {
+    for (const pl of S.props?.[g.id] || []) {
+      const team = pl.side === 'home' ? g.home : g.away;
+      if (team.inj.some(i => i.n === pl.n && (isOut(i.s) || /doubtful/i.test(i.s)))) continue;
+      for (const pr of pl.props.filter(x => x.m !== 'Anytime TD')) for (const r of pr.alt || []) {
+        const p = propChance(pr, r.l); if (p == null || (r.v || 0) < 500) continue;
+        for (const s of ['over', 'under']) { const e = kalshiEV(p, r, s); if (e && e.ev >= 0.05 && e.p >= 0.3 && e.p <= 0.88) out.push({ g, pl, pr, r, s, ...e }); }
+      }
+    }
+  }
+  const per = {};
+  return out.sort((a, b) => b.ev - a.ev).filter(x => (per[x.pl.id + x.pr.m] = (per[x.pl.id + x.pr.m] || 0) + 1) <= 1).slice(0, 12);
+}
+function renderAltPicks() {
+  const box = $('#altpicks'); if (!box) return;
+  const list = altValuePicks();
+  box.innerHTML = list.length ? `<div class="picks">${list.map(x => { const td = x.pr.m === 'Anytime TD', yes = x.s === 'over';
+    const label = td ? (x.r.l < 1 ? (yes ? 'Anytime TD' : 'No TD') : `${yes ? '' : 'Not '}${Math.ceil(x.r.l)}+ TDs`) : `${yes ? Math.ceil(x.r.l) + '+' : 'Under ' + x.r.l} ${x.pr.m.toLowerCase()}`;
+    return `<article class="pick"><div class="pick-h">${logo(x.pl.tm, 30)}<b><button class="plink" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}"><b>${esc(x.pl.n)}</b></button> ${esc(label)}</b><span class="stars">${x.ev >= 0.12 ? stars(3) : x.ev >= 0.08 ? stars(2) : stars(1)}</span></div>
+      <div class="pick-sub">${esc(x.g.away.abbr)} @ ${esc(x.g.home.abbr)} · ${kick(x.g)} · alternate line</div>
+      <div class="offer">Kalshi ${yes ? 'Yes' : 'No'} at <b>${Math.round(x.ask * 100)}¢</b> (${fmtOdds(centsAm(x.ask))}) · our chance <b>${Math.round(x.p * 100)}%</b> · <span class="pos">${evS(x.ev)}</span> after fees</div>
+      <div class="acts"><button class="addp" data-addleg="${x.g.id}|prop|${x.s}|${esc(x.pl.id)}|${esc(x.pr.m)}|${x.r.l}">+ Parlay</button><button class="btn small" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}">See ladder</button></div></article>`; }).join('')}</div>`
+    : `<div class="empty"><b>No standout alternate lines</b>Kalshi's ladders and our numbers agree right now.</div>`;
+}
+
+// ------------------------------------------------------------ parlay builder + grader
+// A leg is any line, main or alternate: {id, gid, kind: spread|ml|total|tt|prop, side, line, odds, book, priced, ...}
+function findProp(gid, pid, m) { const pl = S.props?.[gid]?.find(x => x.id === pid); return { pl, pr: pl?.props.find(x => x.m === m) }; }
+function legRungs(leg) {
+  const g = S.slate?.games.find(x => x.id === leg.gid); if (!g) return [];
+  if (leg.kind === 'prop') { const { pr } = findProp(leg.gid, leg.pid, leg.m); return pr ? propRungs(pr).map(r => r.l) : []; }
+  if (leg.kind === 'total') { const s = new Set((g.kalshi?.total || []).map(r => r.l)); if (g.odds?.t != null) for (let d = -6; d <= 6; d++) s.add(+(g.odds.t + d).toFixed(1));
+    (g.shop?.books || []).forEach(b => b.t != null && s.add(b.t)); return [...s].filter(x => g.odds?.t == null || Math.abs(x - g.odds.t) <= 12).sort((a, b) => a - b); }
+  if (leg.kind === 'spread') { const s = new Set(), main = leg.side === 'home' ? g.odds?.hs : g.odds?.hs != null ? -g.odds.hs : 0;
+    for (let d = -6; d <= 6; d++) s.add(+(main + d).toFixed(1));
+    const team = g[leg.side].abbr, other = g[leg.side === 'home' ? 'away' : 'home'].abbr;
+    (g.kalshi?.spread?.[team] || []).forEach(r => s.add(-r.l)); (g.kalshi?.spread?.[other] || []).forEach(r => s.add(r.l));
+    return [...s].filter(x => x !== 0 && Math.abs(x - main) <= 10).sort((a, b) => a - b); }
+  if (leg.kind === 'tt') return (g.kalshi?.tt?.[leg.team] || []).map(r => r.l);
+  return [];
+}
+// a price for a leg: the sportsbooks' best number when it's the main line, else Kalshi's contract at that exact line
+function legPrice(leg, g) {
+  const o = g.odds || {};
+  if (leg.kind === 'ml') { const b = bestOffer(g, 'ml', leg.side); const kr = g.kalshi?.ml?.[g[leg.side].abbr];
+    if (b) return { odds: b.price, book: b.book }; if (kr?.ya) return { odds: centsAm(kCost(kr.ya)), book: 'Kalshi' }; }
+  const exact = (lineOf, priceOf) => (g.shop?.books || []).filter(b => lineOf(b) === leg.line && priceOf(b) != null).map(b => ({ odds: priceOf(b), book: b.n })).sort((a, b) => b.odds - a.odds)[0];
+  if (leg.kind === 'spread') {
+    const mainLine = leg.side === 'home' ? o.hs : o.hs != null ? -o.hs : null;
+    const bk = exact(b => leg.side === 'home' ? b.hs : b.as, b => leg.side === 'home' ? b.hsp : b.asp); if (bk) return bk;
+    if (leg.line === mainLine && (leg.side === 'home' ? o.hsp : o.asp) != null) return { odds: leg.side === 'home' ? o.hsp : o.asp, book: o.book };
+    const team = g[leg.side].abbr, other = g[leg.side === 'home' ? 'away' : 'home'].abbr;
+    const yes = (g.kalshi?.spread?.[team] || []).find(r => -r.l === leg.line), no = (g.kalshi?.spread?.[other] || []).find(r => r.l === leg.line);
+    if (yes?.ya) return { odds: centsAm(kCost(yes.ya)), book: 'Kalshi' }; if (no?.na) return { odds: centsAm(kCost(no.na)), book: 'Kalshi' };
+  }
+  if (leg.kind === 'total') {
+    const bk = exact(b => b.t, b => leg.side === 'over' ? b.op : b.up); if (bk) return bk;
+    if (leg.line === o.t && (leg.side === 'over' ? o.op : o.up) != null) return { odds: leg.side === 'over' ? o.op : o.up, book: o.book };
+    const r = (g.kalshi?.total || []).find(x => x.l === leg.line), ask = r && (leg.side === 'over' ? r.ya : r.na);
+    if (ask && ask < 0.99) return { odds: centsAm(kCost(ask)), book: 'Kalshi' };
+  }
+  if (leg.kind === 'tt') { const r = (g.kalshi?.tt?.[leg.team] || []).find(x => x.l === leg.line), ask = r && (leg.side === 'over' ? r.ya : r.na); if (ask && ask < 0.99) return { odds: centsAm(kCost(ask)), book: 'Kalshi' }; }
+  if (leg.kind === 'prop') {
+    const { pr } = findProp(leg.gid, leg.pid, leg.m);
+    const b = pr && (pr.books || []).filter(x => x.l === leg.line).map(x => ({ n: x.n, price: leg.side === 'over' ? x.o : x.u })).filter(x => x.price != null).sort((a, b) => b.price - a.price)[0];
+    if (b) return { odds: b.price, book: b.n };
+    const r = pr && (pr.alt || []).find(x => x.l === leg.line), ask = r && (leg.side === 'over' ? r.ya : r.na);
+    if (ask && ask < 0.99) return { odds: centsAm(kCost(ask)), book: 'Kalshi' };
+  }
+  return null;
+}
+// the market's chance at a line nobody quotes: centered on the market's own number, not on our projection
+function marketChance(leg, g) {
+  const o = g.odds || {};
+  if (leg.kind === 'spread' && o.hs != null) { const m = leg.side === 'home' ? -o.hs : o.hs; return normCdf((m + leg.line) / 13.5); }
+  if (leg.kind === 'total' && o.t != null) { const z = (leg.line - o.t) / 13; return leg.side === 'over' ? 1 - normCdf(z) : normCdf(z); }
+  if (leg.kind === 'tt' && o.hImp != null) { const mu = leg.team === g.home.abbr ? o.hImp : o.aImp, c = 1 - normCdf((leg.line - mu) / 9.5); return leg.side === 'over' ? c : 1 - c; }
+  if (leg.kind === 'prop') { const { pr } = findProp(leg.gid, leg.pid, leg.m); if (!pr) return null;
+    const pts = ladderCurve(pr); let c;
+    if (pts.length >= 3) c = curveAt(pts, leg.line);
+    else if (pr.m === 'Anytime TD') c = null;
+    else { const d = DISTJS[pr.m] || ['ln', .5], mu = d[0] === 'ln' ? pr.l * Math.sqrt(1 + d[1] ** 2) : d[0] === 'po' ? pr.l + 1 / 3 : pr.l;
+      c = propChance({ ...pr, alt: null, proj: mu }, leg.line); }
+    return c == null ? null : leg.side === 'over' ? c : 1 - c; }
+  return null;
+}
+function legLabel(leg, g) {
+  if (leg.kind === 'spread') return `${g[leg.side].abbr} ${fmtLine(leg.line)}`;
+  if (leg.kind === 'ml') return `${g[leg.side].abbr} moneyline`;
+  if (leg.kind === 'total') return `${leg.side === 'over' ? 'Over' : 'Under'} ${leg.line}`;
+  if (leg.kind === 'tt') return `${leg.team} ${leg.side === 'over' ? 'over' : 'under'} ${leg.line} points`;
+  const { pl } = findProp(leg.gid, leg.pid, leg.m);
+  if (leg.m === 'Anytime TD') return `${pl?.n || ''} ${leg.line > 1 ? (leg.side === 'over' ? Math.ceil(leg.line) + '+ TDs' : 'under ' + Math.ceil(leg.line) + ' TDs') : leg.side === 'over' ? 'anytime TD' : 'no TD'}`;
+  return `${pl?.n || ''} ${leg.side === 'over' ? 'o' : 'u'}${leg.line} ${leg.m.toLowerCase()}`;
+}
+function makeLeg(gid, kind, side, pid, m, line) {
+  const g = S.slate?.games.find(x => x.id === gid); if (!g) return null;
+  const o = g.odds || {};
+  const leg = { gid, kind, side };
+  if (kind === 'prop') { const { pl, pr } = findProp(gid, pid, m); if (!pr) return null;
+    Object.assign(leg, { pid, m, pos: posGroup(pl.p), team: pl.tm, line: line !== '' && line != null ? +line : pr.m === 'Anytime TD' ? 0.5 : pr.l }); }
+  else if (kind === 'tt') Object.assign(leg, { team: pid, line: +line });
+  else if (kind === 'ml') leg.team = g[side].abbr;
+  else if (kind === 'spread') Object.assign(leg, { team: g[side].abbr, line: line !== '' && line != null ? +line : (bestOffer(g, 'spread', side)?.line ?? (side === 'home' ? o.hs : -o.hs)) });
+  else if (kind === 'total') leg.line = line !== '' && line != null ? +line : (bestOffer(g, 'total', side)?.line ?? o.t);
+  return refreshLeg(leg);
+}
+function refreshLeg(leg) {
+  const g = S.slate?.games.find(x => x.id === leg.gid); if (!g) return leg;
+  const pr = legPrice(leg, g);
+  leg.priced = !!pr || leg.manual;
+  if (!leg.manual) {
+    if (pr) { leg.odds = pr.odds; leg.book = pr.book; leg.est = false; }
+    else { const m = marketChance(leg, g); leg.odds = m != null ? fairAm(Math.min(0.97, m * 1.045)) : -110; leg.book = null; leg.est = true; }
+  }
+  leg.id = [leg.gid, leg.kind, leg.side, leg.pid || leg.team || '', leg.m || '', leg.line ?? ''].join('|');
+  leg.label = legLabel(leg, g); leg.sub = `${g.away.abbr} @ ${g.home.abbr}${leg.book ? ' · ' + leg.book : leg.priced ? '' : ' · estimated price, enter yours'}`;
+  return leg;
+}
+function legChance(leg) {
+  const g = S.slate?.games.find(x => x.id === leg.gid); if (!g) return null;
+  let ours;
+  if (leg.kind === 'prop') { const { pr } = findProp(leg.gid, leg.pid, leg.m); const c = pr && propChance(pr, leg.line); ours = c == null ? null : leg.side === 'over' ? c : 1 - c; }
+  else if (leg.kind === 'tt') { const c = teamTotalChance(g, leg.team, leg.line); ours = c == null ? null : leg.side === 'over' ? c : 1 - c; }
+  else ours = ourChance(g, leg.kind, leg.side, leg.line);
+  if (ours == null) return null;
+  const mkt = leg.odds ? impl(+leg.odds) / (leg.book === 'Kalshi' ? 1.02 : 1.045) : null;   // the price's own chance, vig trimmed
+  return { ours, mkt, p: blend(ours, mkt) };
+}
+
+// every judgment the grader makes about one leg
+function legNotes(leg) {
+  const g = S.slate.games.find(x => x.id === leg.gid), c = legChance(leg), plus = [], minus = [];
+  if (!c) return { plus, minus, c };
+  const ev = leg.priced ? c.p * amToDec(+leg.odds) - 1 : null;
+  if (c.p >= 0.62) plus.push(`${leg.label}: a strong leg, ${Math.round(c.p * 100)}% to hit.`);
+  if (ev != null && ev >= 0.03) plus.push(`${leg.label}: priced better than fair at ${fmtOdds(+leg.odds)}${leg.book ? ' (' + leg.book + ')' : ''}.`);
+  if (ev != null && ev <= -0.06) minus.push(`${leg.label}: you're paying a lot for it at ${fmtOdds(+leg.odds)}; fair is about ${fmtOdds(fairAm(c.p))}.`);
+  if (leg.kind === 'prop') {
+    const { pl, pr } = findProp(leg.gid, leg.pid, leg.m), page = S.players?.[leg.pid];
+    const games = page?.last?.length && PAGE_STAT[leg.m] ? page.last.map(r => PAGE_STAT[leg.m].reduce((s, k) => s + (r[k] || 0), 0)) : [];
+    if (games.length >= 6) { const h = hitCount(games, leg.line, leg.side === 'over'), n = games.length;
+      if (h / n >= 0.7) plus.push(`${pl.n} has cleared this in ${h} of his last ${n}.`); if (h / n <= 0.3) minus.push(`${pl.n} has cleared this in only ${h} of his last ${n}.`); }
+    const opp = pl.side === 'home' ? g.away : g.home, [dp, dk] = DVP_FOR(leg.m, posGroup(pl.p)), r = AN()[opp.abbr]?.dvp?.[dp]?.rk?.[dk];
+    if (r) { const good = leg.side === 'over' ? r <= 8 : r >= 25, bad = leg.side === 'over' ? r >= 25 : r <= 8;
+      if (good) plus.push(leg.side === 'over' ? `Good matchup for ${pl.n}: the ${nick(opp)} are among the softest against ${dp}s.` : `The matchup helps this under: the ${nick(opp)} are among the toughest against ${dp}s.`);
+      if (bad) minus.push(leg.side === 'over' ? `Tough matchup for ${pl.n}: the ${nick(opp)} are among the toughest against ${dp}s.` : `The matchup works against this under: the ${nick(opp)} give up a lot to ${dp}s.`); }
+    const inj = (pl.side === 'home' ? g.home : g.away).inj.find(i => i.n === pl.n);
+    if (inj) minus.push(`${pl.n} is listed ${inj.s.toLowerCase()}${inj.t ? ' (' + inj.t + ')' : ''}.`);
+    const d = dueRead(propRow(pl, pr, g)); if (d && ['role', 'regress'].includes(d.k) === (leg.side === 'over')) minus.push(`${pl.n}: ${d.label.toLowerCase()}.`);
+  }
+  for (const t of trapList(g)) {
+    if (t.k === 'side' && (leg.kind === 'spread' || leg.kind === 'ml') && leg.side === t.pub) minus.push(`${leg.label} is on the popular side of a ${t.label.toLowerCase()} (${t.score}/100).`);
+    if (t.k === 'total' && leg.kind === 'total' && leg.side === 'over') minus.push(`${leg.label} is the over in a game flagged for a trap (${t.score}/100).`);
+  }
+  return { plus, minus, c, ev };
+}
+// grade the whole ticket
+function gradeReport(legs) {
+  const n = legs.length, notes = legs.map(legNotes), W = parlayWarnings(legs);
+  const ps = notes.map(x => x.c?.p).filter(p => p != null);
+  if (ps.length !== n) return null;
+  let p = ps.reduce((a, b) => a * b, 1);
+  const pos = W.filter(w => w.t === 'pos').length, neg = W.filter(w => w.t === 'neg').length;
+  p = Math.min(Math.min(...ps), p * Math.pow(1.08, pos) * Math.pow(0.8, neg));   // legs that move together hit together
+  const d = legs.reduce((x, l) => x * amToDec(+l.odds || -110), 1), ev = p * d - 1, unpriced = legs.filter(l => !l.priced).length;
+  const letter = ev >= 0.1 ? 'A' : ev >= 0.02 ? 'B' : ev >= -0.08 ? 'C' : ev >= -0.2 ? 'D' : 'F';
+  const plus = notes.flatMap(x => x.plus), minus = notes.flatMap(x => x.minus);
+  W.forEach(w => (w.t === 'pos' ? plus : minus).push(w.t === 'pos' ? `Correlated: ${w.s} That raises your real odds, though some apps reprice same-game combos.` : `Conflict: ${w.s}`));
+  if (n >= 5) minus.push(`${n} legs: every extra leg stacks another helping of the book's margin, so long parlays rarely pay off over time.`);
+  // the weak link, and alternate lines that would make the ticket better
+  const weakest = notes.map((x, i) => ({ i, p: x.c.p, ev: x.ev })).sort((a, b) => a.p - b.p)[0];
+  const tips = [];
+  if (n > 1) { const rest = ps.filter((_, i) => i !== weakest.i).reduce((a, b) => a * b, 1), d2 = legs.filter((_, i) => i !== weakest.i).reduce((x, l) => x * amToDec(+l.odds || -110), 1);
+    tips.push({ t: `Drop ${legs[weakest.i].label} (${Math.round(weakest.p * 100)}%): your hit chance goes from ${Math.round(p * 100)}% to about ${Math.round(rest * 100)}%, paying ${fmtOdds(decToAm(d2))}.`, act: `drop|${weakest.i}` }); }
+  legs.forEach((l, i) => {
+    if (!['prop', 'total', 'spread', 'tt'].includes(l.kind)) return;
+    if (l.m === 'Anytime TD') return;
+    const base = notes[i].c.p, baseEv = notes[i].ev ?? -1;
+    const cands = legRungs(l).filter(L => L !== l.line).map(L => { const t = refreshLeg({ ...l, line: L, manual: false }); const c = legChance(t); return c && t.priced ? { L, c, ev: c.p * amToDec(+t.odds) - 1, t } : null; })
+      .filter(x => x && x.c.p >= 0.4 && x.c.p <= 0.92);
+    const safer = cands.filter(x => x.c.p >= base + 0.08 && x.ev >= baseEv - 0.02 && x.ev >= -0.03).sort((a, b) => b.c.p - a.c.p)[0];
+    const value = cands.filter(x => x.ev >= 0.03 && x.ev >= baseEv + 0.05 && x.c.p >= base - 0.12).sort((a, b) => b.ev - a.ev)[0];
+    const pick = value || safer;
+    if (pick) tips.push({ t: `Swap ${l.label} to ${pick.t.label} at ${fmtOdds(+pick.t.odds)}${pick.t.book ? ' (' + pick.t.book + ')' : ''}: ${Math.round(base * 100)}% → ${Math.round(pick.c.p * 100)}% to hit${value ? ', and better value' : ''}.`, act: `swap|${i}|${pick.L}` });
+  });
+  const summary = `${letter === 'A' ? 'Strong ticket.' : letter === 'B' ? 'Good ticket.' : letter === 'C' ? 'Fair ticket, roughly what you pay for.' : letter === 'D' ? 'Weak ticket.' : 'Poor ticket.'} We think it hits ${Math.round(p * 100)}% of the time (about 1 in ${Math.max(1, Math.round(1 / p))}); it pays ${fmtOdds(decToAm(d))} and fair would be ${fmtOdds(decToAm(1 / p))}.`;
+  return { letter, p, d, ev, plus, minus, tips: tips.slice(0, 4), summary, unpriced, notes };
+}
+
+const PAR_VIEW = { graded: false };
+function renderParlay() {
+  const box = $('#parlay'); if (!box) return;
+  PAR.legs = PAR.legs.map(l => l.kind ? l : null).filter(Boolean);
+  if (!PAR.legs.length) { box.innerHTML = `<div class="empty"><b>Your parlay is empty</b>Tap “+ Parlay” on any pick, prop, ladder rung or game, and the legs land here. Then grade it.</div>`; return; }
+  const units = +(store.get('edge-parlay-units') || 1), rep = gradeReport(PAR.legs), d = PAR.legs.reduce((x, l) => x * amToDec(+l.odds || -110), 1);
+  box.innerHTML = `<div class="pbuild">
+    ${PAR.legs.map((l, i) => { const c = legChance(l), rungs = legRungs(l);
+      return `<div class="pleg"><div class="pleg-main"><b>${esc(l.label)}</b><small>${esc(l.sub)}</small></div>
+        ${rungs.length > 1 ? `<label class="note">Line <select data-legline="${i}">${rungs.map(L => `<option value="${L}"${L === l.line ? ' selected' : ''}>${l.kind === 'spread' ? fmtLine(L) : L}</option>`).join('')}</select></label>` : ''}
+        ${['prop', 'total', 'tt'].includes(l.kind) ? `<button class="chip" data-legflip="${i}">${l.side === 'over' ? 'Over' : 'Under'} ⇄</button>` : ''}
+        <label class="note">Odds <input inputmode="numeric" value="${esc(l.odds)}" data-legodds2="${i}" style="width:74px"></label>
+        <span class="pleg-p">${c ? Math.round(c.p * 100) + '%' : '–'}</span>
+        <button class="backlink" data-legdel2="${i}" aria-label="Remove ${esc(l.label)}">Remove</button></div>`; }).join('')}
+    <div class="ptot"><div><span>Pays</span><b>${fmtOdds(decToAm(d))}</b></div><div><span>${units}u wins</span><b>${(units * (d - 1)).toFixed(2)}u</b></div><div><span>We say it hits</span><b>${rep ? Math.round(rep.p * 100) + '%' : '–'}</b></div></div>
+    <div class="row"><label class="note">Units <input id="parUnits" inputmode="decimal" value="${units}" style="width:70px"></label>
+      <button class="btn primary" data-grade>Grade my parlay</button><button class="btn" data-slip-track>Track it</button><button class="btn small" data-parclear>Clear</button></div>
+  </div>
+  ${PAR_VIEW.graded && rep ? `<div class="gradecard"><div class="grade g-${rep.letter}">${rep.letter}</div><div>
+      <p class="prop-say" style="font-size:14px">${esc(rep.summary)}${rep.ev != null ? ` Expected value <b class="${rep.ev >= 0 ? 'pos' : 'neg'}">${evS(rep.ev)}</b>.` : ''}</p>
+      ${rep.unpriced ? `<p class="note">${rep.unpriced} leg${rep.unpriced > 1 ? 's use' : ' uses'} an estimated price (no book or Kalshi quote at that exact line). Enter your app's odds for an exact grade.</p>` : ''}</div></div>
+    <div class="lu-grid" style="margin-top:12px">
+      <div class="panel"><h3>Strengths</h3>${rep.plus.length ? `<ul class="trapwhy">${rep.plus.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '<p class="note">Nothing stands out in its favor.</p>'}</div>
+      <div class="panel"><h3>Weaknesses</h3>${rep.minus.length ? `<ul class="trapwhy">${rep.minus.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '<p class="note">No red flags.</p>'}</div></div>
+    ${rep.tips.length ? `<div class="panel" style="margin-top:12px"><h3>Ways to improve it</h3>${rep.tips.map(t => `<div class="trow" style="grid-template-columns:minmax(0,1fr) auto"><div class="who">${esc(t.t)}</div><div class="val"><button class="btn small" data-partip="${t.act}">Apply</button></div></div>`).join('')}</div>` : ''}` : ''}`;
+}
+function renderSlip() {
+  let btn = $('#slipBtn');
+  if (!btn) { document.body.insertAdjacentHTML('beforeend', '<button class="slipbtn" id="slipBtn" hidden></button>'); btn = $('#slipBtn'); }
+  btn.hidden = !PAR.legs.length; btn.innerHTML = `Parlay<b>${PAR.legs.length}</b>`;
+  renderParlay();
+}
+function addLeg(leg) {
+  if (!leg) return;
+  if (PAR.legs.some(l => l.id === leg.id)) { toast('Already in your parlay'); return; }
+  PAR.legs.push(leg); PAR_VIEW.graded = false; saveParlay(); renderSlip(); toast(`Added: ${leg.label}`);
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('#slipBtn')) { e.stopImmediatePropagation(); setTab('parlay'); window.scrollTo(0, 0); return; }
+  const gr = e.target.closest('[data-grade]'); if (gr) { PAR_VIEW.graded = true; renderParlay(); return; }
+  const fl = e.target.closest('[data-legflip]'); if (fl) { const l = PAR.legs[+fl.dataset.legflip]; l.side = l.side === 'over' ? 'under' : 'over'; l.manual = false; refreshLeg(l); saveParlay(); renderSlip(); return; }
+  const dl = e.target.closest('[data-legdel2]'); if (dl) { PAR.legs.splice(+dl.dataset.legdel2, 1); saveParlay(); renderSlip(); return; }
+  if (e.target.closest('[data-parclear]')) { PAR.legs = []; PAR_VIEW.graded = false; saveParlay(); renderSlip(); return; }
+  const tp = e.target.closest('[data-partip]');
+  if (tp) { const [a, i, L] = tp.dataset.partip.split('|');
+    if (a === 'drop') PAR.legs.splice(+i, 1); else { const l = PAR.legs[+i]; l.line = +L; l.manual = false; refreshLeg(l); }
+    saveParlay(); renderSlip(); toast('Updated your parlay'); return; }
+}, true);
+document.addEventListener('change', e => {
+  const ln = e.target.closest('[data-legline]'); if (ln) { const l = PAR.legs[+ln.dataset.legline]; l.line = +ln.value; l.manual = false; refreshLeg(l); saveParlay(); renderSlip(); return; }
+  const od = e.target.closest('[data-legodds2]'); if (od) { const v = parseInt(od.value, 10); if (Math.abs(v) >= 100) { const l = PAR.legs[+od.dataset.legodds2]; l.odds = v; l.manual = true; l.priced = true; l.book = l.book || 'your app'; saveParlay(); renderSlip(); } return; }
+  if (e.target.id === 'parUnits') { store.set('edge-parlay-units', e.target.value); renderParlay(); }
+});
+
 // ------------------------------------------------------------ board
 const TAGS = { model: 'Model', move: 'Move', inj: 'Injury', wx: 'Weather', ev: '+EV', match: 'Matchup' };
 function kick(g) { return new Date(g.date).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
@@ -1688,7 +2101,8 @@ function detail(g) {
     <div><h3>Efficiency matchup (EPA)</h3>${matchupRows(g)}<h3 style="margin-top:12px">Per-game stats</h3>${stats}</div>
     <div><h3>Injury report</h3>${inj(A)}<br>${inj(H)}</div>
     <div><h3>Betting trends</h3>${trendBlock(g)}</div>
-    ${g.state === 'pre' ? `<div><h3>Trap check</h3>${trapBlock(g)}</div>` : ''}`;
+    ${g.state === 'pre' ? `<div><h3>Trap check</h3>${trapBlock(g)}</div>` : ''}
+    ${gameLadders(g)}`;
 }
 
 // ------------------------------------------------------------ lineups
@@ -1817,7 +2231,7 @@ const PROP_STATS = { 'Pass yds': ['passingYards'], 'Pass TD': ['passingTouchdown
 const PROP_ORDER = Object.keys(PROP_STATS);
 const OPP_STAT = m => /Rush yds|Carries/.test(m) ? ['rushingYardsPerGameAllowed', 'rush yds'] : /\+/.test(m) ? ['yardsPerGameAllowed', 'yds']
   : m === 'Anytime TD' ? ['totalPointsPerGameAllowed', 'pts'] : ['passingYardsPerGameAllowed', 'pass yds'];
-const PF = { game: '', market: '', pos: '', sort: 'trend' };
+const PF = { game: '', market: '', pos: '', sort: 'trend', all: false };
 
 function propRow(pl, pr, g) {
   const keys = PROP_STATS[pr.m] || [];
@@ -1867,7 +2281,8 @@ function renderProps() {
     if (PF.game && g.id !== PF.game) continue;
     for (const pl of S.props[g.id]) {
       if (PF.pos && pl.p !== PF.pos) continue;
-      const props = pl.props.filter(p => !PF.market || p.m === PF.market).map(p => propRow(pl, p, g));
+      const props = pl.props.filter(p => !PF.market || p.m === PF.market).map(p => propRow(pl, p, g))
+        .filter(x => PF.all || PF.market || x.pr.proj > 0 && (Math.abs((x.pr.pOver ?? 0.5) - 0.5) >= 0.08 || ['bounce', 'td', 'regress', 'role'].includes(dueRead(x)?.k) || (x.n >= 5 && (x.over >= 5 || x.under >= 5))));
       if (props.length) rows.push({ pl, g, props: props.sort((a, b) => PROP_ORDER.indexOf(a.pr.m) - PROP_ORDER.indexOf(b.pr.m)),
         score: Math.max(...props.map(p => p.score)), move: Math.max(...props.map(p => Math.abs(p.move))) });
     }
@@ -1876,48 +2291,35 @@ function renderProps() {
   else if (PF.sort === 'move') rows.sort((a, b) => b.move - a.move);
   else if (PF.sort === 'due') { const dv = r => Math.max(0, ...r.props.map(x => ({ bounce: 3, regress: 2, role: 1, real: 1 })[dueRead(x)?.k] || 0)); rows.sort((a, b) => dv(b) - dv(a) || b.score - a.score); }
   else rows.sort((a, b) => (a.pl.tm + a.pl.p).localeCompare(b.pl.tm + b.pl.p));
-  if (!rows.length) { box.innerHTML = `<div class="empty"><b>No matching props</b>Try another game, market or position.</div>`; return; }
-  box.innerHTML = `<div class="pgrid">${rows.slice(0, 120).map(({ pl, g, props }) => {
+  if (!rows.length) { box.innerHTML = `<div class="empty"><b>No matching props</b>${PF.all ? 'Try another game, market or position.' : 'No strong leans here. Tap “All props” to see every line.'}</div>`; return; }
+  // one short line per prop; the full breakdown (last 10, chart, alternate lines) is a tap away on the player's page
+  const short = { bounce: 'Bounce-back', real: 'Hot, steady role', regress: 'Regression risk', role: 'Role shrank', td: 'TD due' };
+  box.innerHTML = `<div class="pgrid compact">${rows.slice(0, 150).map(({ pl, g, props }) => {
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
-    const inj = team.inj.find(i => i.n === pl.n);
-    const yard = props.filter(x => x.pr.m !== 'Anytime TD' && x.n >= 4);
-    const fire = yard.find(x => x.over >= 4 && x.games.slice(-3).every(z => z.v > x.pr.l));
-    const ice = yard.find(x => x.under >= 4 && x.games.slice(-3).every(z => z.v < x.pr.l));
-    const dues = [...new Map(props.map(dueRead).filter(Boolean).map(d => [d.k, d])).values()];
-    const badges = [fire && `<span class="heat fire">${ICON.fire}On fire: ${esc(fire.pr.m)}</span>`, ice && `<span class="heat ice">${ICON.ice}Ice cold: ${esc(ice.pr.m)}</span>`,
-      ...dues.map(d => `<span class="heat ${d.k}">${esc(d.label)}</span>`)].filter(Boolean);
-    const u = pl.u, fu = !u ? '' : u.dbpg != null ? `Drops back <b>${u.dbpg}</b> times a game${u.cpoe != null ? `, completing ${u.cpoe >= 0 ? '<b>more</b>' : '<b>fewer</b>'} passes than expected` : ''}.`
-      : (pl.p === 'RB' && u.rsh != null) ? `Gets <b>${pctS(u.rsh)}</b> of the carries (${u.cpg} a game)${u.ts ? ` and <b>${pctS(u.ts)}</b> of the targets` : ''}.`
-      : u.ts != null ? `On the field for <b>${pctS(u.snap)}</b> of snaps and gets <b>${pctS(u.ts)}</b> of the targets${u.rz_t ? `, with ${u.rz_t} in the red zone` : ''}.` : '';
-    return `<article class="player">
-      <div class="player-h">${logo(team.abbr, 30)}
-        <div style="min-width:0"><button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button> <span class="note">${esc(pl.p)}</span>${inj ? ` <span class="b ${isOut(inj.s) ? 'r' : 'y'}" style="font-size:10.5px">${esc(inj.s)}${inj.t ? ', ' + esc(inj.t) : ''}</span>` : ''}</div>
-        <span class="note">${pl.side === 'home' ? 'vs' : '@'} ${esc(nick(opp))}<br>${kick(g)}</span></div>
-      ${badges.length ? `<div class="badgerow">${badges.join('')}</div>` : ''}
-      ${fu ? `<div class="friendly">${fu}</div>` : ''}
+    const inj = team.inj.find(i => i.n === pl.n), page = S.players?.[pl.id];
+    return `<article class="pcard"><div class="pcard-h">${logo(team.abbr, 24)}<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button><span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
       ${props.map(x => {
-        const td = x.pr.m === 'Anytime TD';
-        const say = !x.n ? 'No recent games to compare.' : td ? `Scored in ${x.over} of his last ${x.n} games.`
-          : x.over > x.under ? `Went over ${x.pr.l} in ${x.over} of his last ${x.n}, averaging ${x.avg.toFixed(1)}.`
-          : x.under > x.over ? `Stayed under ${x.pr.l} in ${x.under} of his last ${x.n}, averaging ${x.avg.toFixed(1)}.` : `Split ${x.over}-${x.under} against this line lately.`;
-        const [dp, dk, dl] = DVP_FOR(x.pr.m, posGroup(pl.p)), dv = AN()[opp.abbr]?.dvp?.[dp], r = dv?.rk?.[dk];
-        const mu = r ? `<span class="mchip ${r <= 8 ? 'great' : r >= 25 ? 'tough' : 'neutral'}">${r <= 8 ? 'Great matchup' : r >= 25 ? 'Tough matchup' : 'Average matchup'}</span>the ${esc(nick(opp))} allow the ${r >= 17 ? ord(33 - r) + '-fewest' : ord(r) + '-most'} ${dl} to ${dp}s` : '';
-        const d = dueRead(x);
-        return `<div class="prop">
-          <div><button class="prop-m link" data-player="${esc(pl.id)}" data-openprop="${esc(x.pr.m)}" title="See his last 10 games">${esc(x.pr.m)}</button> <span class="prop-l">${td ? '' : x.pr.l}${!td && x.pr.o != null && x.pr.o !== x.pr.l ? ` <i>opened ${x.pr.o} <span class="mv">${x.move > 0 ? '▲' : '▼'}${Math.abs(x.move).toFixed(1).replace(/\.0$/, '')}</span></i>` : ''}</span></div>
-          ${bars(x)}
-          <div class="prop-s"><div class="prop-say">${esc(say)}</div>${mu}${x.pr.proj != null ? `<div class="projline">We project <b>${x.pr.proj}</b>${td ? ' TDs' : ''} · <b>${Math.round(x.pr.pOver * 100)}%</b> to ${td ? 'score' : 'go over'}</div>` : ''}${x.pr.books?.length ? `<div class="offer">${[['over', td ? 'Yes' : 'Over'], ['under', 'Under']].map(([sd, l]) => { const b = bestProp(x.pr, sd); return b ? offerText(td ? { ...b, line: null } : b, l) : ''; }).filter(Boolean).join('<br>')}</div>` : ''}
-            <div class="row" style="margin-top:6px;gap:6px"><button class="btn small" data-prop="${g.id}|${esc(pl.id)}|${esc(x.pr.m)}">Track</button><button class="addp" data-addleg="${g.id}|prop|${(x.pr.pOver ?? 0.5) >= 0.5 ? 'over' : 'under'}|${esc(pl.id)}|${esc(x.pr.m)}">+ Parlay ${(x.pr.pOver ?? 0.5) >= 0.5 ? 'over' : 'under'}</button></div></div>
-          ${d ? `<div class="duebox ${d.k}"><b>${esc(d.label)}</b>${esc(d.say)}</div>` : ''}
-        </div>`;
+        const td = x.pr.m === 'Anytime TD', has = x.pr.pOver != null && x.pr.proj > 0, over = (x.pr.pOver ?? 0.5) >= 0.5, pct = Math.round((over ? x.pr.pOver : 1 - x.pr.pOver) * 100);
+        const ten = page?.last?.length && PAGE_STAT[x.pr.m] ? page.last.map(r => PAGE_STAT[x.pr.m].reduce((a, k) => a + (r[k] || 0), 0)) : null;
+        const L = td ? 0.5 : x.pr.l;
+        const [dp, dk] = DVP_FOR(x.pr.m, posGroup(pl.p)), r = AN()[opp.abbr]?.dvp?.[dp]?.rk?.[dk], mc = r ? (r <= 8 ? 'great' : r >= 25 ? 'tough' : '') : null;
+        const d = dueRead(x), hot = !td && x.n >= 4 && x.over >= 4 && x.games.slice(-3).every(z => z.v > x.pr.l), cold = !td && x.n >= 4 && x.under >= 4 && x.games.slice(-3).every(z => z.v < x.pr.l);
+        return `<button class="prow2" data-player="${esc(pl.id)}" data-openprop="${esc(x.pr.m)}">
+          <span class="m">${esc(x.pr.m)} <span>${td ? '' : x.pr.l}</span>${!td && x.pr.o != null && x.pr.o !== x.pr.l ? ` <i>${x.move > 0 ? '▲' : '▼'}${Math.abs(x.move).toFixed(1).replace(/\.0$/, '')}</i>` : ''}</span>
+          <span class="lean ${has ? (over ? 'o' : 'u') : ''}">${has ? `${td ? (over ? 'Yes' : 'No') : over ? 'O' : 'U'} ${pct}%` : '–'}</span>
+          <span class="meta"><span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span>proj <b>${x.pr.proj}</b></span>` : ''}
+            ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
+            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.alt?.length ? `<span>${x.pr.alt.length} alt lines</span>` : ''}</span>
+        </button>`;
       }).join('')}
-      ${usageStrip(pl) ? `<details class="nerd"><summary>Nerd stats</summary>${usageStrip(pl)}</details>` : ''}
     </article>`;
-  }).join('')}</div>${rows.length > 120 ? `<p class="note">Showing 120 of ${rows.length} players. Pick a game or position to see the rest.</p>` : ''}`;
+  }).join('')}</div>${rows.length > 150 ? `<p class="note">Showing 150 of ${rows.length} players. Pick a game or position to narrow it.</p>` : ''}`;
 }
 $('#pf-game').onchange = e => { PF.game = e.target.value; renderProps(); };
 $('#pf-market').onchange = e => { PF.market = e.target.value; renderProps(); };
 $('#pf-sort').onchange = e => { PF.sort = e.target.value; renderProps(); };
+$('#pf-all').addEventListener('click', e => { const b = e.target.closest('[data-pfall]'); if (!b) return; PF.all = b.dataset.pfall === '1';
+  for (const c of document.querySelectorAll('#pf-all .chip')) c.setAttribute('aria-pressed', c === b); renderProps(); });
 $('#pf-pos').addEventListener('click', e => {
   const b = e.target.closest('[data-pos]'); if (!b) return; PF.pos = b.dataset.pos;
   for (const c of document.querySelectorAll('#pf-pos .chip')) c.setAttribute('aria-pressed', c === b); renderProps();
@@ -2112,11 +2514,14 @@ function renderSync() {
   dot.className = 'dot' + (hrs > 8 ? ' stale' : '');
   txt.textContent = `${sl.season} · synced ${ago(sl.updatedAt)}${hrs > 8 ? '. Lines may be out of date' : ''}`;
 }
-function renderAll() { renderSync(); renderBoard(); renderPicks(); renderTraps(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); }
+function normProps() {
+  for (const rows of Object.values(S.props || {})) for (const pl of rows) for (const pr of pl.props) { const c = propChance(pr, pr.m === 'Anytime TD' ? 0.5 : pr.l); if (c != null) pr.pOver = +c.toFixed(3); }
+}
+function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); }
 
 function setTab(t) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
-  for (const v of ['live', 'picks', 'board', 'lineups', 'props', 'players', 'teams', 'shop', 'bets']) $('#view-' + v).hidden = v !== t;
+  for (const v of ['live', 'picks', 'board', 'lineups', 'props', 'players', 'teams', 'shop', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
   store.set('edge-tab', t);
 }
 document.querySelector('nav').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { setTab(b.dataset.tab); store.set('edge-tab-chosen', '1'); } });
@@ -2190,7 +2595,7 @@ renderBets();
     // only parts written by the latest sync; older parts can linger after a week with more games
     const latest = q.docs.map(d => d.data().sync).sort().pop();
     for (const d of q.docs) if (d.data().sync === latest) Object.assign(merged, d.data().games);
-    S.props = q.empty ? null : merged; if (S.slate) { renderProps(); renderLive(); renderSpot(); renderPicks(); }
+    S.props = q.empty ? null : merged; normProps(); if (S.slate) { renderProps(); renderLive(); renderSpot(); renderPicks(); }
   }, () => {});
   db.doc('live/current').onSnapshot(snap => {
     S.live = snap.exists ? snap.data() : null;

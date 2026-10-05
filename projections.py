@@ -13,6 +13,7 @@ HFA = 1.7            # points of home-field advantage (split across both scores)
 MARGIN_SD = 13.5     # NFL scoring margin standard deviation vs a projection
 SHRINK = 8           # games of league-average "prior" blended into each team's EPA (early-season EPA is noisy)
 QB_OUT = 4.0         # points off a team whose starting QB is out or doubtful
+SHRINK_P = 0.85      # props: hit chances are pulled 15% of the way back toward 50/50 (the page uses the same rule for alt lines)
 ANCHOR = 0.6         # props: how far we move from the book's line toward our raw number (books know injuries, game plans)
 
 PROP_STATS = {
@@ -148,8 +149,8 @@ def prop_projections(props, games, an, season):
                     pr["proj"], pr["raw"] = round(proj, 1), round(raw, 1)
                     def chance(line):
                         p = p_over(DIST.get(pr["m"], ("lognormal", 0.5)), proj, line)
-                        p = 0.5 + 0.75 * (p - 0.5)          # model uncertainty: pull every read part-way back to a coin flip
-                        return round(max(0.15, min(0.85, p)), 3)
+                        p = 0.5 + SHRINK_P * (p - 0.5)      # model uncertainty: pull every read part-way back to a coin flip
+                        return round(max(0.03, min(0.97, p)), 3)  # same rule at every line, so alternate lines line up
                     pr["pOver"] = chance(pr["l"])
                     for b in pr.get("books", []): b["p"] = chance(b["l"])   # each book's own line gets its own hit chance
                 pr["mx"] = round(mult, 2)

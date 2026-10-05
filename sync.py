@@ -15,7 +15,7 @@ from datetime import datetime, timezone, timedelta
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 
-import analytics, projections, trends, traps
+import analytics, projections, trends, traps, kalshi
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # EDGE_OUT / EDGE_DATA let the GitHub Actions job write into the app repo's own folders
@@ -527,6 +527,10 @@ def main():
     pages = {}
     multibook_props(games, props, cfg)
     try:
+        kalshi_n = kalshi.apply(games, props)   # alternate-line ladders with real prices
+    except Exception as e:
+        kalshi_n = 0; print("kalshi failed", e, file=sys.stderr)
+    try:
         projections.team_projections(games, team_an)
         projections.prop_projections(props, games, team_an, season)
     except Exception as e:
@@ -573,7 +577,7 @@ def main():
     save(os.path.join(OUT, "results.json"), res)
     sizes = {f: os.path.getsize(os.path.join(OUT, f)) // 1024 for f in os.listdir(OUT)}
     print(json.dumps({"season": season, "weeks": sorted({g["week"] for g in games}), "games": len(games),
-                      "snapshots": len(hist_out["snaps"]), "propPlayers": sum(len(v) for v in props.values()), "lineupGames": len(lu), "playerPages": len(pages), "multibook": odds_meta, "kb": sizes}))
+                      "snapshots": len(hist_out["snaps"]), "propPlayers": sum(len(v) for v in props.values()), "lineupGames": len(lu), "playerPages": len(pages), "kalshiRungs": kalshi_n, "multibook": odds_meta, "kb": sizes}))
 
 
 if __name__ == "__main__":
