@@ -424,6 +424,19 @@ details.nerd .usage{border-bottom:0}
 .traprec{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px}
 .traprec b{display:block;font:600 11px var(--f-body);letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
 .traprec small{color:var(--muted)}
+.propbtn{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center;width:100%;background:none;border:0;padding:8px 0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.propbtn .who b::after{content:" ▾";color:var(--accent);font-size:11px}
+.propbtn[aria-expanded="true"] .who b::after{content:" ▴"}
+.propbtn:hover .who b{color:var(--accent)}
+.pv{background:var(--surface2);border-radius:12px;padding:12px;margin:2px 0 10px;display:grid;gap:10px;min-width:0}
+.pv-sum{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.pv-sum b{font-family:var(--f-mono)}
+.pv .scroll table{background:var(--surface);border-radius:8px}
+.pvbars{display:block;width:100%;height:150px}
+.pvbars text{font:10px var(--f-mono);fill:var(--muted)}
+.pvbars text.v{font:600 11px var(--f-mono);fill:var(--ink)}
+.res-o{color:var(--good);font-weight:600}.res-u{color:var(--bad);font-weight:600}
+.prop-m.link{background:none;border:0;padding:0;font:inherit;font-weight:600;color:inherit;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
 </style>
 
 <header>
@@ -1215,7 +1228,50 @@ function pickCard(p) {
 }
 
 // ------------------------------------------------------------ players: search + pages
-const PLY = { q: '', pos: '', id: null };
+const PLY = { q: '', pos: '', id: null, prop: null, n: 10 };
+const PAGE_STAT = { 'Pass yds': ['pyd'], 'Pass TD': ['ptd'], 'Completions': ['cmp'], 'Pass att': ['att'], 'INT': ['int'], 'Rush yds': ['ryd'],
+  'Carries': ['car'], 'Rec yds': ['yds'], 'Receptions': ['rec'], 'Rush+rec yds': ['ryd', 'yds'], 'Pass+rush yds': ['pyd', 'ryd'], 'Anytime TD': ['rtd', 'td'] };
+function propGames(p, propsRow, pr, g) {
+  const keys = PAGE_STAT[pr.m];
+  if (keys && p.last?.length) return p.last.map(r => ({ y: r.y, w: r.w, o: r.o, h: r.h, snap: r.snap, v: keys.reduce((s, k) => s + (r[k] || 0), 0) }));
+  // stats nflverse doesn't track per game (longest reception): fall back to the ESPN log we have
+  return propRow(propsRow, pr, g).games.slice().reverse().map(x => ({ y: x.r.y, w: x.r.w, o: x.r.o, h: x.r.at === 'vs' ? 1 : 0, snap: x.r.us?.snap, v: x.v }));
+}
+function propView(p, propsRow, pr, g) {
+  const all = propGames(p, propsRow, pr, g), games = all.slice(0, PLY.n), td = pr.m === 'Anytime TD', line = td ? 0.5 : pr.l;
+  if (!games.length) return '<div class="pv"><p class="note">No game log yet for this stat.</p></div>';
+  const over = games.filter(x => x.v > line).length, under = games.filter(x => x.v < line).length, n = games.length;
+  const last5 = all.slice(0, 5), o5 = last5.filter(x => x.v > line).length;
+  const vals = games.map(x => x.v), avg = vals.reduce((a, b) => a + b, 0) / n, med = median(vals);
+  const fmtV = v => Number.isInteger(v) ? v : v.toFixed(1);
+  // bars oldest -> newest, left to right
+  const seq = games.slice().reverse(), W = Math.max(320, seq.length * 46 + 20), H = 150, base = 108, top = 18;
+  const hi = Math.max(line * 1.3, ...vals, 1), y = v => base - v / hi * (base - top), bw = 26, gap = (W - seq.length * bw) / (seq.length + 1);
+  const bars = `<div class="scroll"><svg class="pvbars" style="width:max(100%, ${W}px)" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(pr.m)}, last ${n} games: ${seq.map(x => fmtV(x.v)).join(', ')} against ${td ? 'scoring a touchdown' : 'a line of ' + line}">
+    <line x1="0" x2="${W}" y1="${y(line)}" y2="${y(line)}" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <text x="${W - 4}" y="${y(line) - 4}" text-anchor="end">${td ? 'TD' : 'line ' + line}</text>
+    ${seq.map((x, i) => { const bx = gap + i * (bw + gap), by = y(x.v), col = x.v > line ? 'var(--good)' : x.v < line ? 'var(--bad)' : 'var(--muted)', old = x.y !== S.slate?.season;
+      return `<rect x="${bx}" y="${Math.min(by, base - 1)}" width="${bw}" height="${Math.max(1, base - by)}" rx="3" fill="${col}" opacity="${old ? .5 : 1}"/>
+        <text class="v" x="${bx + bw / 2}" y="${Math.min(by, base - 1) - 4}" text-anchor="middle">${fmtV(x.v)}</text>
+        <text x="${bx + bw / 2}" y="${base + 13}" text-anchor="middle">${x.h ? 'vs' : '@'}${esc(x.o)}</text>
+        <text x="${bx + bw / 2}" y="${base + 25}" text-anchor="middle">${old ? "'" + String(x.y).slice(2) + ' ' : ''}W${x.w}</text>`; }).join('')}
+  </svg></div>`;
+  const best = ['over', 'under'].map(sd => { const b = bestProp(pr, sd); return b ? offerText(td ? { ...b, line: null } : b, td ? 'Yes' : sd === 'over' ? 'Over' : 'Under') : ''; }).filter(Boolean);
+  return `<div class="pv">
+    <div class="row" style="justify-content:space-between"><span class="pv-sum">
+      <span>${td ? 'Scored in' : 'Over in'} <b>${over} of ${n}</b> (${Math.round(over / n * 100)}%)</span>
+      ${n > 5 ? `<span>Last 5: <b>${o5}/${last5.length}</b></span>` : ''}
+      ${td ? '' : `<span>Avg <b>${fmtV(+avg.toFixed(1))}</b> · median <b>${fmtV(med)}</b></span><span>High <b>${fmtV(Math.max(...vals))}</b> · low <b>${fmtV(Math.min(...vals))}</b></span>`}</span>
+      <span class="row" style="gap:4px">${[5, 10].map(k => `<button class="chip" data-propn="${k}" aria-pressed="${PLY.n === k}">Last ${k}</button>`).join('')}</span></div>
+    ${all.length < PLY.n ? `<p class="note" style="margin:0">Only ${all.length} game${all.length === 1 ? '' : 's'} on record for this stat.</p>` : ''}
+    ${bars}
+    ${pr.proj != null ? `<div class="projline">We project <b>${pr.proj}</b>${td ? ' TDs' : ''} · <b>${Math.round(pr.pOver * 100)}%</b> to ${td ? 'score' : 'go over ' + pr.l}${pr.o != null && pr.o !== pr.l && !td ? ` · line opened ${pr.o}` : ''}</div>` : ''}
+    ${best.length ? `<div class="offer">${best.join('<br>')}</div>` : ''}
+    <div class="scroll"><table><tr><th>Game</th><th>Opp</th><th class="n">${esc(td ? 'TDs' : pr.m)}</th><th>Result</th><th class="n">Snap</th></tr>
+      ${games.map(x => `<tr><td>${x.y !== S.slate?.season ? x.y + ' ' : ''}Wk ${x.w}</td><td>${x.h ? 'vs' : '@'} ${esc(x.o)}</td><td class="n">${fmtV(x.v)}</td>
+        <td class="${x.v > line ? 'res-o' : x.v < line ? 'res-u' : ''}">${td ? (x.v > 0 ? 'Scored' : 'No TD') : x.v > line ? 'Over' : x.v < line ? 'Under' : 'Push'}</td><td class="n">${x.snap != null ? Math.round(x.snap * 100) + '%' : '–'}</td></tr>`).join('')}</table></div>
+  </div>`;
+}
 function renderPlayers() {
   const box = $('#players'); if (!box) return;
   const all = S.players;
@@ -1257,14 +1313,16 @@ function playerPage(id, p) {
       <p class="note"><span style="color:var(--accent)">●</span> Snap %${qb ? '' : rb ? ' <span style="color:var(--gold)">●</span> Carries (scaled, 30 = top)' : ' <span style="color:var(--gold)">●</span> Target share'}</p>` : '';
   const sp = p.split || {}, spRow = (k, l) => sp[k] ? `<tr><td>${l}</td><td class="n">${sp[k].g}</td><td class="n">${sp[k][key[0]]}</td><td class="n">${sp[k].fp}</td></tr>` : '';
   const propHtml = props ? props.props.map(pr => {
-    const x = propRow(props, pr, g);
-    return `<div class="trow"><div class="who"><b>${esc(pr.m)}</b> ${pr.m === 'Anytime TD' ? '' : pr.l}<small>${x.n ? `${x.over}/${x.n} over lately` : ''}${pr.proj != null ? ` · we project ${pr.proj}${pr.m === 'Anytime TD' ? ' TDs' : ''} (${Math.round(pr.pOver * 100)}% over)` : ''}</small></div>
-      <div class="val"><button class="addp" data-addleg="${g.id}|prop|${(pr.pOver ?? .5) >= .5 ? 'over' : 'under'}|${esc(id)}|${esc(pr.m)}">+ Parlay</button></div></div>`; }).join('') : '';
+    const x = propRow(props, pr, g), open = PLY.prop === pr.m;
+    return `<div class="trow" style="grid-template-columns:minmax(0,1fr) auto">
+      <button class="propbtn" data-propview="${esc(pr.m)}" aria-expanded="${open}"><div class="who"><b>${esc(pr.m)}</b> ${pr.m === 'Anytime TD' ? '' : pr.l}<small>${x.n ? `${x.over}/${x.n} over lately` : ''}${pr.proj != null ? ` · we project ${pr.proj}${pr.m === 'Anytime TD' ? ' TDs' : ''} (${Math.round(pr.pOver * 100)}% over)` : ''} · tap for last 10</small></div></button>
+      <div class="val"><button class="addp" data-addleg="${g.id}|prop|${(pr.pOver ?? .5) >= .5 ? 'over' : 'under'}|${esc(id)}|${esc(pr.m)}">+ Parlay</button></div>
+      ${open ? `<div style="grid-column:1/-1;min-width:0">${propView(p, props, pr, g)}</div>` : ''}</div>`; }).join('') : '';
   return `<div class="ppage"><button class="backlink" data-player-back>← All players</button>
     <div class="ppage-h">${logo(p.tm, 56)}<div><h2>${esc(p.n)}</h2><span class="note">${esc(p.p)} · ${esc(nick(team))}${g ? ` · ${g.home.abbr === p.tm ? 'vs' : '@'} ${esc(nick(g.home.abbr === p.tm ? g.away : g.home))}, ${kick(g)}` : ''}</span>
       ${inj ? `<span class="b ${isOut(inj.s) ? 'r' : 'y'}">${esc(inj.s)}${inj.t ? ', ' + esc(inj.t) : ''}</span>` : ''}</div></div>
     <div class="kpis">${kpis.map(([l, v]) => `<div class="kpi"><span>${l}</span><b>${v ?? '–'}</b></div>`).join('')}</div>
-    ${propHtml ? `<div class="panel"><h3>This week's props</h3>${propHtml}</div>` : ''}
+    ${propHtml ? `<div class="panel" id="pp-props"><h3>This week's props</h3>${propHtml}</div>` : ''}
     ${chart ? `<div class="panel"><h3>Role by week</h3>${chart}</div>` : ''}
     <div class="panel"><h3>${S.slate?.season} game log</h3>${table(p.log.slice().reverse(), 'Week')}</div>
     <div class="lu-grid" style="margin-top:0">
@@ -1357,9 +1415,17 @@ document.addEventListener('click', async e => {
     } catch (err) { toast('Could not save: ' + (err.message || err.code)); }
     return;
   }
+  const pv = e.target.closest('[data-propview]');
+  if (pv) { PLY.prop = PLY.prop === pv.dataset.propview ? null : pv.dataset.propview; renderPlayers(); return; }
+  const pn = e.target.closest('[data-propn]');
+  if (pn) { PLY.n = +pn.dataset.propn; renderPlayers(); return; }
   const pb = e.target.closest('[data-player]');
-  if (pb) { PLY.id = pb.dataset.player; setTab('players'); renderPlayers(); window.scrollTo(0, 0); return; }
-  if (e.target.closest('[data-player-back]')) { PLY.id = null; renderPlayers(); return; }
+  if (pb) {
+    PLY.id = pb.dataset.player; PLY.prop = pb.dataset.openprop || null; setTab('players'); renderPlayers();
+    const target = PLY.prop && document.querySelector(`[data-propview="${CSS.escape(PLY.prop)}"]`);
+    target ? target.scrollIntoView({ block: 'start' }) : window.scrollTo(0, 0); return;
+  }
+  if (e.target.closest('[data-player-back]')) { PLY.id = null; PLY.prop = null; renderPlayers(); return; }
 });
 document.addEventListener('change', e => {
   const o = e.target.closest('[data-legodds]'); if (o) { const v = parseInt(o.value, 10); if (Math.abs(v) >= 100) { PAR.legs[+o.dataset.legodds].odds = v; saveParlay(); renderSlip(); } }
@@ -1838,7 +1904,7 @@ function renderProps() {
         const mu = r ? `<span class="mchip ${r <= 8 ? 'great' : r >= 25 ? 'tough' : 'neutral'}">${r <= 8 ? 'Great matchup' : r >= 25 ? 'Tough matchup' : 'Average matchup'}</span>the ${esc(nick(opp))} allow the ${r >= 17 ? ord(33 - r) + '-fewest' : ord(r) + '-most'} ${dl} to ${dp}s` : '';
         const d = dueRead(x);
         return `<div class="prop">
-          <div><span class="prop-m">${esc(x.pr.m)}</span> <span class="prop-l">${td ? '' : x.pr.l}${!td && x.pr.o != null && x.pr.o !== x.pr.l ? ` <i>opened ${x.pr.o} <span class="mv">${x.move > 0 ? '▲' : '▼'}${Math.abs(x.move).toFixed(1).replace(/\.0$/, '')}</span></i>` : ''}</span></div>
+          <div><button class="prop-m link" data-player="${esc(pl.id)}" data-openprop="${esc(x.pr.m)}" title="See his last 10 games">${esc(x.pr.m)}</button> <span class="prop-l">${td ? '' : x.pr.l}${!td && x.pr.o != null && x.pr.o !== x.pr.l ? ` <i>opened ${x.pr.o} <span class="mv">${x.move > 0 ? '▲' : '▼'}${Math.abs(x.move).toFixed(1).replace(/\.0$/, '')}</span></i>` : ''}</span></div>
           ${bars(x)}
           <div class="prop-s"><div class="prop-say">${esc(say)}</div>${mu}${x.pr.proj != null ? `<div class="projline">We project <b>${x.pr.proj}</b>${td ? ' TDs' : ''} · <b>${Math.round(x.pr.pOver * 100)}%</b> to ${td ? 'score' : 'go over'}</div>` : ''}${x.pr.books?.length ? `<div class="offer">${[['over', td ? 'Yes' : 'Over'], ['under', 'Under']].map(([sd, l]) => { const b = bestProp(x.pr, sd); return b ? offerText(td ? { ...b, line: null } : b, l) : ''; }).filter(Boolean).join('<br>')}</div>` : ''}
             <div class="row" style="margin-top:6px;gap:6px"><button class="btn small" data-prop="${g.id}|${esc(pl.id)}|${esc(x.pr.m)}">Track</button><button class="addp" data-addleg="${g.id}|prop|${(x.pr.pOver ?? 0.5) >= 0.5 ? 'over' : 'under'}|${esc(pl.id)}|${esc(x.pr.m)}">+ Parlay ${(x.pr.pOver ?? 0.5) >= 0.5 ? 'over' : 'under'}</button></div></div>

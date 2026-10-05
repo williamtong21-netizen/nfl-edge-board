@@ -115,6 +115,8 @@ def player_pages(season, slate_games, years=3):
         pl["opp"] = nxt.get(pl["tm"])
         pl["vs"] = sorted(pl["vs"] + [r for r in pl["log"] if r["o"] == pl["opp"]], key=lambda r: (r["y"], r["w"]), reverse=True)[:6]
         both = pl["log"] + pl.pop("prev", [])
+        # last 10 games across this season and last, newest first: what a prop gets checked against
+        pl["last"] = sorted(both, key=lambda r: (r["y"], r["w"]), reverse=True)[:10]
         sp = {}
         for name, flag in (("home", 1), ("road", 0)):
             g = [r for r in both if r["h"] == flag]
