@@ -171,7 +171,7 @@ def weather(games):
 def multibook(games, cfg):
     key = (cfg.get("odds_api_key") or os.environ.get("ODDS_API_KEY") or "").strip()
     cache = load("odds_cache.json", {"t": 0, "events": [], "remaining": None})
-    if key and time.time() - cache["t"] >= cfg.get("odds_api_min_hours", 6) * 3600:
+    if key and time.time() - cache["t"] >= float(cfg.get("odds_api_min_hours", os.environ.get("ODDS_API_MIN_HOURS", 6))) * 3600:
         try:
             ev, hdr = get(ODDS_API + "?" + urlencode({"apiKey": key, "regions": "us", "markets": "h2h,spreads,totals",
                                                        "oddsFormat": "american", "bookmakers": BOOKS}), headers=True)

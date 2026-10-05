@@ -22,6 +22,7 @@ jobs:
           EDGE_OUT: data
           EDGE_DATA: state
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODDS_API_MIN_HOURS: "12"
           ODDS_API_PROPS: ${{ vars.ODDS_API_PROPS }}
         run: python sync.py
       - name: Publish the new data
