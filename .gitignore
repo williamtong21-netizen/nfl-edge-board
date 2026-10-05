@@ -1,0 +1,5 @@
+state/nflverse/
+state/gamelogs/
+state/depth/
+state/odds_cache.json
+__pycache__/

@@ -1,0 +1,33 @@
+name: Sync NFL data
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+    - cron: "50 16 * * 0"         # 12:50 ET Sunday: inactives for 1:00 games
+    - cron: "10 20 * * 0"         # 4:10 ET Sunday: inactives for 4:05/4:25 games
+    - cron: "5 23 * * 0,1,4"      # 7:05 ET Sun/Mon/Thu: inactives for night games
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency: sync
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pull lines, props, injuries, lineups, weather and analytics
+        env:
+          EDGE_OUT: data
+          EDGE_DATA: state
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODDS_API_PROPS: ${{ vars.ODDS_API_PROPS }}
+        run: python sync.py
+      - name: Publish the new data
+        run: |
+          git config user.name "edge-board-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data state
+          git diff --cached --quiet || git commit -m "Data sync $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push
