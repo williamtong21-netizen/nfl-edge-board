@@ -454,6 +454,10 @@ details.nerd .usage{border-bottom:0}
 .gradecard{display:flex;gap:16px;align-items:center;margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px}
 .grade{flex:none;width:72px;height:72px;border-radius:18px;display:grid;place-items:center;font:700 44px var(--f-display);color:#fff}
 .g-A{background:var(--good)}.g-B{background:color-mix(in srgb,var(--good) 65%,var(--accent))}.g-C{background:var(--warn)}.g-D{background:color-mix(in srgb,var(--warn) 50%,var(--bad))}.g-F{background:var(--bad)}
+.pgame{grid-column:1/-1;display:flex;align-items:center;gap:6px;margin:10px 0 0;font:700 17px var(--f-display);letter-spacing:.5px;color:var(--ink);text-transform:uppercase}
+.pgame .logo{width:22px;height:22px}
+.pgame small{margin-left:auto;font:500 12px var(--f-body);letter-spacing:0;text-transform:none;color:var(--muted)}
+.pgrid.compact>.pgame:first-child{margin-top:0}
 .pgrid.compact{grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:10px}
 .pcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:0}
 .pcard-h{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
@@ -560,9 +564,9 @@ details.nerd .usage{border-bottom:0}
       </div>
       <div class="row" id="pf-all"><button class="chip" data-pfall="0" aria-pressed="true">Best leans</button><button class="chip" data-pfall="1" aria-pressed="false">All props</button></div>
       <select id="pf-sort" aria-label="Sort props">
-        <option value="trend">Strongest trend</option>
-        <option value="move">Line movement</option>
-        <option value="due">Due watch</option>
+        <option value="trend">Within each game: strongest trend</option>
+        <option value="move">Within each game: line movement</option>
+        <option value="due">Within each game: due watch</option>
         <option value="team">Team and position</option>
       </select>
     </div>
@@ -2287,17 +2291,21 @@ function renderProps() {
         score: Math.max(...props.map(p => p.score)), move: Math.max(...props.map(p => Math.abs(p.move))) });
     }
   }
-  if (PF.sort === 'trend') rows.sort((a, b) => b.score - a.score);
-  else if (PF.sort === 'move') rows.sort((a, b) => b.move - a.move);
-  else if (PF.sort === 'due') { const dv = r => Math.max(0, ...r.props.map(x => ({ bounce: 3, regress: 2, role: 1, real: 1 })[dueRead(x)?.k] || 0)); rows.sort((a, b) => dv(b) - dv(a) || b.score - a.score); }
-  else rows.sort((a, b) => (a.pl.tm + a.pl.p).localeCompare(b.pl.tm + b.pl.p));
+  // games in kickoff order; the sort menu orders players within each game
+  const dv = r => Math.max(0, ...r.props.map(x => ({ bounce: 3, regress: 2, role: 1, real: 1 })[dueRead(x)?.k] || 0));
+  const within = PF.sort === 'move' ? (a, b) => b.move - a.move : PF.sort === 'due' ? (a, b) => dv(b) - dv(a) || b.score - a.score
+    : PF.sort === 'team' ? (a, b) => (a.pl.tm + a.pl.p).localeCompare(b.pl.tm + b.pl.p) : (a, b) => b.score - a.score;
+  rows.sort((a, b) => new Date(a.g.date) - new Date(b.g.date) || a.g.id.localeCompare(b.g.id) || within(a, b));
   if (!rows.length) { box.innerHTML = `<div class="empty"><b>No matching props</b>${PF.all ? 'Try another game, market or position.' : 'No strong leans here. Tap “All props” to see every line.'}</div>`; return; }
   // one short line per prop; the full breakdown (last 10, chart, alternate lines) is a tap away on the player's page
   const short = { bounce: 'Bounce-back', real: 'Hot, steady role', regress: 'Regression risk', role: 'Role shrank', td: 'TD due' };
+  let lastGame = null;
   box.innerHTML = `<div class="pgrid compact">${rows.slice(0, 150).map(({ pl, g, props }) => {
+    const head = g.id !== lastGame ? `<h3 class="pgame">${logo(g.away.abbr, 22)}${logo(g.home.abbr, 22)}<span>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</span><small>${kick(g)}</small></h3>` : '';
+    lastGame = g.id;
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
     const inj = team.inj.find(i => i.n === pl.n), page = S.players?.[pl.id];
-    return `<article class="pcard"><div class="pcard-h">${logo(team.abbr, 24)}<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button><span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
+    return `${head}<article class="pcard"><div class="pcard-h">${logo(team.abbr, 24)}<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button><span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
       ${props.map(x => {
         const td = x.pr.m === 'Anytime TD', has = x.pr.pOver != null && x.pr.proj > 0, over = (x.pr.pOver ?? 0.5) >= 0.5, pct = Math.round((over ? x.pr.pOver : 1 - x.pr.pOver) * 100);
         const ten = page?.last?.length && PAGE_STAT[x.pr.m] ? page.last.map(r => PAGE_STAT[x.pr.m].reduce((a, k) => a + (r[k] || 0), 0)) : null;
