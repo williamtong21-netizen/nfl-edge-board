@@ -97,10 +97,48 @@ def _dvp_key(m, pos):
     return (pos, "yds")
 
 
+# ---------------------------------------------------------------- team identity and game script
+PASS_MARKETS = {"Pass yds", "Completions", "Pass att", "Pass TD", "INT", "Rec yds", "Receptions", "Long rec", "Pass+rush yds"}
+RUSH_MARKETS = {"Rush yds", "Carries"}
+STYLE_CUT = 0.04       # pass rate over expected beyond +/-4% marks a pass-heavy / run-heavy offense (or a pass / run funnel defense)
+SCRIPT_PER_PT = 0.004  # each point a team is expected to trail by adds ~0.4% to its pass rate (trailing teams throw)
+TILT_TO_VOLUME = 0.6   # how much of that pass-rate tilt shows up in a player's pass- or run-based volume
+
+
+def team_styles(an):
+    """Offense: pass-heavy / run-heavy / balanced. Defense: pass funnel (teams throw on it) / run funnel / neutral.
+    Early-season samples are shrunk toward average before labeling."""
+    for t, v in (an or {}).get("teams", {}).items():
+        o, d = v.get("off"), v.get("def")
+        if not o or not d: continue
+        w = o["g"] / (o["g"] + 3)
+        op, dp = w * (o.get("proe") or 0), w * (d.get("proe") or 0)
+        v["style"] = {"off": "pass-heavy" if op >= STYLE_CUT else "run-heavy" if op <= -STYLE_CUT else "balanced",
+                      "def": "pass funnel" if dp >= STYLE_CUT else "run funnel" if dp <= -STYLE_CUT else "neutral",
+                      "op": round(op, 3), "dp": round(dp, 3)}
+
+
+def game_tilt(g, an):
+    """Each team's expected pass-rate tilt in this game: its own lean + how teams attack this defense + game script."""
+    teams = (an or {}).get("teams", {})
+    hs = (g.get("odds") or {}).get("hs")
+    out = {}
+    for side, other in (("home", "away"), ("away", "home")):
+        st, os_ = teams.get(g[side]["abbr"], {}).get("style"), teams.get(g[other]["abbr"], {}).get("style")
+        if not st or not os_: return None
+        margin = (-hs if side == "home" else hs) if hs is not None else 0      # positive = expected to win by that much
+        out[side] = round(max(-0.12, min(0.12, st["op"] + os_["dp"] - SCRIPT_PER_PT * margin)), 3)
+    return out
+
+
 def prop_projections(props, games, an, season):
     """Adds proj, pOver and lean to every prop line in `props` ({game_id: [player rows]})."""
     teams = (an or {}).get("teams", {})
     by_id = {g["id"]: g for g in games}
+    team_styles(an)
+    for g in games:
+        t = game_tilt(g, an) if g.get("proj") else None
+        if t: g["proj"]["tilt"] = t
     lg = {}
     for d in teams.values():
         for pos, v in (d.get("dvp") or {}).items():
@@ -144,7 +182,11 @@ def prop_projections(props, games, an, season):
                     pr["pOver"] = round(min(0.75, 1 - math.exp(-lam)), 3)
                     for b in pr.get("books", []): b["p"] = pr["pOver"]
                 else:
-                    raw = base * mult * (env if pr["m"] not in ("INT",) else 1.0)
+                    # game script: a pass-leaning matchup feeds passing and receiving volume and starves the run game
+                    tilt = ((g.get("proj") or {}).get("tilt") or {}).get(side, 0)
+                    vol = 1 + TILT_TO_VOLUME * tilt if pr["m"] in PASS_MARKETS else 1 - TILT_TO_VOLUME * tilt if pr["m"] in RUSH_MARKETS else 1.0
+                    pr["vol"] = round(vol, 3)
+                    raw = base * mult * vol * (env if pr["m"] not in ("INT",) else 1.0)
                     proj = pr["l"] + ANCHOR * (raw - pr["l"])
                     pr["proj"], pr["raw"] = round(proj, 1), round(raw, 1)
                     def chance(line):

@@ -479,6 +479,13 @@ details.nerd .usage{border-bottom:0}
 .tag2{font:600 10.5px var(--f-body);padding:0 6px;border-radius:999px}
 .tag2.bounce,.tag2.real,.tag2.td{background:var(--good-soft);color:var(--good)}.tag2.regress{background:var(--warn-soft);color:var(--warn)}.tag2.role{background:var(--bad-soft);color:var(--bad)}
 .tag2.fire{background:color-mix(in srgb,var(--gold) 18%,var(--surface));color:var(--gold)}.tag2.ice{background:var(--accent-soft);color:var(--accent)}
+.stag{font:600 10.5px var(--f-body);padding:0 6px;border-radius:999px;background:var(--surface2);color:var(--muted);white-space:nowrap}
+.stag.pass{background:var(--accent-soft);color:var(--accent)}.stag.run{background:color-mix(in srgb,var(--gold) 16%,var(--surface));color:var(--gold)}
+.ic-style{background:var(--accent-soft);color:var(--accent)}
+.booktog{margin:6px 0 8px;gap:6px}
+.ofr{display:inline-flex;flex-direction:column;align-items:flex-end;line-height:1.1;margin-left:6px}
+.ofr b{font:500 13px var(--f-mono)}.ofr small{font-size:10px;color:var(--muted)}
+.ladder td small{font-size:10px;color:var(--muted)}
 </style>
 
 <header>
@@ -788,6 +795,41 @@ function matchupFlags(g) {
   return F;
 }
 
+// ------------------------------------------------------------ team identity: pass-heavy / run-heavy / balanced, and defensive funnels
+const styleOf = abbr => AN()[abbr]?.style;
+const styleTag = (abbr, which = 'off') => { const st = styleOf(abbr); if (!st) return '';
+  const v = st[which], cls = /pass/.test(v) ? 'pass' : /run/.test(v) ? 'run' : '';
+  return `<span class="stag ${cls}" title="${which === 'off' ? 'Offense' : 'Defense'}">${esc(which === 'off' ? v : v === 'neutral' ? 'neutral D' : v)}</span>`; };
+const pctPts = v => `${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}%`;
+function scriptSay(g, side) {
+  const t = g.proj?.tilt?.[side]; if (t == null) return null;
+  const me = g[side], opp = g[side === 'home' ? 'away' : 'home'], st = styleOf(me.abbr), os = styleOf(opp.abbr);
+  const dir = Math.sign(t), bits = [];   // only reasons that push the same way as the overall tilt
+  if (st && Math.sign(st.op) === dir && Math.abs(st.op) >= 0.015) bits.push(st.off !== 'balanced' ? `a ${st.off} offense` : `an offense that leans ${dir > 0 ? 'pass' : 'run'}`);
+  if (os && Math.sign(os.dp) === dir && Math.abs(os.dp) >= 0.015) bits.push(os.def !== 'neutral' ? `a ${nick(opp)} defense teams ${dir > 0 ? 'love to throw on' : 'run on'}` : `a ${nick(opp)} defense that gets ${dir > 0 ? 'thrown' : 'run'} on a bit more than most`);
+  const hs = g.odds?.hs, margin = hs == null ? 0 : side === 'home' ? -hs : hs;
+  if (Math.abs(margin) >= 3 && Math.sign(-margin) === dir) bits.push(margin < 0 ? `likely playing from behind` : `likely protecting a lead`);
+  return { t, bits };
+}
+function styleFlags(g) {
+  const F = [];
+  for (const side of ['away', 'home']) {
+    const r = scriptSay(g, side); if (!r || Math.abs(r.t) < 0.05) continue;
+    const me = g[side];
+    F.push({ k: 'style', w: Math.abs(r.t) * 30, s: `Expect the ${nick(me)} to ${r.t > 0 ? 'throw' : 'run'} more than usual: ${r.bits.join(', ') || 'the matchup points that way'}. Good for their ${r.t > 0 ? 'QB and receivers' : 'running backs'}.`,
+      t: `Expected pass rate ${pctPts(r.t)} vs normal` });
+  }
+  return F;
+}
+function scriptBlock(g) {
+  if (!g.proj?.tilt) return '<p class="note">Game script appears once both teams have play-by-play.</p>';
+  const row = side => { const me = g[side], opp = g[side === 'home' ? 'away' : 'home'], st = styleOf(me.abbr), os = styleOf(opp.abbr), t = g.proj.tilt[side];
+    const hs = g.odds?.hs, margin = hs == null ? 0 : side === 'home' ? -hs : hs;
+    return `<tr><td><b>${esc(me.abbr)}</b> ${styleTag(me.abbr)}</td><td class="n">${pctPts(st.op)}</td><td>${styleTag(opp.abbr, 'def')} <span class="note">${pctPts(os.dp)}</span></td><td class="n">${pctPts(-0.004 * margin)}</td><td class="n"><b class="${t > 0.02 ? 'pos' : t < -0.02 ? 'neg' : ''}">${t > 0.02 ? 'Pass ' : t < -0.02 ? 'Run ' : ''}${pctPts(t)}</b></td></tr>`; };
+  return `<table><tr><th>Offense</th><th class="n">Own lean</th><th>Facing</th><th class="n">Script</th><th class="n">Expected</th></tr>${row('away')}${row('home')}</table>
+    <p class="note">Own lean is how much more (or less) the offense passes than expected. Facing is how opponents attack that defense. Script: underdogs throw more, favorites run more. The total feeds player volume in our prop projections.</p>`;
+}
+
 const TM = { view: 'off', sort: null, dir: -1 };
 function renderTeams() {
   if (TM.view === 'tr') return renderTrendTable();
@@ -810,8 +852,9 @@ function renderTeams() {
   }
   const sc = cols.find(c => c.id === TM.sort) || cols[0];
   const list = teams.slice().sort((a, b) => ((rank(a, sc) ?? 99) - (rank(b, sc) ?? 99)) * (TM.dir === -1 ? 1 : -1));
-  box.innerHTML = `<table class="teams-t"><tr><th>Team</th>${cols.map(c => `<th class="n" data-sort="${c.id}"${c === sc ? ` aria-sort="${TM.dir === -1 ? 'ascending' : 'descending'}"` : ''}>${esc(c.l)}${c === sc ? (TM.dir === -1 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr>
-    ${list.map(t => `<tr class="${wk.has(t) ? 'hl' : ''}"><td><b>${esc(t)}</b></td>${cols.map(c => `<td class="n">${fmt(val(t, c), c)}${rkB(rank(t, c))}</td>`).join('')}</tr>`).join('')}</table>`;
+  const styleCol = TM.view === 'off' || TM.view === 'def';
+  box.innerHTML = `<table class="teams-t"><tr><th>Team</th>${styleCol ? '<th>Style</th>' : ''}${cols.map(c => `<th class="n" data-sort="${c.id}"${c === sc ? ` aria-sort="${TM.dir === -1 ? 'ascending' : 'descending'}"` : ''}>${esc(c.l)}${c === sc ? (TM.dir === -1 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr>
+    ${list.map(t => `<tr class="${wk.has(t) ? 'hl' : ''}"><td><b>${esc(t)}</b></td>${styleCol ? `<td>${styleTag(t, TM.view)}</td>` : ''}${cols.map(c => `<td class="n">${fmt(val(t, c), c)}${rkB(rank(t, c))}</td>`).join('')}</tr>`).join('')}</table>`;
 }
 $('#tm-view').addEventListener('click', e => {
   const b = e.target.closest('[data-tv]'); if (!b) return; TM.view = b.dataset.tv; TM.sort = null; TM.dir = -1;
@@ -883,6 +926,7 @@ function flags(g) {
   }
   F.push(...trendFlags(g));
   F.push(...trapFlags(g));
+  F.push(...styleFlags(g));
   if (g.shop) for (const [side, t] of [['aml', A], ['hml', H]]) {
     const e = g.shop.ev[side];
     if (e != null && e >= EV_MIN) F.push({ k: 'ev', w: e, s: `The best ${nick(t)} moneyline out there (${g.shop.best[side].n}) is priced better than the market's fair odds.`, t: `${fmtOdds(g.shop.best[side][side])} · +${e.toFixed(1)}% expected value` });
@@ -910,7 +954,7 @@ function renderSpot() {
   const box = $('#spot'), g = spotGame();
   if (!g) { box.innerHTML = ''; return; }
   const L = liveFor(g.id), isLive = L?.state === 'in' || g.state === 'in', A = g.away, H = g.home, o = g.odds;
-  const side = (t, s) => `<div class="spot-team">${logo(t.abbr, 76)}<b>${esc(nick(t))}</b><small>${esc(t.rec)}${s ? ' · ' + s : ''}</small></div>`;
+  const side = (t, s) => `<div class="spot-team">${logo(t.abbr, 76)}<b>${esc(nick(t))}</b><small>${esc(t.rec)}${s ? ' · ' + s : ''}</small>${styleTag(t.abbr)}</div>`;
   const mid = isLive
     ? `<div class="spot-mid"><div class="big">${esc(L?.away.score ?? A.score)} – ${esc(L?.home.score ?? H.score)}</div><div class="sub live"><span class="livedot"></span>${esc(L?.detail || g.detail)}</div></div>`
     : `<div class="spot-mid"><div class="sub">Kickoff in</div><div class="cd" data-cd="${esc(g.date)}">${countdown(g.date)}</div><div class="sub">${kick(g)}${g.tv ? ' · ' + esc(g.tv) : ''}</div></div>`;
@@ -1498,6 +1542,7 @@ function gradeParlay(b) {
 }
 queueMicrotask(renderSlip);  // after the whole script has loaded
 
+ICON.style = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12c3-6 9-6 12-8M10 4h4v4"/></svg>';
 ICON.trend = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 14h12M4 11V8m4 3V4m4 7V6"/></svg>';
 function renderTrendTable() {
   const tr = TRW(), box = $('#teams');
@@ -1884,6 +1929,8 @@ function legNotes(leg) {
     if (r) { const good = leg.side === 'over' ? r <= 8 : r >= 25, bad = leg.side === 'over' ? r >= 25 : r <= 8;
       if (good) plus.push(leg.side === 'over' ? `Good matchup for ${pl.n}: the ${nick(opp)} are among the softest against ${dp}s.` : `The matchup helps this under: the ${nick(opp)} are among the toughest against ${dp}s.`);
       if (bad) minus.push(leg.side === 'over' ? `Tough matchup for ${pl.n}: the ${nick(opp)} are among the toughest against ${dp}s.` : `The matchup works against this under: the ${nick(opp)} give up a lot to ${dp}s.`); }
+    if (pr.vol && Math.abs(pr.vol - 1) >= 0.02) { const helps = (pr.vol > 1) === (leg.side === 'over'), tl = g.proj?.tilt?.[pl.side];
+      (helps ? plus : minus).push(`Game script ${helps ? 'helps' : 'works against'} ${leg.label}: the ${nick(pl.side === 'home' ? g.home : g.away)} should ${tl > 0 ? 'throw' : 'run'} more than usual.`); }
     const inj = (pl.side === 'home' ? g.home : g.away).inj.find(i => i.n === pl.n);
     if (inj) minus.push(`${pl.n} is listed ${inj.s.toLowerCase()}${inj.t ? ' (' + inj.t + ')' : ''}.`);
     const d = dueRead(propRow(pl, pr, g)); if (d && ['role', 'regress'].includes(d.k) === (leg.side === 'over')) minus.push(`${pl.n}: ${d.label.toLowerCase()}.`);
@@ -1981,6 +2028,170 @@ document.addEventListener('change', e => {
   if (e.target.id === 'parUnits') { store.set('edge-parlay-units', e.target.value); renderParlay(); }
 });
 
+// ------------------------------------------------------------ alternate lines across every book, with a book toggle
+// Later definitions here replace the Kalshi-only ladder functions above.
+const BOOK_SHORT = { DraftKings: 'DK', FanDuel: 'FD', BetMGM: 'MGM', BetRivers: 'BR', Pinnacle: 'PIN', Bovada: 'BOV', 'theScore Bet': 'SCR', Caesars: 'CZR', 'ESPN BET': 'ESPN', Fanatics: 'FAN', Kalshi: 'Kalshi' };
+const ALTB = { book: store.get('edge-altbook') || 'best' };
+const bookChoices = () => ['best', 'DraftKings', 'FanDuel', 'Kalshi', 'all'];
+function bookToggle() {
+  const label = { best: 'Best price', all: 'All books' };
+  return `<div class="row booktog" role="group" aria-label="Which book's prices">${bookChoices().map(b => `<button class="chip" data-altbook="${b}" aria-pressed="${ALTB.book === b}">${label[b] || b}</button>`).join('')}</div>`;
+}
+const vigOf = book => book === 'Kalshi' ? 1.02 : 1.06;   // alt ladders are usually one-sided, so trim a typical margin
+function offerEV(pSide, o) { if (pSide == null || o.price == null) return null; const p = blend(pSide, impl(+o.price) / vigOf(o.book)); return { ...o, p, ev: p * amToDec(+o.price) - 1 }; }
+function kalshiOffers(k) {
+  const o = { over: [], under: [] }; if (!k) return o;
+  if (k.ya != null && k.ya < 0.99) o.over.push({ book: 'Kalshi', price: centsAm(kCost(k.ya)), cents: k.ya });
+  if (k.na != null && k.na < 0.99) o.under.push({ book: 'Kalshi', price: centsAm(kCost(k.na)), cents: k.na });
+  return o;
+}
+// which offers the current toggle shows
+function shown(list) {
+  if (!list.length) return [];
+  if (ALTB.book === 'all') return list.slice().sort((a, b) => b.price - a.price);
+  if (ALTB.book === 'best') return [list.slice().sort((a, b) => b.price - a.price)[0]];
+  return list.filter(o => o.book === ALTB.book);
+}
+const offerCell = (list) => { const s = shown(list); if (!s.length) return '–';
+  return s.map(o => `<span class="ofr"><b>${o.cents != null && ALTB.book === 'Kalshi' ? Math.round(o.cents * 100) + '¢' : fmtOdds(+o.price)}</b><small>${esc(BOOK_SHORT[o.book] || o.book)}</small></span>`).join(''); };
+
+// every rung for a prop: main line, Kalshi's ladder and each book's ladder
+function propRungs(pr) {
+  const set = new Map(), add = (l, f) => { const r = set.get(l) || { l, k: null, offers: { over: [], under: [] } }; f(r); set.set(l, r); };
+  (pr.alt || []).forEach(k => add(k.l, r => { r.k = k; const ko = kalshiOffers(k); r.offers.over.push(...ko.over); r.offers.under.push(...ko.under); }));
+  for (const [book, rungs] of Object.entries(pr.abooks || {})) for (const x of rungs) add(x.l, r => {
+    if (x.o != null) r.offers.over.push({ book, price: x.o }); if (x.u != null) r.offers.under.push({ book, price: x.u }); });
+  for (const b of pr.books || []) if (b.l != null) add(b.l, r => { if (b.o != null) r.offers.over.push({ book: b.n, price: b.o }); if (b.u != null) r.offers.under.push({ book: b.n, price: b.u }); });
+  if (pr.m !== 'Anytime TD') add(pr.l, () => {});
+  if (set.size < 5 && pr.m !== 'Anytime TD') { const st = ALT_STEP[pr.m] || 1; for (let k = -3; k <= 3; k++) { const L = +(pr.l + k * st).toFixed(1); if (L > 0) add(L, () => {}); } }
+  if (pr.m === 'Anytime TD') [0.5, 1.5].forEach(L => add(L, () => {}));
+  // a book's own pick of one of these rungs only counts when the toggle allows it
+  return [...set.values()].sort((a, b) => a.l - b.l);
+}
+function ladderTable(rows, opts) {
+  const anyH = rows.some(r => r.l10 != null), anyO = rows.some(r => r.offers && (r.offers.over.length || r.offers.under.length));
+  return `<div class="scroll"><table class="ladder"><tr><th>${esc(opts.head)}</th><th class="n">Our %</th><th class="n">Fair</th>${anyH ? '<th class="n">L5</th><th class="n">L10</th>' : ''}${anyO ? `<th class="n">${esc(opts.yes)}</th><th class="n">${esc(opts.no)}</th><th class="n">Value</th>` : ''}<th></th></tr>
+    ${rows.map(r => {
+      const judge = r.p != null && r.p >= 0.25 && r.p <= 0.9 && !opts.noValue;
+      const evs = !judge || !r.offers ? [] : [...shown(r.offers.over).map(o => ({ s: 'over', ...offerEV(r.p, o) })), ...shown(r.offers.under).map(o => ({ s: 'under', ...offerEV(1 - r.p, o) }))].filter(x => x.ev != null);
+      const best = evs.sort((a, b) => b.ev - a.ev)[0], good = best && best.ev >= 0.04;
+      return `<tr class="${r.main ? 'mainrung' : ''}${good ? ' valrung' : ''}"><td>${esc(r.label)}${r.main ? ' <span class="rk">main</span>' : ''}</td>
+        <td class="n">${r.p == null ? '–' : Math.round(r.p * 100) + '%'}</td><td class="n">${fmtOdds(fairAm(r.p))}</td>
+        ${anyH ? `<td class="n">${r.l5 ?? '–'}</td><td class="n">${r.l10 ?? '–'}</td>` : ''}
+        ${anyO ? `<td class="n">${offerCell(r.offers?.over || [])}</td><td class="n">${offerCell(r.offers?.under || [])}</td>
+          <td class="n">${best ? `<span class="${best.ev >= 0 ? 'pos' : 'neg'}">${best.s === 'over' ? opts.yes : opts.no} ${evS(best.ev).replace(' EV', '')}${ALTB.book === 'best' || ALTB.book === 'all' ? ` <small>${esc(BOOK_SHORT[best.book] || best.book)}</small>` : ''}</span>` : r.offers && (r.offers.over.length || r.offers.under.length) && !judge ? `<span class="note">${opts.noValue ? '' : 'long shot'}</span>` : '–'}</td>` : ''}
+        <td class="n"><button class="addp" data-addleg="${r.add.over}" title="Add ${esc(opts.yes)} ${r.l} to parlay">+${esc(opts.yes)}</button> <button class="addp" data-addleg="${r.add.under}" title="Add ${esc(opts.no)} ${r.l} to parlay">+${esc(opts.no)}</button></td></tr>`;
+    }).join('')}</table></div>`;
+}
+const ALT_NOTE2 = `<p class="note">Our % is our chance at that exact number; Fair is the price where it breaks even, so any app paying more is a good price. Prices come from every sportsbook we track plus Kalshi (use the buttons to pick one book or the best). Value is the expected return at the shown price, using our chance blended 50/50 with that price's own odds; Kalshi's fee is included. Long shots (under 25% or over 90%) aren't rated.</p>`;
+
+function propLadder(p, propsRow, pr, g) {
+  const games = (p?.last?.length && PAGE_STAT[pr.m]) ? p.last.map(r => PAGE_STAT[pr.m].reduce((s, k) => s + (r[k] || 0), 0))
+    : propRow(propsRow, pr, g).games.slice().reverse().map(x => x.v);
+  const td = pr.m === 'Anytime TD';
+  const rows = propRungs(pr).map(r => ({ ...r, main: td ? r.l === 0.5 : r.l === pr.l, p: propChance(pr, r.l),
+    label: td ? (r.l < 1 ? 'Anytime TD (1+)' : `${Math.ceil(r.l)}+ TDs`) : `${pr.m} ${Math.ceil(r.l)}+ (o${r.l})`,
+    l5: games.length ? `${hitCount(games.slice(0, 5), r.l, true)}/${Math.min(5, games.length)}` : null, l10: games.length ? `${hitCount(games, r.l, true)}/${games.length}` : null,
+    add: { over: `${g.id}|prop|over|${propsRow.id}|${pr.m}|${r.l}`, under: `${g.id}|prop|under|${propsRow.id}|${pr.m}|${r.l}` } }))
+    .filter(r => r.main || r.p == null || (r.p > 0.02 && r.p < 0.985));
+  return `<h3 style="margin:4px 0 0">Alternate lines</h3>${bookToggle()}${ladderTable(rows, { head: 'Line', yes: td ? 'Yes' : 'Over', no: td ? 'No' : 'Under', noValue: td })}${td ? '<p class="note">Touchdowns are the hardest thing to project, so we show our chance and fair odds but do not rate value here.</p>' : ''}${ALT_NOTE2}`;
+}
+
+function gameOffers(g, kind, a, b, L) {
+  // kind spread: a = favorite abbr (Yes = fav -L), b = dog abbr (No = dog +L); total: over/under at L; tt: team a over/under L
+  const out = { over: [], under: [] }, push = (s, book, price) => price != null && out[s].push({ book, price });
+  for (const [book, x] of Object.entries(g.abooks || {})) {
+    if (kind === 'spread') { (x.spread?.[a] || []).filter(r => r.l === -L).forEach(r => push('over', book, r.p)); (x.spread?.[b] || []).filter(r => r.l === L).forEach(r => push('under', book, r.p)); }
+    if (kind === 'total') (x.total || []).filter(r => r.l === L).forEach(r => { push('over', book, r.o); push('under', book, r.u); });
+    if (kind === 'tt') (x.tt?.[a] || []).filter(r => r.l === L).forEach(r => { push('over', book, r.o); push('under', book, r.u); });
+  }
+  for (const bk of g.shop?.books || []) {
+    if (kind === 'spread') { const fs = a === g.home.abbr ? bk.hs : bk.as, fp = a === g.home.abbr ? bk.hsp : bk.asp, ds = a === g.home.abbr ? bk.as : bk.hs, dp = a === g.home.abbr ? bk.asp : bk.hsp;
+      if (fs === -L) push('over', bk.n, fp); if (ds === L) push('under', bk.n, dp); }
+    if (kind === 'total' && bk.t === L) { push('over', bk.n, bk.op); push('under', bk.n, bk.up); }
+  }
+  const k = kind === 'spread' ? (g.kalshi?.spread?.[a] || []).find(r => r.l === L) : kind === 'total' ? (g.kalshi?.total || []).find(r => r.l === L) : (g.kalshi?.tt?.[a] || []).find(r => r.l === L);
+  const ko = kalshiOffers(k); out.over.push(...ko.over); out.under.push(...ko.under);
+  // the same book can list a line twice (main and alternate markets): keep its better price
+  for (const s of ['over', 'under']) { const m = new Map(); out[s].forEach(o => { if (!m.has(o.book) || m.get(o.book).price < o.price) m.set(o.book, o); }); out[s] = [...m.values()]; }
+  return out;
+}
+function gameLadders(g) {
+  const o = g.odds || {}, A = g.away, H = g.home;
+  if (!g.proj || g.state !== 'pre') return '';
+  const fav = (o.hs ?? 0) <= 0 ? H : A, dog = fav === H ? A : H, side = fav === H ? 'home' : 'away';
+  const main = o.hs != null ? Math.abs(o.hs) : 0;
+  const sl = new Set([main]);
+  for (let d = -3; d <= 3; d++) sl.add(+(Math.max(0.5, main + d)).toFixed(1));
+  (g.kalshi?.spread?.[fav.abbr] || []).forEach(r => sl.add(r.l));
+  for (const x of Object.values(g.abooks || {})) (x.spread?.[fav.abbr] || []).forEach(r => r.l < 0 && sl.add(-r.l));
+  const srows = [...sl].filter(l => l > 0 && Math.abs(l - main) <= 10).sort((a, b) => a - b).map(l => ({ l, main: l === main, p: ourChance(g, 'spread', side, -l),
+    label: `${fav.abbr} -${l} / ${dog.abbr} +${l}`, offers: gameOffers(g, 'spread', fav.abbr, dog.abbr, l),
+    add: { over: `${g.id}|spread|${side}|||${-l}`, under: `${g.id}|spread|${side === 'home' ? 'away' : 'home'}|||${l}` } }));
+  const tl = new Set(o.t != null ? [o.t] : []);
+  if (o.t != null) for (let d = -6; d <= 6; d += 2) tl.add(+(o.t + d).toFixed(1));
+  (g.kalshi?.total || []).forEach(r => tl.add(r.l));
+  for (const x of Object.values(g.abooks || {})) (x.total || []).forEach(r => tl.add(r.l));
+  const trows = [...tl].filter(l => o.t == null || Math.abs(l - o.t) <= 12).sort((a, b) => a - b).map(l => ({ l, main: l === o.t,
+    p: ourChance(g, 'total', 'over', l), label: `Total ${l}`, offers: gameOffers(g, 'total', null, null, l), add: { over: `${g.id}|total|over|||${l}`, under: `${g.id}|total|under|||${l}` } }));
+  const team = t => { const ls = new Set((g.kalshi?.tt?.[t.abbr] || []).map(r => r.l)); for (const x of Object.values(g.abooks || {})) (x.tt?.[t.abbr] || []).forEach(r => ls.add(r.l));
+    const imp = t === H ? o.hImp : o.aImp;
+    const rs = [...ls].filter(l => imp == null || Math.abs(l - imp) <= 10).sort((a, b) => a - b).map(l => ({ l, p: teamTotalChance(g, t.abbr, l), label: `${t.abbr} over ${l}`, offers: gameOffers(g, 'tt', t.abbr, null, l),
+      add: { over: `${g.id}|tt|over|${t.abbr}||${l}`, under: `${g.id}|tt|under|${t.abbr}||${l}` } }));
+    return rs.length ? ladderTable(rs, { head: `${t.abbr} team total`, yes: 'Over', no: 'Under' }) : ''; };
+  const k = g.kalshi || {};
+  const ml = k.ml ? `<p class="offer">Kalshi moneyline: ${[A, H].map(t => k.ml[t.abbr] ? `${esc(t.abbr)} ${Math.round(k.ml[t.abbr].ya * 100)}¢ (${fmtOdds(centsAm(k.ml[t.abbr].ya))})` : '').filter(Boolean).join(' · ')} · our win chance ${esc(H.abbr)} ${Math.round(g.proj.pHome * 100)}%</p>` : '';
+  return `<div style="grid-column:1/-1;min-width:0"><h3>Alternate lines</h3>${bookToggle()}${ml}
+    ${ladderTable(srows, { head: 'Spread', yes: fav.abbr, no: dog.abbr })}<br>${ladderTable(trows, { head: 'Total', yes: 'Over', no: 'Under' })}${team(A)}${team(H)}${ALT_NOTE2}</div>`;
+}
+
+// best-valued alternate lines on the slate, for the book(s) the toggle allows
+function altValuePicks() {
+  const out = [];
+  for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) for (const pl of S.props?.[g.id] || []) {
+    const team = pl.side === 'home' ? g.home : g.away;
+    if (team.inj.some(i => i.n === pl.n && (isOut(i.s) || /doubtful/i.test(i.s)))) continue;
+    for (const pr of pl.props.filter(x => x.m !== 'Anytime TD')) for (const r of propRungs(pr)) {
+      const p = propChance(pr, r.l); if (p == null || p < 0.25 || p > 0.9) continue;
+      for (const s of ['over', 'under']) for (const o of shown(r.offers[s])) { const e = offerEV(s === 'over' ? p : 1 - p, o); if (e && e.ev >= 0.05 && e.p >= 0.3 && e.p <= 0.88) out.push({ g, pl, pr, r, s, ...e }); }
+    }
+  }
+  const per = {};
+  return out.sort((a, b) => b.ev - a.ev).filter(x => (per[x.pl.id + x.pr.m] = (per[x.pl.id + x.pr.m] || 0) + 1) <= 1).slice(0, 12);
+}
+function renderAltPicks() {
+  const box = $('#altpicks'); if (!box) return;
+  const list = altValuePicks();
+  box.innerHTML = bookToggle() + (list.length ? `<div class="picks">${list.map(x => { const yes = x.s === 'over';
+    const label = `${yes ? Math.ceil(x.r.l) + '+' : 'Under ' + x.r.l} ${x.pr.m.toLowerCase()}`;
+    return `<article class="pick"><div class="pick-h">${logo(x.pl.tm, 30)}<b><button class="plink" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}"><b>${esc(x.pl.n)}</b></button> ${esc(label)}</b><span class="stars">${x.ev >= 0.12 ? stars(3) : x.ev >= 0.08 ? stars(2) : stars(1)}</span></div>
+      <div class="pick-sub">${esc(x.g.away.abbr)} @ ${esc(x.g.home.abbr)} · ${kick(x.g)} · alternate line</div>
+      <div class="offer"><b>${fmtOdds(+x.price)}</b> at ${esc(x.book)}${x.cents != null ? ` (${Math.round(x.cents * 100)}¢)` : ''} · our chance <b>${Math.round(x.p * 100)}%</b> · <span class="pos">${evS(x.ev)}</span></div>
+      <div class="acts"><button class="addp" data-addleg="${x.g.id}|prop|${x.s}|${esc(x.pl.id)}|${esc(x.pr.m)}|${x.r.l}">+ Parlay</button><button class="btn small" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}">See ladder</button></div></article>`; }).join('')}</div>`
+    : `<div class="empty"><b>No standout alternate lines${ALTB.book === 'best' || ALTB.book === 'all' ? '' : ' at ' + esc(ALTB.book)}</b>The books and our numbers agree right now.</div>`);
+}
+
+// parlay legs price themselves from the same offers, honoring the toggle
+const _legPriceBase = legPrice;
+legPrice = function (leg, g) {
+  let offers = null;
+  if (leg.kind === 'prop') { const { pr } = findProp(leg.gid, leg.pid, leg.m); const r = pr && propRungs(pr).find(x => x.l === leg.line); offers = r?.offers[leg.side]; }
+  else if (leg.kind === 'spread') { const team = g[leg.side].abbr, other = g[leg.side === 'home' ? 'away' : 'home'].abbr;
+    offers = leg.line < 0 ? gameOffers(g, 'spread', team, other, -leg.line).over : gameOffers(g, 'spread', other, team, leg.line).under; }
+  else if (leg.kind === 'total') offers = gameOffers(g, 'total', null, null, leg.line)[leg.side];
+  else if (leg.kind === 'tt') offers = gameOffers(g, 'tt', leg.team, null, leg.line)[leg.side];
+  const pick = offers && (shown(offers)[0] || (ALTB.book !== 'best' && ALTB.book !== 'all' ? null : null));
+  if (pick) return { odds: +pick.price, book: pick.book };
+  if (offers?.length && ALTB.book !== 'best' && ALTB.book !== 'all') { const b = offers.slice().sort((a, b) => b.price - a.price)[0]; return { odds: +b.price, book: b.book }; }
+  return _legPriceBase(leg, g);
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-altbook]'); if (!b) return;
+  ALTB.book = b.dataset.altbook; store.set('edge-altbook', ALTB.book);
+  renderPlayers(); renderAltPicks(); if (S.open.size) renderBoard();
+  PAR.legs.forEach(l => { if (!l.manual) refreshLeg(l); }); saveParlay(); renderParlay();
+});
+
 // ------------------------------------------------------------ board
 const TAGS = { model: 'Model', move: 'Move', inj: 'Injury', wx: 'Weather', ev: '+EV', match: 'Matchup' };
 function kick(g) { return new Date(g.date).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
@@ -2027,7 +2238,7 @@ function card(g) {
     let right;
     if (pre && !live) right = `<span class="pill" title="Spread">${fmtLine(sp)}${mv(spo, sp)}</span><span class="pill" title="Moneyline">${fmtOdds(o ? (home ? o.hml : o.aml) : null)}</span>`;
     else { const mine = +score(t, home), theirs = +score(home ? A : H, !home); right = `<span></span><span class="score ${mine >= theirs ? 'win' : 'lose'}">${esc(score(t, home) ?? '')}</span>`; }
-    return `<div class="gteam">${logo(t.abbr, 36)}<div class="nm"><b>${esc(nick(t))}</b><small>${esc(t.rec)} · ${home ? 'home ' + esc(t.homeRec) : 'road ' + esc(t.roadRec)}</small></div>${right}</div>`;
+    return `<div class="gteam">${logo(t.abbr, 36)}<div class="nm"><b>${esc(nick(t))}</b><small>${esc(t.rec)} · ${home ? 'home ' + esc(t.homeRec) : 'road ' + esc(t.roadRec)} ${styleTag(t.abbr)}</small></div>${right}</div>`;
   };
   const totals = o && pre ? `<div class="row" style="padding:0 12px 10px;gap:6px">${o.t != null ? `<span class="pill"><i>Total</i>${o.t}${mv(o.to, o.t)}</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}${g.proj ? `<span class="ourline">Our line ${esc(ourLine(g))} · total ${g.proj.total.toFixed(1)}</span>` : ''}</div>` : '';
   const probs = o?.hFair && pre ? `<div class="probs">
@@ -2104,6 +2315,7 @@ function detail(g) {
       <h3 style="margin-top:12px">Form this season</h3>${form(A)}${form(H)}</div>
     <div><h3>Efficiency matchup (EPA)</h3>${matchupRows(g)}<h3 style="margin-top:12px">Per-game stats</h3>${stats}</div>
     <div><h3>Injury report</h3>${inj(A)}<br>${inj(H)}</div>
+    <div><h3>Game script</h3>${scriptBlock(g)}</div>
     <div><h3>Betting trends</h3>${trendBlock(g)}</div>
     ${g.state === 'pre' ? `<div><h3>Trap check</h3>${trapBlock(g)}</div>` : ''}
     ${gameLadders(g)}`;
@@ -2315,7 +2527,7 @@ function renderProps() {
         return `<button class="prow2" data-player="${esc(pl.id)}" data-openprop="${esc(x.pr.m)}">
           <span class="m">${esc(x.pr.m)} <span>${td ? '' : x.pr.l}</span>${!td && x.pr.o != null && x.pr.o !== x.pr.l ? ` <i>${x.move > 0 ? '▲' : '▼'}${Math.abs(x.move).toFixed(1).replace(/\.0$/, '')}</i>` : ''}</span>
           <span class="lean ${has ? (over ? 'o' : 'u') : ''}">${has ? `${td ? (over ? 'Yes' : 'No') : over ? 'O' : 'U'} ${pct}%` : '–'}</span>
-          <span class="meta"><span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span>proj <b>${x.pr.proj}</b></span>` : ''}
+          <span class="meta"><span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span>proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
             ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
             ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.alt?.length ? `<span>${x.pr.alt.length} alt lines</span>` : ''}</span>
         </button>`;

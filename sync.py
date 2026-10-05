@@ -256,6 +256,81 @@ def multibook_props(games, props, cfg):
                     if pr is not None: pr.setdefault("books", []).append(row)
 
 
+ALT_MARKETS = {"player_pass_yds_alternate": "Pass yds", "player_rush_yds_alternate": "Rush yds", "player_reception_yds_alternate": "Rec yds",
+               "player_receptions_alternate": "Receptions", "player_rush_reception_yds_alternate": "Rush+rec yds", "player_pass_tds_alternate": "Pass TD"}
+ALT_GAME_MARKETS = ("alternate_spreads", "alternate_totals", "alternate_team_totals")
+
+
+def multibook_alts(games, props, cfg):
+    """Every sportsbook's alternate-line ladders (FanDuel, DraftKings and the rest) for props, spreads, totals and team totals.
+    Costs ~9 API requests per game, so it is off unless config "odds_api_alts" (or env ODDS_API_ALTS=1) is on, covers games
+    within odds_api_alts_hours of kickoff (default 48), and refreshes at most every odds_api_alts_min_hours (default 12).
+    Writes pr["abooks"] = {book: [{l, o, u}]} and g["abooks"] = {book: {"spread": {abbr: [{l, p}]}, "total": [{l, o, u}], "tt": {abbr: [...]}}}."""
+    key = (cfg.get("odds_api_key") or os.environ.get("ODDS_API_KEY") or "").strip()
+    on = cfg.get("odds_api_alts", os.environ.get("ODDS_API_ALTS") == "1")
+    hours = float(cfg.get("odds_api_alts_hours", os.environ.get("ODDS_API_ALTS_HOURS", 48)))
+    cache = load("odds_alts_cache.json", {})
+    now = datetime.now(timezone.utc)
+    if key and on:
+        try: events = get("https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events?" + urlencode({"apiKey": key}))
+        except Exception as e:
+            print("odds api events failed", e, file=sys.stderr); events = []
+        for g in games:
+            kick = datetime.fromisoformat(g["date"].replace("Z", "+00:00"))
+            if g["state"] != "pre" or kick - now > timedelta(hours=hours): continue
+            hit = cache.get(g["id"])
+            if hit and time.time() - hit["t"] < float(cfg.get("odds_api_alts_min_hours", 12)) * 3600: continue
+            ev = next((e for e in events if e["home_team"] == g["home"]["full"] and e["away_team"] == g["away"]["full"]), None)
+            if not ev: continue
+            try:
+                data = get(f"https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/{ev['id']}/odds?" + urlencode(
+                    {"apiKey": key, "regions": "us", "markets": ",".join(list(ALT_MARKETS) + list(ALT_GAME_MARKETS)), "oddsFormat": "american", "bookmakers": BOOKS}))
+                cache[g["id"]] = {"t": time.time(), "data": data}
+            except Exception as e:
+                print("odds api alternates failed", g["id"], e, file=sys.stderr)
+        save(os.path.join(DATA, "odds_alts_cache.json"), cache)
+    by_id = {g["id"]: g for g in games}
+    for gid, hit in cache.items():
+        g, data = by_id.get(gid), (hit or {}).get("data")
+        if not g or not data or g["state"] != "pre": continue
+        full = {g["home"]["full"]: g["home"]["abbr"], g["away"]["full"]: g["away"]["abbr"]}
+        players = {norm_name(pl["n"]): pl for pl in props.get(gid, [])}
+        gb = {}
+        for b in data.get("bookmakers", []):
+            book = b["title"]
+            for m in b.get("markets", []):
+                if m["key"] in ALT_MARKETS:
+                    ladders = {}
+                    for oc in m.get("outcomes", []):
+                        pl = players.get(norm_name(oc.get("description")))
+                        if not pl or oc.get("point") is None: continue
+                        row = ladders.setdefault(pl["n"], {}).setdefault(oc["point"], {"l": oc["point"]})
+                        row["o" if oc["name"] == "Over" else "u"] = oc["price"]
+                    for name, rungs in ladders.items():
+                        pl = players[norm_name(name)]
+                        pr = next((x for x in pl["props"] if x["m"] == ALT_MARKETS[m["key"]]), None)
+                        if pr is not None: pr.setdefault("abooks", {})[book] = sorted(rungs.values(), key=lambda r: r["l"])
+                elif m["key"] == "alternate_spreads":
+                    for oc in m.get("outcomes", []):
+                        t = full.get(oc["name"])
+                        if t and oc.get("point") is not None: gb.setdefault(book, {}).setdefault("spread", {}).setdefault(t, []).append({"l": oc["point"], "p": oc["price"]})
+                elif m["key"] == "alternate_totals":
+                    rows = {}
+                    for oc in m.get("outcomes", []):
+                        if oc.get("point") is None: continue
+                        rows.setdefault(oc["point"], {"l": oc["point"]})["o" if oc["name"] == "Over" else "u"] = oc["price"]
+                    gb.setdefault(book, {})["total"] = sorted(rows.values(), key=lambda r: r["l"])
+                elif m["key"] == "alternate_team_totals":
+                    rows = {}
+                    for oc in m.get("outcomes", []):
+                        t = full.get(oc.get("description"))
+                        if t and oc.get("point") is not None: rows.setdefault(t, {}).setdefault(oc["point"], {"l": oc["point"]})["o" if oc["name"] == "Over" else "u"] = oc["price"]
+                    gb.setdefault(book, {})["tt"] = {t: sorted(v.values(), key=lambda r: r["l"]) for t, v in rows.items()}
+        for book in gb:
+            for t in gb[book].get("spread", {}): gb[book]["spread"][t].sort(key=lambda r: r["l"])
+        if gb: g["abooks"] = gb
+
+
 def summary(ev):
     try: return get(SUMMARY + ev["id"])
     except Exception as e:
@@ -526,6 +601,7 @@ def main():
     # our own projections, betting trends and player pages
     pages = {}
     multibook_props(games, props, cfg)
+    multibook_alts(games, props, cfg)   # every book's alternate ladders (paid-plan volume; off by default)
     try:
         kalshi_n = kalshi.apply(games, props)   # alternate-line ladders with real prices
     except Exception as e:
