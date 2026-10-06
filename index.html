@@ -486,6 +486,10 @@ details.nerd .usage{border-bottom:0}
 .ofr{display:inline-flex;flex-direction:column;align-items:flex-end;line-height:1.1;margin-left:6px}
 .ofr b{font:500 13px var(--f-mono)}.ofr small{font-size:10px;color:var(--muted)}
 .ladder td small{font-size:10px;color:var(--muted)}
+.lcline{display:flex;gap:6px;align-items:baseline;padding:4px 10px 6px;font-size:11.5px;color:var(--muted);border-top:1px dashed var(--line)}
+.lcline b{color:var(--accent);font-weight:600}
+.ic-lineup{background:var(--accent-soft);color:var(--accent)}
+.tag2.lc{background:var(--accent-soft);color:var(--accent)}
 </style>
 
 <header>
@@ -830,6 +834,23 @@ function scriptBlock(g) {
     <p class="note">Own lean is how much more (or less) the offense passes than expected. Facing is how opponents attack that defense. Script: underdogs throw more, favorites run more. The total feeds player volume in our prop projections.</p>`;
 }
 
+// ------------------------------------------------------------ lineup changes: key players back from injury or newly out
+const wkList = ws => ws.length > 1 && ws[ws.length - 1] - ws[0] === ws.length - 1 ? `weeks ${ws[0]}–${ws[ws.length - 1]}` : `week${ws.length > 1 ? 's' : ''} ${ws.join(', ')}`;
+const ptsS = v => `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`;
+function lineupFlags(g) {
+  const F = [];
+  for (const side of ['away', 'home']) for (const k of g.lineup?.[side] || []) {
+    if (Math.abs(k.pts) < 0.3) continue;
+    const t = g[side], qb = k.role === 'QB', who = qb ? 'QB ' + k.n : k.n;
+    F.push({ k: 'lineup', w: Math.abs(k.pts) * 2 + (qb ? 3 : 0),
+      s: k.k === 'back'
+        ? `${who} is back for the ${nick(t)}. He missed ${wkList(k.miss)}, so their season numbers ${k.pts > 0 ? 'undersell' : 'oversell'} this offense, and his teammates' recent stats ran ${qb ? 'with a different QB' : 'hot without him'}.`
+        : `The ${nick(t)} are without ${who}, who has played most of their games. Their season numbers were built with him, so we trim them and spread his ${k.role === 'RB' ? 'carries' : 'targets'} to teammates.`,
+      t: `${t.abbr} ${ptsS(k.pts)} pts in our projection` });
+  }
+  return F;
+}
+
 const TM = { view: 'off', sort: null, dir: -1 };
 function renderTeams() {
   if (TM.view === 'tr') return renderTrendTable();
@@ -927,6 +948,7 @@ function flags(g) {
   F.push(...trendFlags(g));
   F.push(...trapFlags(g));
   F.push(...styleFlags(g));
+  F.push(...lineupFlags(g));
   if (g.shop) for (const [side, t] of [['aml', A], ['hml', H]]) {
     const e = g.shop.ev[side];
     if (e != null && e >= EV_MIN) F.push({ k: 'ev', w: e, s: `The best ${nick(t)} moneyline out there (${g.shop.best[side].n}) is priced better than the market's fair odds.`, t: `${fmtOdds(g.shop.best[side][side])} · +${e.toFixed(1)}% expected value` });
@@ -1298,7 +1320,9 @@ function renderPicks() {
 function pickCard(p) {
   const g = p.g, A = g.away, H = g.home, when = kick(g);
   if (p.kind === 'spread') {
-    const qb = g.proj.qbOut?.length ? ` That includes a ${g.proj.qbOut.map(s => g[s].abbr).join(' and ')} starting-QB downgrade.` : '';
+    const lcs = Object.entries(g.proj.lc || {}).filter(([, v]) => Math.abs(v) >= 0.3).map(([s, v]) => `${g[s].abbr} ${ptsS(v)}`);
+    const qb = (g.proj.qbOut?.length ? ` That includes a ${g.proj.qbOut.map(s => g[s].abbr).join(' and ')} starting-QB downgrade.` : '')
+      + (lcs.length ? ` It also adjusts for lineup changes (${lcs.join(', ')} pts).` : '');
     const tr = trendsFor(p.t.abbr, g.trend?.[p.t === H ? 'home' : 'away']).filter(r => r.k !== 'all' && r.n >= 8).sort((a, b) => atsPct(b.w) - atsPct(a.w))[0];
     return `<article class="pick"><div class="pick-h">${logo(p.t.abbr, 30)}<b>${esc(nick(p.t))} ${fmtLine(p.line)}</b><span class="stars">${stars(p.st)}</span></div>
       <div class="pick-sub">${esc(A.abbr)} @ ${esc(H.abbr)} · ${when} · spread</div>
@@ -1418,7 +1442,8 @@ function playerPage(id, p) {
       ${open ? `<div style="grid-column:1/-1;min-width:0">${propView(p, props, pr, g)}</div>` : ''}</div>`; }).join('') : '';
   return `<div class="ppage"><button class="backlink" data-player-back>← All players</button>
     <div class="ppage-h">${logo(p.tm, 56)}<div><h2>${esc(p.n)}</h2><span class="note">${esc(p.p)} · ${esc(nick(team))}${g ? ` · ${g.home.abbr === p.tm ? 'vs' : '@'} ${esc(nick(g.home.abbr === p.tm ? g.away : g.home))}, ${kick(g)}` : ''}</span>
-      ${inj ? `<span class="b ${isOut(inj.s) ? 'r' : 'y'}">${esc(inj.s)}${inj.t ? ', ' + esc(inj.t) : ''}</span>` : ''}</div></div>
+      ${inj ? `<span class="b ${isOut(inj.s) ? 'r' : 'y'}">${esc(inj.s)}${inj.t ? ', ' + esc(inj.t) : ''}</span>` : ''}
+      ${props?.lc?.length ? `<p class="note" style="margin:6px 0 0"><b style="color:var(--accent)">Lineup change:</b> ${esc(props.lc.join('. '))}.</p>` : ''}</div></div>
     <div class="kpis">${kpis.map(([l, v]) => `<div class="kpi"><span>${l}</span><b>${v ?? '–'}</b></div>`).join('')}</div>
     ${propHtml ? `<div class="panel" id="pp-props"><h3>This week's props</h3>${propHtml}</div>` : ''}
     ${chart ? `<div class="panel"><h3>Role by week</h3>${chart}</div>` : ''}
@@ -1543,6 +1568,7 @@ function gradeParlay(b) {
 queueMicrotask(renderSlip);  // after the whole script has loaded
 
 ICON.style = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12c3-6 9-6 12-8M10 4h4v4"/></svg>';
+ICON.lineup = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8a5 5 0 0 1 9-3M13 8a5 5 0 0 1-9 3M12 2v3H9M4 14v-3h3"/></svg>';
 ICON.trend = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 14h12M4 11V8m4 3V4m4 7V6"/></svg>';
 function renderTrendTable() {
   const tr = TRW(), box = $('#teams');
@@ -1914,7 +1940,9 @@ function legChance(leg) {
 
 // every judgment the grader makes about one leg
 function legNotes(leg) {
-  const g = S.slate.games.find(x => x.id === leg.gid), c = legChance(leg), plus = [], minus = [];
+  const plus = [], minus = [];
+  if (!S.slate) return { plus, minus, c: null };
+  const g = S.slate.games.find(x => x.id === leg.gid), c = legChance(leg);
   if (!c) return { plus, minus, c };
   const ev = leg.priced ? c.p * amToDec(+leg.odds) - 1 : null;
   if (c.p >= 0.62) plus.push(`${leg.label}: a strong leg, ${Math.round(c.p * 100)}% to hit.`);
@@ -2529,9 +2557,10 @@ function renderProps() {
           <span class="lean ${has ? (over ? 'o' : 'u') : ''}">${has ? `${td ? (over ? 'Yes' : 'No') : over ? 'O' : 'U'} ${pct}%` : '–'}</span>
           <span class="meta"><span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span>proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
             ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
-            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.alt?.length ? `<span>${x.pr.alt.length} alt lines</span>` : ''}</span>
+            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span>${x.pr.alt.length} alt lines</span>` : ''}</span>
         </button>`;
       }).join('')}
+      ${pl.lc?.length ? `<div class="lcline"><b>Lineup</b><span>${esc(pl.lc.join(' · '))}</span></div>` : ''}
     </article>`;
   }).join('')}</div>${rows.length > 150 ? `<p class="note">Showing 150 of ${rows.length} players. Pick a game or position to narrow it.</p>` : ''}`;
 }

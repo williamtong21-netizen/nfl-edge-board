@@ -15,6 +15,9 @@ SHRINK = 8           # games of league-average "prior" blended into each team's 
 QB_OUT = 4.0         # points off a team whose starting QB is out or doubtful
 SHRINK_P = 0.85      # props: hit chances are pulled 15% of the way back toward 50/50 (the page uses the same rule for alt lines)
 ANCHOR = 0.6         # props: how far we move from the book's line toward our raw number (books know injuries, game plans)
+LC_BACK_W = 0.4      # props: weight on a teammate's games played while a now-returning key player was out (his volume was inflated)
+LC_OUT_W = 0.6       # props: weight on a teammate's games played alongside a key player who is out this week
+LC_SHARE = 0.5       # props: share of an out player's targets/carries we hand to a teammate in proportion to his own share
 
 PROP_STATS = {
     "Pass yds": ["passingYards"], "Pass TD": ["passingTouchdowns"], "Completions": ["completions"], "Pass att": ["passingAttempts"],
@@ -73,11 +76,15 @@ def team_projections(games, an):
         H, A = g["home"]["abbr"], g["away"]["abbr"]
         if not all(x in off and x in dfn for x in (H, A)): continue
         h, a = pts(off[H], dfn[A]) + HFA / 2, pts(off[A], dfn[H]) - HFA / 2
+        # key players back from injury or newly out: the season numbers were built with a different lineup
+        lc = an.get("lineup") or {}
+        h += (lc.get(H) or {}).get("pts", 0); a += (lc.get(A) or {}).get("pts", 0)
         qb_out = {s: any(x.get("r") == "starting QB" and any(k in (x.get("s") or "").lower() for k in ("out", "reserve", "doubtful", "suspend"))
                          for x in g[s].get("inj", [])) for s in ("home", "away")}
         if qb_out["home"]: h -= QB_OUT
         if qb_out["away"]: a -= QB_OUT
-        g["proj"] = {"h": h, "a": a, "qbOut": [s for s, v in qb_out.items() if v]}
+        g["proj"] = {"h": h, "a": a, "qbOut": [s for s, v in qb_out.items() if v],
+                     "lc": {s: (lc.get(g[s]["abbr"]) or {}).get("pts", 0) for s in ("home", "away") if (lc.get(g[s]["abbr"]) or {}).get("pts")}}
     # recenter so the average projected game matches this season's actual scoring (shrinkage pulls totals low otherwise)
     projected = [g for g in games if g.get("proj")]
     shift = (2 * sum(ppg.values()) / len(ppg) - sum(g["proj"]["h"] + g["proj"]["a"] for g in projected) / len(projected)) / 2 if projected else 0
@@ -158,6 +165,36 @@ def prop_projections(props, games, an, season):
                 mine = g["proj"]["h"] if side == "home" else g["proj"]["a"]
                 env = max(0.85, min(1.15, 1 + 0.3 * (mine / team["stats"]["totalPointsPerGame"] - 1)))
             u = pl.get("u") or {}
+            # lineup changes around this player: reweight his games and shift volume toward or away from him
+            lck = [k for k in ((an or {}).get("lineup", {}).get(team["abbr"]) or {}).get("keys", []) if k["n"] != pl["n"]]
+            me = next((k for k in ((an or {}).get("lineup", {}).get(team["abbr"]) or {}).get("keys", []) if k["n"] == pl["n"]), None)
+            REC_M = ("Rec yds", "Receptions", "Long rec", "Rush+rec yds")
+            def touches(k, m):   # does this lineup change move this market for this player?
+                if k["role"] == "QB": return pos != "QB" and m not in RUSH_MARKETS
+                if k["role"] == "RB": return pos == "RB" and m in ("Rush yds", "Carries", "Rush+rec yds")
+                return pos in ("WR", "TE", "RB") and m in REC_M
+            def hits(k, r): return r["y"] == season and (r["w"] in k["miss"] if k["k"] == "back" else r["w"] in k["have"])
+            def lc_w(r, m):
+                w = 1.0
+                for k in lck:
+                    if touches(k, m) and hits(k, r): w *= LC_BACK_W if k["k"] == "back" else LC_OUT_W
+                return w
+            notes = []
+            if me and me["k"] == "back": notes.append(f'Back after missing {"weeks" if len(me["miss"]) > 1 else "week"} {", ".join(map(str, me["miss"]))}')
+            for k in lck:
+                if not any(touches(k, pr["m"]) for pr in pl["props"]): continue
+                n = sum(1 for r in pl["log"] if hits(k, r))
+                if n: notes.append(f'{k["n"]} {"is back" if k["k"] == "back" else "is out"}; {n} of his games this year came {"without" if k["k"] == "back" else "with"} him, so they count less')
+            if notes: pl["lc"] = notes
+            def lc_vol(m):
+                v = 1.0
+                for k in lck:
+                    if k["k"] != "out": continue
+                    without = sum(1 for r in pl["log"] if r["y"] == season and r["w"] not in k["have"])
+                    if without >= 2: continue    # he already has games without the star; the reweighting covers it
+                    if m in ("Rec yds", "Receptions", "Long rec") and u.get("ts"): v *= 1 + LC_SHARE * k["ts"] / max(0.5, 1 - k["ts"])   # his targets spread in proportion to everyone's share
+                    if m in ("Rush yds", "Carries") and pos == "RB" and k["role"] == "RB": v *= 1 + LC_SHARE * k["rs"]
+                return round(min(v, 1.25), 3)
             for pr in pl["props"]:
                 keys = PROP_STATS.get(pr["m"])
                 if not keys: continue
@@ -165,7 +202,7 @@ def prop_projections(props, games, an, season):
                 for age, r in enumerate(pl["log"]):            # log is newest first
                     v = [r["s"].get(k) for k in keys]
                     if all(x is None for x in v): continue
-                    vals.append(sum(x or 0 for x in v)); wts.append(0.85 ** age * (1.0 if r["y"] == season else 0.6))
+                    vals.append(sum(x or 0 for x in v)); wts.append(0.85 ** age * (1.0 if r["y"] == season else 0.6) * lc_w(r, pr["m"]))
                 if len(vals) < 2: continue
                 base = sum(v * w for v, w in zip(vals, wts)) / sum(wts)
                 dk = _dvp_key(pr["m"], pos)
@@ -186,7 +223,9 @@ def prop_projections(props, games, an, season):
                     tilt = ((g.get("proj") or {}).get("tilt") or {}).get(side, 0)
                     vol = 1 + TILT_TO_VOLUME * tilt if pr["m"] in PASS_MARKETS else 1 - TILT_TO_VOLUME * tilt if pr["m"] in RUSH_MARKETS else 1.0
                     pr["vol"] = round(vol, 3)
-                    raw = base * mult * vol * (env if pr["m"] not in ("INT",) else 1.0)
+                    lv = lc_vol(pr["m"])
+                    if lv != 1.0: pr["lcv"] = lv
+                    raw = base * mult * vol * lv * (env if pr["m"] not in ("INT",) else 1.0)
                     proj = pr["l"] + ANCHOR * (raw - pr["l"])
                     pr["proj"], pr["raw"] = round(proj, 1), round(raw, 1)
                     def chance(line):

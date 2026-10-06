@@ -205,3 +205,95 @@ def player_usage(season, espn_ids):
         snaps = [v["snap"] for (y, _), v in wk.items() if y == season and v.get("snap") is not None]
         if snaps: season_out.setdefault(e, {})["snap"] = r2(mean(snaps), 2)
     return {"season": season_out, "weekly": {e: {f"{y}-{w}": v for (y, w), v in wk.items()} for e, wk in weekly.items()}}
+
+
+# ---------------------------------------------------------------- lineup changes: key players back from injury, or out
+KEY_TS, KEY_RS, KEY_DB = 0.18, 0.45, 20   # a key pass catcher (target share), lead back (carry share), starting QB (dropbacks/game)
+LINEUP_SHRINK = 0.5                       # how much of a player's measured edge over his replacements we trust
+OUT_WORDS = ("out", "reserve", "doubtful", "suspend", "pup")
+norm = lambda n: " ".join(w for w in "".join(c for c in (n or "").lower() if c.isalpha() or c == " ").split() if w not in ("jr", "sr", "ii", "iii", "iv"))
+
+
+def lineup_changes(season, games, depth):
+    """For each upcoming game, find key players whose availability differs from the games behind the team's numbers.
+    back: active now but missed some of this season's games (the team's stats undersell him, teammates' oversell them).
+    out:  ruled out now but played most of this season's games.
+    depth = {team abbr: {"qb": starting QB name, "names": set of normalized offensive depth-chart names}}.
+    Returns {team: {"weeks": [weeks played], "keys": [...], "pts": net points per game adjustment}} for teams on the slate."""
+    cur = [w for w in rows(f"stats_player/stats_player_week_{season}.csv", 6 * 3600) if w.get("season_type") == "REG"]
+    try: prev = [w for w in rows(f"stats_player/stats_player_week_{season - 1}.csv", 30 * 86400) if w.get("season_type") == "REG"]
+    except Exception: prev = []
+    try: snaps = rows(f"snap_counts/snap_counts_{season}.csv", 6 * 3600)
+    except Exception: snaps = []
+    team_weeks, played = defaultdict(set), defaultdict(set)
+    for w in cur: team_weeks[fix(w["team"])].add(i(w["week"])); played[(fix(w["team"]), norm(w["player_display_name"]))].add(i(w["week"]))
+    for s in snaps:
+        if (f(s.get("offense_pct")) or 0) > 0 and s.get("game_type", "REG") == "REG": played[(fix(s["team"]), norm(s["player"]))].add(i(s["week"]))
+    # per team-week totals and per player-game lines, both seasons
+    tot = defaultdict(lambda: defaultdict(float))
+    games_of = defaultdict(list)    # normalized name -> [(season, week, team, row)]
+    for yr, data in ((season, cur), (season - 1, prev)):
+        for w in data:
+            t, k = fix(w["team"]), (yr, i(w["week"]), fix(w["team"]))
+            for c in ("targets", "receiving_epa", "carries", "rushing_epa", "attempts", "sacks_suffered", "passing_epa"):
+                tot[k][c] += f(w.get(c)) or 0
+            games_of[norm(w["player_display_name"])].append((yr, i(w["week"]), t, w))
+    inj_by_team = {}
+    for g in games:
+        if g.get("state") != "pre": continue
+        for s in ("home", "away"): inj_by_team[g[s]["abbr"]] = {norm(x["n"]): x for x in g[s].get("inj", [])}
+    out = {}
+    for team, inj in inj_by_team.items():
+        dc = depth.get(team) or {}
+        weeks = sorted(team_weeks.get(team, ()))
+        if not weeks or not dc.get("names"): continue
+        keys = []
+        for nm in dc["names"]:
+            gl = games_of.get(nm, [])
+            if len(gl) < 3: continue
+            pos = gl[-1][3].get("position_group")
+            def per(c): return [f(r.get(c)) or 0 for *_, r in gl]
+            def share(c): return mean([(f(r.get(c)) or 0) / tot[(y, w, t)][c] for y, w, t, r in gl if tot[(y, w, t)][c]]) or 0
+            db = mean([a + s for a, s in zip(per("attempts"), per("sacks_suffered"))])
+            kind_pos = ("QB" if pos == "QB" and db >= KEY_DB and nm == norm(dc.get("qb")) else
+                        "RB" if pos == "RB" and share("carries") >= KEY_RS else
+                        "REC" if pos in ("WR", "TE", "RB") and share("targets") >= KEY_TS else None)
+            if not kind_pos: continue
+            st = inj.get(nm)
+            is_out = bool(st and any(x in (st.get("s") or "").lower() for x in OUT_WORDS))
+            have = played.get((team, nm), set()) & set(weeks)
+            missed = [w for w in weeks if w not in have]
+            if is_out and kind_pos != "QB" and len(have) >= max(1, len(weeks) / 2): kind = "out"
+            elif not is_out and missed: kind = "back"
+            else: continue
+            # his edge over the players who replace him, in expected points per game
+            ref_weeks = missed if kind == "back" else sorted(have)
+            def rate(num, den, mine):
+                if mine:  # his own rate across both seasons
+                    n, d = sum(per(num)), sum(per(den)) if den != "db" else sum(a + s for a, s in zip(per("attempts"), per("sacks_suffered")))
+                else:     # everyone else on this team in the reference games
+                    me = {(y, w): r for y, w, t, r in gl if t == team}
+                    n = d = 0
+                    for w in ref_weeks:
+                        T, r = tot[(season, w, team)], me.get((season, w), {})
+                        g_ = lambda c: f(r.get(c)) or 0 if r else 0
+                        n += T[num] - (g_(num) if kind == "out" else 0)
+                        d += (T["attempts"] + T["sacks_suffered"] - (g_("attempts") + g_("sacks_suffered") if kind == "out" else 0)) if den == "db" else T[den] - (g_(den) if kind == "out" else 0)
+                return n / d if d else None
+            if kind_pos == "QB":
+                a, b = rate("passing_epa", "db", True), rate("passing_epa", "db", False)
+                edge = (a - b) * db if a is not None and b is not None else 0
+            else:
+                edge = 0
+                for num, den in (("receiving_epa", "targets"), ("rushing_epa", "carries")):
+                    a, b, vol = rate(num, den, True), rate(num, den, False), mean(per(den))
+                    if a is not None and b is not None and vol: edge += (a - b) * vol
+            cap = 5.0 if kind_pos == "QB" else 2.5
+            edge = max(-cap, min(cap, LINEUP_SHRINK * edge))
+            # this season's team numbers already blend games with and without him; correct only the share that differs
+            frac = len(missed) / len(weeks) if kind == "back" else len(have) / len(weeks)
+            pts = round(edge * frac * (1 if kind == "back" else -1), 2)
+            keys.append({"n": gl[-1][3]["player_display_name"], "nm": nm, "pos": pos, "role": kind_pos, "k": kind,
+                         "miss": missed if kind == "back" else [], "have": sorted(have), "ts": round(share("targets"), 3), "rs": round(share("carries"), 3), "pts": pts})
+        if keys: out[team] = {"weeks": weeks, "keys": keys, "pts": round(sum(k["pts"] for k in keys), 2)}
+    return out

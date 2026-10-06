@@ -501,6 +501,28 @@ def team_lineup(g, side, rc):
     return out
 
 
+def depth_info(games):
+    """Starting QB and the offensive depth chart (top two at each skill spot) for every team with an upcoming game."""
+    out = {}
+    for g in games:
+        if g["state"] != "pre": continue
+        for side in ("home", "away"):
+            t = g[side]
+            if t["abbr"] in out: continue
+            try: d = depth_chart(t["id"])
+            except Exception: continue
+            names, qb = set(), None
+            for f in d:
+                pos = f.get("positions", {})
+                if "qb" not in pos: continue
+                for key in ("qb", "rb", "wr1", "wr2", "wr3", "te"):
+                    ath = (pos.get(key) or {}).get("athletes", [])
+                    if key == "qb" and ath and not qb: qb = ath[0].get("displayName")
+                    names.update(analytics.norm(a.get("displayName")) for a in ath[:2])
+            out[t["abbr"]] = {"qb": qb, "names": names}
+    return out
+
+
 def lineups(games):
     now = datetime.now(timezone.utc)
     rc, res = load("roster_cache_v2.json", {}), {}
@@ -598,6 +620,16 @@ def main():
                     if w: r["us"] = {k: w.get(k) for k in ("snap", "tgt", "ts", "car", "rs") if w.get(k) is not None}
     except Exception as e:
         print("analytics failed", e, file=sys.stderr)
+    # key players back from injury (or newly out): the team's numbers and teammates' logs were built without (or with) them
+    try:
+        if team_an:
+            lc = analytics.lineup_changes(season, games, depth_info(games))
+            team_an["lineup"] = lc
+            for g in games:
+                ch = {s: lc[g[s]["abbr"]] for s in ("home", "away") if g["state"] == "pre" and g[s]["abbr"] in lc}
+                if ch: g["lineup"] = {s: v["keys"] for s, v in ch.items()}
+    except Exception as e:
+        print("lineup changes failed", e, file=sys.stderr)
     # our own projections, betting trends and player pages
     pages = {}
     multibook_props(games, props, cfg)
@@ -610,6 +642,7 @@ def main():
         projections.team_projections(games, team_an)
         projections.prop_projections(props, games, team_an, season)
     except Exception as e:
+        import traceback; traceback.print_exc()
         print("projections failed", e, file=sys.stderr)
     # possible trap lines; the read at kickoff is frozen into results so fading them can be tracked
     try:
