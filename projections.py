@@ -225,7 +225,9 @@ def prop_projections(props, games, an, season):
                 keys = PROP_STATS.get(pr["m"])
                 if not keys: continue
                 vals, wts = [], []
-                full = [r for r in pl["log"] if ((r.get("us") or {}).get("snap") or 1) >= 0.3]
+                sn = sorted((r.get("us") or {}).get("snap") for r in pl["log"] if (r.get("us") or {}).get("snap") is not None)
+                usual = sn[len(sn) // 2] if sn else None    # his typical snap share; a game far below it was a cameo or an early exit
+                full = [r for r in pl["log"] if usual is None or ((r.get("us") or {}).get("snap") or 1) >= min(0.3, usual / 2)]
                 for age, r in enumerate(full if len(full) >= 1 else pl["log"]):   # log is newest first; cameo/injury-exit games (<30% of snaps) skipped
                     v = [r["s"].get(k) for k in keys]
                     if all(x is None for x in v): continue
