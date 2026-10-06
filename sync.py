@@ -271,24 +271,35 @@ def attach_prop_books(props, cache, only=None):
                     if pr is not None and not any(x["n"] == row["n"] for x in pr.get("books", [])): pr.setdefault("books", []).append(row)
 
 
+TD_RESERVE = 80   # credits kept back each month: below this, TD prices refresh on game day only
+
+
 def multibook_tds(games, props, cfg):
-    """Anytime-TD prices and bet-slip links from every book, 1 credit per game: each game is pulled once on game day
-    (kickoff within 14 hours). On by default with an Odds API key; config "odds_api_tds": false or env ODDS_API_TDS=0
-    turns it off. Env ODDS_API_TDS_NOW=1 pulls every upcoming game this week right away."""
+    """Anytime-TD prices and bet-slip links from every book, 1 credit per game per pull, refreshed through the week:
+    every upcoming game (next 6 days) at least every 48 hours, daily while FanDuel or DraftKings hasn't posted it yet,
+    and once more on game day (kickoff within 14 hours). If the month's credits run low (under TD_RESERVE), only
+    game-day pulls run. On by default with an Odds API key; config "odds_api_tds": false or env ODDS_API_TDS=0 turns it off.
+    Env ODDS_API_TDS_NOW=1 refreshes every upcoming game right away."""
     key = (cfg.get("odds_api_key") or os.environ.get("ODDS_API_KEY") or "").strip()
     on = cfg.get("odds_api_tds", os.environ.get("ODDS_API_TDS", "1") != "0")
     now_all = os.environ.get("ODDS_API_TDS_NOW") == "1"
     cache = load("odds_td_cache.json", {})
+    meta = cache.pop("_meta", {})
     now = datetime.now(timezone.utc)
     if key and on:
+        low = meta.get("remaining") is not None and int(meta["remaining"]) < TD_RESERVE
         due = []
         for g in games:
             kick = datetime.fromisoformat(g["date"].replace("Z", "+00:00"))
-            if g["state"] != "pre" or g["id"] not in props: continue
-            if not (now_all and kick - now < timedelta(days=8)) and not (kick - now < timedelta(hours=14)): continue
+            if g["state"] != "pre" or g["id"] not in props or kick - now > timedelta(days=6): continue
             hit = cache.get(g["id"])
-            if hit and time.time() - hit["t"] < (6 if now_all else 20) * 3600: continue
-            due.append(g)
+            age = (time.time() - hit["t"]) / 3600 if hit else 1e9
+            books = {b.get("key") for b in ((hit or {}).get("data") or {}).get("bookmakers", [])}
+            game_day = kick - now < timedelta(hours=14)
+            if now_all and age >= 1: due.append(g); continue
+            if game_day and age >= 6: due.append(g); continue          # last look before kickoff
+            if low: continue                                            # saving credits: game day only
+            if age >= 48 or (age >= 20 and not {"fanduel", "draftkings"} <= books): due.append(g)
         if due:
             try: events = get("https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events?" + urlencode({"apiKey": key}))  # free call
             except Exception as e: print("odds api events failed", e, file=sys.stderr); events = []
@@ -296,15 +307,17 @@ def multibook_tds(games, props, cfg):
                 ev = next((e for e in events if e["home_team"] == g["home"]["full"] and e["away_team"] == g["away"]["full"]), None)
                 if not ev: continue
                 try:
-                    data = get(f"https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/{ev['id']}/odds?" + urlencode(
-                        {"apiKey": key, "regions": "us", "markets": "player_anytime_td", "oddsFormat": "american", "bookmakers": BOOKS, "includeLinks": "true"}))
+                    data, hdr = get(f"https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/{ev['id']}/odds?" + urlencode(
+                        {"apiKey": key, "regions": "us", "markets": "player_anytime_td", "oddsFormat": "american", "bookmakers": BOOKS, "includeLinks": "true"}), headers=True)
                     cache[g["id"]] = {"t": time.time(), "data": data}
+                    rem = hdr.get("x-requests-remaining") or hdr.get("X-Requests-Remaining")
+                    if rem is not None: meta = {"remaining": int(float(rem)), "t": time.time()}
                 except Exception as e:
                     print("odds api tds failed", g["id"], e, file=sys.stderr)
-            save(os.path.join(DATA, "odds_td_cache.json"), cache)
         # drop finished games so the cache stays small
         live_ids = {g["id"] for g in games if g["state"] != "post"}
         for gid in [k for k in cache if k not in live_ids]: cache.pop(gid, None)
+        save(os.path.join(DATA, "odds_td_cache.json"), {**cache, "_meta": meta})
     attach_prop_books(props, cache, only="Anytime TD")
     return sum(1 for g in games if g["id"] in cache)
 
