@@ -608,6 +608,12 @@ table th{font:700 11px var(--f-body);letter-spacing:.8px;text-transform:uppercas
 .livedot{box-shadow:0 0 0 0 rgba(255,77,77,.6);animation:pulse 1.6s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,77,77,.55)}70%{box-shadow:0 0 0 8px rgba(255,77,77,0)}100%{box-shadow:0 0 0 0 rgba(255,77,77,0)}}
 @media (prefers-reduced-motion: reduce){.livedot{animation:none}}
+.navsep{flex:none;width:1px;align-self:stretch;margin:6px 6px;background:var(--line)}
+.sendbook{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font:700 13px var(--f-body);text-decoration:none;
+  background:var(--accent);color:#fff;border:0}
+.sendbook:hover{filter:brightness(1.1)}.sendbook.fd{background:#1493ff}.sendbook.dk{background:#53b829;color:#06180a}.sendbook.mgm{background:#c5a35a;color:#191207}
+.sendrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.sendrow .note{flex-basis:100%}
 </style>
 
 <header>
@@ -616,17 +622,18 @@ table th{font:700 11px var(--f-body);letter-spacing:.8px;text-transform:uppercas
     <div class="sync"><span class="dot off" id="syncDot"></span><span id="syncText">Waiting for data…</span></div>
   </div>
   <nav role="tablist">
-    <button role="tab" id="tab-live" data-tab="live" aria-selected="false">Live</button>
     <button role="tab" id="tab-picks" data-tab="picks" aria-selected="false">Picks</button>
     <button role="tab" id="tab-board" data-tab="board" aria-selected="true">Games</button>
-    <button role="tab" id="tab-lineups" data-tab="lineups" aria-selected="false">Lineups</button>
+    <button role="tab" id="tab-live" data-tab="live" aria-selected="false">Live</button>
     <button role="tab" id="tab-props" data-tab="props" aria-selected="false">Props</button>
-    <button role="tab" id="tab-players" data-tab="players" aria-selected="false">Players</button>
-    <button role="tab" id="tab-teams" data-tab="teams" aria-selected="false">Teams</button>
-    <button role="tab" id="tab-shop" data-tab="shop" aria-selected="false">Line shop</button>
     <button role="tab" id="tab-tds" data-tab="tds" aria-selected="false">TDs</button>
     <button role="tab" id="tab-parlay" data-tab="parlay" aria-selected="false">Parlay</button>
-    <button role="tab" id="tab-bets" data-tab="bets" aria-selected="false">Bets</button>
+    <button role="tab" id="tab-bets" data-tab="bets" aria-selected="false">My Bets</button>
+    <span class="navsep" aria-hidden="true"></span>
+    <button role="tab" id="tab-shop" data-tab="shop" aria-selected="false">Line Shop</button>
+    <button role="tab" id="tab-lineups" data-tab="lineups" aria-selected="false">Lineups</button>
+    <button role="tab" id="tab-players" data-tab="players" aria-selected="false">Players</button>
+    <button role="tab" id="tab-teams" data-tab="teams" aria-selected="false">Teams</button>
   </nav>
 </header>
 
@@ -1539,6 +1546,7 @@ function pickCard(p) {
       <p>We make this <b>${esc(ourLine(g))}</b>; the book has ${esc(H.abbr)} ${fmtLine(g.odds.hs)}. That's a ${Math.abs(p.edge).toFixed(1)}-point gap toward the ${esc(nick(p.t))}.${qb}</p>${moveWarn(p)}
       ${p.best ? `<div class="offer">Best number: ${offerText({ ...p.best, line: fmtLine(p.best.line) }, esc(nick(p.t)))} · ${Math.round(p.best.p * 100)}% to cover${p.best.count > 1 ? ` (best of ${p.best.count} books)` : ''}</div>` : ''}
       <div class="why"><span>Projected score: ${esc(A.abbr)} ${Math.round(g.proj.a)}, ${esc(H.abbr)} ${Math.round(g.proj.h)}</span>${tr ? `<span>${esc(nick(p.t))} are ${recS(tr.w)} ATS ${SPLIT_LABEL[tr.k]} since ${TRW().window.slice(0, 4)}</span>` : ''}</div>
+      ${sendButtons([makeLeg(g.id, 'spread', p.t === H ? 'home' : 'away')].filter(Boolean), true)}
       <div class="acts"><button class="addp" data-addleg="${g.id}|spread|${p.t === H ? 'home' : 'away'}">+ Parlay</button><button class="btn small" data-track="${g.id}">Track</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
   }
   if (p.kind === 'total') return `<article class="pick" style="--ta:${teamColor(A)};--th:${teamColor(H)}"><div class="pick-h">${logo(A.abbr, 30)}${logo(H.abbr, 30)}<b>${p.over ? 'Over' : 'Under'} ${g.odds.t}</b><span class="stars">${stars(p.st)}</span></div>
@@ -1546,6 +1554,7 @@ function pickCard(p) {
       <p>We project <b>${g.proj.total.toFixed(1)}</b> points, ${Math.abs(p.edge).toFixed(1)} ${p.over ? 'more' : 'fewer'} than the book's ${g.odds.t}.${g.wx && g.wx.wind >= WIND_MIN ? ' Wind is in the forecast too.' : ''}</p>${moveWarn(p)}
       ${p.best ? `<div class="offer">Best number: ${offerText(p.best, p.over ? 'Over' : 'Under')} · ${Math.round(p.best.p * 100)}% to hit${p.best.count > 1 ? ` (best of ${p.best.count} books)` : ''}</div>` : ''}
       <div class="why"><span>Projected score: ${esc(A.abbr)} ${Math.round(g.proj.a)}, ${esc(H.abbr)} ${Math.round(g.proj.h)}</span>${g.odds.to != null && g.odds.to !== g.odds.t ? `<span>Opened at ${g.odds.to}</span>` : ''}</div>
+      ${sendButtons([makeLeg(g.id, 'total', p.over ? 'over' : 'under')].filter(Boolean), true)}
       <div class="acts"><button class="addp" data-addleg="${g.id}|total|${p.over ? 'over' : 'under'}">+ Parlay</button><button class="btn small" data-track="${g.id}">Track</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
   const { pl, pr, x } = p, team = pl.side === 'home' ? H : A, chance = p.best?.p ?? (p.over ? pr.pOver : 1 - pr.pOver);
   return `<article class="pick"><div class="pick-h">${logo(team.abbr, 30)}<b><button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button> ${p.over ? 'over' : 'under'} ${pr.l} ${esc(pr.m.toLowerCase())}</b><span class="stars">${stars(p.st)}</span></div>
@@ -2399,6 +2408,7 @@ function renderParlay() {
       return `${best ? `<div class="bestbook">Best price for this exact parlay: <b>${esc(best.book)} ${fmtOdds(best.odds)}</b>${pb.filter(b => b.full).length > 1 ? ` (${pb.filter(b => b.full).slice(1, 3).map(b => esc(b.book) + ' ' + fmtOdds(b.odds)).join(', ')} next)` : ''}. Same-game parlays get repriced by the app, so check your slip.</div>`
           : `<div class="bestbook">No single book in our data prices every leg${PAR.legs.some(l => l.m === 'Anytime TD') ? ' (most books don’t share TD prices in our free feed; Kalshi is the only quote)' : ''}. Pick your book and enter its odds below.</div>`}
         <div class="stake-row"><label class="bookpick">Book you’re using<select id="parBook"><option value="">Choose a book…</option>${names.map(n => `<option value="${esc(n)}"${n === mine ? ' selected' : ''}>${esc(n)}${esc(tag(n))}</option>`).join('')}</select></label></div>`; })()}
+    ${sendButtons(PAR.legs, false)}
     <div class="stake-row"><label>Bet amount ($)<input id="parStake" inputmode="decimal" placeholder="10" value="${esc(store.get('edge-parlay-stake') || '')}"></label>
       <label>Odds at your book<input id="parOdds" inputmode="numeric" placeholder="${fmtOdds(decToAm(d))}" value="${esc(PAR_VIEW.odds || '')}"></label>
       <div class="towin"><span>To win</span><b id="parToWin">${(() => { const st = +(store.get('edge-parlay-stake') || 0), o = +PAR_VIEW.odds || decToAm(d); return st ? '$' + (st * (amToDec(o) - 1)).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '–'; })()}</b></div></div>
@@ -2439,6 +2449,7 @@ document.addEventListener('change', e => {
   const ln = e.target.closest('[data-legline]'); if (ln) { const l = PAR.legs[+ln.dataset.legline]; l.line = +ln.value; l.manual = false; refreshLeg(l); saveParlay(); renderSlip(); return; }
   const od = e.target.closest('[data-legodds2]'); if (od) { const v = parseInt(od.value, 10); if (Math.abs(v) >= 100) { const l = PAR.legs[+od.dataset.legodds2]; l.odds = v; l.manual = true; l.priced = true; l.book = l.book || 'your app'; saveParlay(); renderSlip(); } return; }
   if (e.target.id === 'parUnits') { store.set('edge-parlay-units', e.target.value); renderParlay(); }
+  if (e.target.id === 'mgmState') { store.set('edge-state', e.target.value); renderParlay(); return; }
   if (e.target.id === 'parBook') {
     PAR_VIEW.book = e.target.value; store.set('edge-mybook', e.target.value);
     const b = parlayBooks(PAR.legs).find(x => x.book === e.target.value && x.full); PAR_VIEW.odds = b ? String(b.odds) : PAR_VIEW.odds;
@@ -2587,6 +2598,52 @@ function renderAltPicks() {
       <div class="offer"><b>${fmtOdds(+x.price)}</b> at ${esc(x.book)}${x.cents != null ? ` (${Math.round(x.cents * 100)}¢)` : ''} · our chance <b>${Math.round(x.p * 100)}%</b> · <span class="pos">${evS(x.ev)}</span></div>
       <div class="acts"><button class="addp" data-addleg="${x.g.id}|prop|${x.s}|${esc(x.pl.id)}|${esc(x.pr.m)}|${x.r.l}">+ Parlay</button><button class="btn small" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}">See ladder</button></div></article>`; }).join('')}</div>`
     : `<div class="empty"><b>No standout alternate lines${ALTB.book === 'best' || ALTB.book === 'all' ? '' : ' at ' + esc(ALTB.book)}</b>The books and our numbers agree right now.</div>`);
+}
+
+// ------------------------------------------------------------ send bets to a sportsbook: their bet-slip links open the app with the bet loaded
+const BOOK_CLS = { FanDuel: 'fd', DraftKings: 'dk', BetMGM: 'mgm' };
+const legLinkKey = l => l.kind === 'ml' ? (l.side === 'home' ? 'hml' : 'aml') : l.kind === 'spread' ? (l.side === 'home' ? 'hs' : 'as') : l.kind === 'total' ? (l.side === 'over' ? 'op' : 'up') : null;
+function legLinks(l, anyLine) {   // {book: link} for one leg; the book's line must match the leg's unless anyLine (a single straight bet)
+  const g = S.slate?.games.find(x => x.id === l.gid); if (!g) return {};
+  const out = {};
+  if (l.kind === 'prop') {
+    const { pr } = findProp(l.gid, l.pid, l.m);
+    for (const b of pr?.books || []) { const lk = l.side === 'under' ? b.lu : b.lo; if (lk && !/\{(?!state\})/.test(lk) && (l.m === 'Anytime TD' || b.l === l.line)) out[b.n] = lk; }
+    return out;
+  }
+  const k = legLinkKey(l); if (!k) return out;
+  for (const b of g.books || []) {
+    const lk = b.lk?.[k]; if (!lk || /\{(?!state\})/.test(lk)) continue;   // skip links with unfilled template pieces
+    if (!anyLine && l.kind === 'spread' && (l.side === 'home' ? b.hs : b.as) !== l.line) continue;
+    if (!anyLine && l.kind === 'total' && b.t !== l.line) continue;
+    out[b.n] = lk;
+  }
+  return out;
+}
+const MGM_STATE = () => store.get('edge-state') || 'nj';
+function combineLinks(book, links) {   // one bet slip with every selection, where the book's link format allows it
+  if (links.length === 1) return links[0].replace('{state}', MGM_STATE());
+  try {
+    if (book === 'FanDuel') {
+      const q = links.map((u, i) => { const p = new URL(u).searchParams; return `marketId[${i}]=${encodeURIComponent(p.get('marketId'))}&selectionId[${i}]=${encodeURIComponent(p.get('selectionId'))}`; });
+      return 'https://sportsbook.fanduel.com/addToBetslip?' + q.join('&');
+    }
+    if (book === 'DraftKings') return 'https://sportsbook.draftkings.com/?outcomes=' + links.map(u => new URL(u).searchParams.get('outcomes')).join('+');
+    if (book === 'BetMGM') { const opts = links.map(u => new URL(u.replace('{state}', 'x')).searchParams.get('options')); return `https://sports.${MGM_STATE()}.betmgm.com/en/sports?options=${opts.join(',')}&type=Combo`; }
+  } catch (e) {}
+  return null;
+}
+function sendButtons(legs, compact) {
+  const per = legs.map(l => legLinks(l, compact && legs.length === 1)), books = [...new Set(per.flatMap(o => Object.keys(o)))];
+  const pref = [store.get('edge-mybook'), 'FanDuel', 'DraftKings', 'BetMGM', 'Caesars', 'ESPN BET', 'Fanatics', 'theScore Bet', 'BetRivers'];
+  const rank = b => { const i = pref.indexOf(b); return i < 0 ? 99 : i; };
+  let full = books.filter(b => per.every(o => o[b])).map(b => ({ b, url: combineLinks(b, per.map(o => o[b])) })).filter(x => x.url).sort((a, b) => rank(a.b) - rank(b.b));
+  if (compact) full = full.slice(0, 2);   // cards: your book plus one more
+  const partial = books.filter(b => !full.some(f => f.b === b));
+  if (!full.length && !partial.length) return compact ? '' : `<div class="sendrow"><span class="note">No bet-slip links for ${legs.length > 1 ? 'these legs' : 'this bet'} yet. Books share links for game lines${S.props && legs.some(l => l.kind === 'prop') ? '; player props (including TDs) need the paid props feed' : ''}.</span></div>`;
+  return `<div class="sendrow">${full.map(f => `<a class="sendbook ${BOOK_CLS[f.b] || ''}" href="${esc(f.url)}" target="_blank" rel="noopener">Bet at ${esc(f.b)} ↗</a>`).join('')}
+    ${!compact && partial.length ? `<span class="note">${esc(partial.join(', '))} ${partial.length > 1 ? 'have' : 'has'} links for some legs only.</span>` : ''}
+    ${!compact ? `<span class="note">Opens the book with ${legs.length > 1 ? 'your legs' : 'the bet'} in the slip. Check the line and price there, then place it yourself.${full.some(f => f.b === 'BetMGM') ? ` BetMGM state: <select id="mgmState">${['az','co','dc','ia','il','in','ks','ky','la','ma','md','mi','nc','nj','ny','oh','pa','tn','va','wv','wy'].map(x => `<option${x === MGM_STATE() ? ' selected' : ''}>${x}</option>`).join('')}</select>` : ''}</span>` : ''}</div>`;
 }
 
 // every book's price for one leg, ignoring the book toggle

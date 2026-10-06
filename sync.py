@@ -174,7 +174,7 @@ def multibook(games, cfg):
     if key and time.time() - cache["t"] >= float(cfg.get("odds_api_min_hours", os.environ.get("ODDS_API_MIN_HOURS", 6))) * 3600:
         try:
             ev, hdr = get(ODDS_API + "?" + urlencode({"apiKey": key, "regions": "us", "markets": "h2h,spreads,totals",
-                                                       "oddsFormat": "american", "bookmakers": BOOKS}), headers=True)
+                                                       "oddsFormat": "american", "bookmakers": BOOKS, "includeLinks": "true"}), headers=True)
             cache = {"t": time.time(), "events": ev, "remaining": hdr.get("x-requests-remaining") or hdr.get("X-Requests-Remaining")}
             save(os.path.join(DATA, "odds_cache.json"), cache)
         except Exception as e:
@@ -187,14 +187,20 @@ def multibook(games, cfg):
         books = []
         for b in ev.get("bookmakers", []):
             row = {"k": b["key"], "n": b["title"]}
+            lk = {"ev": b.get("link")} if b.get("link") else {}     # bet-slip links: tap one and the book opens with that bet in the slip
             for m in b.get("markets", []):
                 for oc in m.get("outcomes", []):
-                    if m["key"] == "h2h": row["hml" if oc["name"] == ev["home_team"] else "aml"] = oc["price"]
+                    if m["key"] == "h2h":
+                        k = "hml" if oc["name"] == ev["home_team"] else "aml"; row[k] = oc["price"]
                     elif m["key"] == "spreads":
-                        p = "h" if oc["name"] == ev["home_team"] else "a"
+                        p = "h" if oc["name"] == ev["home_team"] else "a"; k = p + "s"
                         row[p + "s"], row[p + "sp"] = oc.get("point"), oc["price"]
                     elif m["key"] == "totals":
-                        row["t"] = oc.get("point"); row["op" if oc["name"] == "Over" else "up"] = oc["price"]
+                        k = "op" if oc["name"] == "Over" else "up"
+                        row["t"] = oc.get("point"); row[k] = oc["price"]
+                    else: continue
+                    if oc.get("link"): lk[k] = oc["link"]
+            if lk: row["lk"] = lk
             books.append(row)
         g["books"] = books
     return {"at": cache["t"] or None, "remaining": cache.get("remaining"), "enabled": bool(key)}
@@ -230,7 +236,7 @@ def multibook_props(games, props, cfg):
             if not ev: continue
             try:
                 data = get(f"https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/{ev['id']}/odds?" + urlencode(
-                    {"apiKey": key, "regions": "us", "markets": ",".join(PROP_API_MARKETS), "oddsFormat": "american", "bookmakers": BOOKS}))
+                    {"apiKey": key, "regions": "us", "markets": ",".join(PROP_API_MARKETS), "oddsFormat": "american", "bookmakers": BOOKS, "includeLinks": "true"}))
                 cache[g["id"]] = {"t": time.time(), "data": data}
             except Exception as e:
                 print("odds api props failed", g["id"], e, file=sys.stderr)
@@ -248,8 +254,12 @@ def multibook_props(games, props, cfg):
                     pl = by_player.get(norm_name(oc.get("description")))
                     if not pl: continue
                     row = lines.setdefault(pl["n"], {"n": b["title"], "l": oc.get("point", 0.5)})
-                    if oc["name"] in ("Over", "Yes"): row["o"] = oc["price"]
-                    elif oc["name"] in ("Under", "No"): row["u"] = oc["price"]
+                    if oc["name"] in ("Over", "Yes"):
+                        row["o"] = oc["price"]
+                        if oc.get("link"): row["lo"] = oc["link"]
+                    elif oc["name"] in ("Under", "No"):
+                        row["u"] = oc["price"]
+                        if oc.get("link"): row["lu"] = oc["link"]
                 for name, row in lines.items():
                     pl = by_player[norm_name(name)]
                     pr = next((p for p in pl["props"] if p["m"] == ours), None)
