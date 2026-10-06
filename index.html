@@ -490,6 +490,14 @@ details.nerd .usage{border-bottom:0}
 .lcline b{color:var(--accent);font-weight:600}
 .ic-lineup{background:var(--accent-soft);color:var(--accent)}
 .tag2.lc{background:var(--accent-soft);color:var(--accent)}
+.rc{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px 14px;margin:4px 0 16px}
+.rc-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.rc-h b{font-size:15px}.rc-h small{color:var(--muted)}
+.rc-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.rc-chip{display:flex;flex-direction:column;padding:6px 10px;border-radius:10px;background:var(--surface2);min-width:92px}
+.rc-chip span{font-size:11px;color:var(--muted)}.rc-chip b{font:700 15px var(--f-mono)}.rc-chip b.pos{color:var(--good)}.rc-chip b.neg{color:var(--bad, #c0392b)}
+.rc details{margin-top:10px}.rc summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--accent)}
+.rc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:10px}
+.rc-grid > div{min-width:0;overflow-x:auto}.rc table{width:100%;font-size:12.5px}.rc td.n,.rc th.n{text-align:right;font-variant-numeric:tabular-nums}
 </style>
 
 <header>
@@ -837,11 +845,32 @@ function scriptBlock(g) {
 // ------------------------------------------------------------ lineup changes: key players back from injury or newly out
 const wkList = ws => ws.length > 1 && ws[ws.length - 1] - ws[0] === ws.length - 1 ? `weeks ${ws[0]}–${ws[ws.length - 1]}` : `week${ws.length > 1 ? 's' : ''} ${ws.join(', ')}`;
 const ptsS = v => `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`;
+// names the lineup storylines already cover, so the plain injury line isn't repeated
+const lineupNames = g => new Set(['away', 'home'].flatMap(s => (g.lineup?.[s] || []).flatMap(k => [k.n, ...(k.outq || []), ...(k.k === 'ol' ? k.n.split(', ') : [])])));
 function lineupFlags(g) {
   const F = [];
   for (const side of ['away', 'home']) for (const k of g.lineup?.[side] || []) {
+    const t = g[side], other = g[side === 'home' ? 'away' : 'home'];
+    if (k.role === 'DEF') {
+      F.push({ k: 'lineup', w: 2.5, s: `The ${nick(t)} are without ${k.k === 'rush' ? 'top pass rusher' : 'top cover man'} ${k.n}. That's a break for the ${nick(other)}' ${k.k === 'rush' ? 'quarterback and line' : 'receivers'}.`,
+        t: `${k.k === 'rush' ? `${k.rate} sacks + half QB hits per game` : `${k.rate} passes defended (INTs count double) per game`} · ${other.abbr} ${ptsS(k.pts)} pts` });
+      continue;
+    }
+    if (k.role === 'OL') {
+      F.push({ k: 'lineup', w: 1.5 + k.cnt, s: `The ${nick(t)} will be missing ${k.cnt > 1 ? `${k.cnt} starting offensive linemen (${k.n})` : `starting lineman ${k.n}`}, which can mean more pressure on the QB and a tougher run game.`,
+        t: `${t.abbr} ${ptsS(k.pts)} pts in our projection` });
+      continue;
+    }
+    if (k.k === 'qb') {
+      if (Math.abs(k.pts) < 0.3) continue;
+      const fill = k.outq?.length ? `in place of ${k.outq.join(' and ')}` : `after the ${nick(t)} leaned mostly on ${k.main} so far`;
+      F.push({ k: 'lineup', w: Math.abs(k.pts) * 2 + 4,
+        s: `${k.n} starts at QB for the ${nick(t)} ${fill}. ${k.db < 150 ? `He has barely played (${k.db} dropbacks in the last two seasons)` : `His track record is ${k.epd > k.epdT ? 'better' : 'worse'} than how this offense has played this year`}, so we ${k.pts > 0 ? 'add' : 'take off'} ${Math.abs(k.pts).toFixed(1)} points${k.eff < 0.97 ? ' and expect less from the receivers' : k.eff > 1.03 ? ' and expect more from the receivers' : ''}.`,
+        t: `EPA per dropback: ${k.n.split(' ').slice(-1)[0]} ${k.epd >= 0 ? '+' : ''}${k.epd.toFixed(2)} vs ${t.abbr} so far ${k.epdT >= 0 ? '+' : ''}${k.epdT.toFixed(2)}` });
+      continue;
+    }
     if (Math.abs(k.pts) < 0.3) continue;
-    const t = g[side], qb = k.role === 'QB', who = qb ? 'QB ' + k.n : k.n;
+    const qb = k.role === 'QB', who = qb ? 'QB ' + k.n : k.n;
     F.push({ k: 'lineup', w: Math.abs(k.pts) * 2 + (qb ? 3 : 0),
       s: k.k === 'back'
         ? `${who} is back for the ${nick(t)}. He missed ${wkList(k.miss)}, so their season numbers ${k.pts > 0 ? 'undersell' : 'oversell'} this offense, and his teammates' recent stats ran ${qb ? 'with a different QB' : 'hot without him'}.`
@@ -928,8 +957,9 @@ function flags(g) {
     F.push({ k: 'move', w: Math.abs(o.t - o.to) / 2, s: up ? `Bettors see points in ${nick(A)}–${nick(H)}: the total has climbed from ${o.to} to ${o.t}.`
         : `The ${nick(A)}–${nick(H)} total has fallen from ${o.to} to ${o.t}${q ? `, with ${q.n} ${/doubtful/i.test(q.s) ? 'doubtful' : 'out'}` : ''}.`, t: `Total ${o.to} → ${o.t}` });
   }
+  const covered = lineupNames(g);
   for (const t of [A, H]) for (const i of t.inj)
-    if (i.r && /out|reserve|doubtful|questionable|suspend/i.test(i.s)) {
+    if (i.r && /out|reserve|doubtful|questionable|suspend/i.test(i.s) && !(covered.has(i.n) && (isOut(i.s) || /doubtful/i.test(i.s)))) {
       const sure = isOut(i.s) && !/doubtful/i.test(i.s);
       F.push({ k: 'inj', w: i.r === 'starting QB' ? 8 : 3, s: `The ${nick(t)} ${sure ? 'will be without' : /doubtful/i.test(i.s) ? 'probably won\'t have' : 'might be without'} their ${i.r}, ${i.n}.`, t: `${i.s}${i.t ? ' · ' + i.t : ''}` });
     }
@@ -1303,6 +1333,33 @@ function gamePicks() {
   }
   return out;
 }
+// ------------------------------------------------------------ report card: how every kind of read has done once graded
+const recS2 = d => d ? `${d.w}–${d.l}${d.push ? `–${d.push}` : ''}` : '–';
+const rcPct = d => d?.pct != null ? `${Math.round(d.pct * 100)}%` : '';
+function reportCard() {
+  const R = S.slate?.report;
+  if (!R?.games) return `<div class="rc"><div class="rc-h"><b>Our report card</b><small>Every read gets graded after the final whistle. The first results show up after this week's games.</small></div></div>`;
+  const strong = ['60–65%', '65%+'].reduce((a, k) => { const d = R.props[k]; if (d) { a.w += d.w; a.l += d.l; } return a; }, { w: 0, l: 0 });
+  strong.pct = strong.w + strong.l ? strong.w / (strong.w + strong.l) : null;
+  const cls = d => d?.pct == null ? '' : d.pct >= 0.55 ? 'pos' : d.pct < 0.5 ? 'neg' : '';
+  const chip = (lbl, d) => d && d.w + d.l ? `<div class="rc-chip"><span>${lbl}</span><b class="${cls(d)}">${recS2(d)}</b><span>${rcPct(d)}</span></div>` : '';
+  const tbl = (head, rows) => `<table><tr>${head.map((h, i) => `<th${i ? ' class="n"' : ''}>${h}</th>`).join('')}</tr>${rows.join('')}</table>`;
+  const conf = ['50–55%', '55–60%', '60–65%', '65%+'].filter(k => R.props[k]).map(k => `<tr><td>${k}</td><td class="n">${recS2(R.props[k])}</td><td class="n"><b class="${cls(R.props[k])}">${rcPct(R.props[k])}</b></td></tr>`);
+  const mk = Object.entries(R.markets).map(([k, d]) => `<tr><td>${esc(k)}</td><td class="n">${recS2(d)}</td><td class="n"><b class="${cls(d)}">${rcPct(d)}</b></td></tr>`);
+  const td = (R.td || []).map(d => `<tr><td>${esc(d.bin)}</td><td class="n">${Math.round(d.ours * 100)}%</td><td class="n">${d.scored}/${d.n} (${Math.round(d.scored / d.n * 100)}%)</td></tr>`);
+  const sd = (o, lbl) => Object.entries(o || {}).filter(([k]) => k !== 'all').map(([k, d]) => `<tr><td>${lbl} · edge ${esc(k)}</td><td class="n">${recS2(d)}</td><td class="n">${rcPct(d)}</td></tr>`);
+  const miss = (R.misses || []).map(m => `<tr><td>${esc(m.n)} <span class="note">${esc(m.m)} ${esc(m.side)} ${m.l}</span></td><td class="n">${Math.round(m.p * 100)}%</td><td class="n">${m.a}</td></tr>`);
+  return `<div class="rc"><div class="rc-h"><b>Our report card</b><small>${R.games} game${R.games === 1 ? '' : 's'} graded against the reads frozen at kickoff</small></div>
+    <div class="rc-chips">${chip('Prop leans', R.props.all)}${chip('Strong leans (60%+)', strong)}${chip('Spreads', R.sides?.all)}${chip('Totals', R.totals?.all)}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
+    <details><summary>Full breakdown</summary><div class="rc-grid">
+      <div><h4>Props by confidence</h4>${tbl(['Our chance', 'Record', 'Hit'], conf)}<p class="note">If the reads are honest, higher confidence should hit more often.</p></div>
+      <div><h4>Props by market</h4>${tbl(['Market', 'Record', 'Hit'], mk)}</div>
+      ${td.length ? `<div><h4>Touchdown calibration</h4>${tbl(['Our chance', 'Avg we gave', 'Scored'], td)}<p class="note">Good TD reads score about as often as we said they would.</p></div>` : ''}
+      ${sd(R.sides, 'Spread').length + sd(R.totals, 'Total').length ? `<div><h4>Game reads by edge size</h4>${tbl(['Read', 'Record', 'Hit'], [...sd(R.sides, 'Spread'), ...sd(R.totals, 'Total')])}</div>` : ''}
+      ${miss.length ? `<div><h4>Biggest misses</h4>${tbl(['Read', 'Our chance', 'Actual'], miss)}</div>` : ''}
+    </div></details></div>`;
+}
+
 function renderPicks() {
   const box = $('#picks'); if (!box) return;
   const wrap = $('#trapWrap'); if (wrap) box.after(wrap);
@@ -1311,9 +1368,9 @@ function renderPicks() {
   const sides = gamePicks().sort(rank);
   // at most two props per player, so one player can't crowd out the board
   const per = {}, props = propPicks().sort(rank).filter(p => (per[p.pl.id] = (per[p.pl.id] || 0) + 1) <= 2);
-  if (!sides.length && !props.length) { box.innerHTML = `<div class="empty"><b>No strong picks right now</b>Our numbers and the books agree on everything upcoming. Check back as lines move and props post.</div>`; return; }
+  if (!sides.length && !props.length) { box.innerHTML = `${reportCard()}<div class="empty"><b>No strong picks right now</b>Our numbers and the books agree on everything upcoming. Check back as lines move and props post.</div>`; return; }
   queueMicrotask(() => { const m = $('#trapMount'), w = $('#trapWrap'); if (m && w) m.append(w); });
-  box.innerHTML = `${sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, 12).map(pickCard).join('')}</div>` : ''}
+  box.innerHTML = `${reportCard()}${sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, 12).map(pickCard).join('')}</div>` : ''}
     <div id="trapMount"></div>
     ${props.length ? `<h2 style="margin-top:22px">Player props</h2><div class="picks">${props.slice(0, 30).map(pickCard).join('')}</div>` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}`;
 }

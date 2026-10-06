@@ -166,9 +166,10 @@ def player_usage(season, espn_ids):
         if p.get("play_type") not in ("pass", "run"): continue
         team, yl, air = p.get("posteam"), f(p.get("yardline_100")), f(p.get("air_yards"))
         rid, uid, qid = gsis.get(p.get("receiver_player_id")), gsis.get(p.get("rusher_player_id")), gsis.get(p.get("passer_player_id"))
+        tg = (team, p["game_id"])   # team totals per game, so shares only count games the player actually played
         if p.get("pass") == "1" and p.get("receiver_player_id"):
-            team_tgt[team] += 1; team_air[team] += air or 0
-        if p.get("rush") == "1" and p.get("rusher_player_id"): team_car[team] += 1
+            team_tgt[tg] += 1; team_air[tg] += air or 0
+        if p.get("rush") == "1" and p.get("rusher_player_id"): team_car[tg] += 1
         if rid:
             a = acc[rid]; a["tgt"] += 1; a["air"] += air or 0; a["team"] = team; games[rid].add(p["game_id"])
             a["rec"] += 1 if p.get("complete_pass") == "1" else 0; a["yac"] += f(p.get("yards_after_catch")) or 0
@@ -188,14 +189,15 @@ def player_usage(season, espn_ids):
     season_out = {}
     for e, a in acc.items():
         t, g = a["team"], max(1, len(games[e]))
+        tt = sum(team_tgt[(t, gid)] for gid in games[e]); ta = sum(team_air[(t, gid)] for gid in games[e]); tc = sum(team_car[(t, gid)] for gid in games[e])
         u = {"g": g}
         if a["tgt"]:
-            ts, ash = a["tgt"] / team_tgt[t] if team_tgt[t] else None, a["air"] / team_air[t] if team_air[t] else None
+            ts, ash = a["tgt"] / tt if tt else None, a["air"] / ta if ta else None
             u.update({"tpg": r2(a["tgt"] / g, 1), "ts": r2(ts), "ash": r2(ash), "wopr": r2(1.5 * ts + 0.7 * ash) if ts is not None and ash is not None else None,
                       "adot": r2(a["air"] / a["tgt"], 1), "cr": r2(a["rec"] / a["tgt"]), "yac": r2(a["yac"] / a["rec"], 1) if a["rec"] else None,
                       "ept": r2(a["repa"] / a["tgt"]), "rz_t": int(a["rz_t"]), "ez_t": int(a["ez_t"])})
         if a["car"]:
-            u.update({"cpg": r2(a["car"] / g, 1), "rsh": r2(a["car"] / team_car[t]) if team_car[t] else None, "ypc": r2(a["ryd"] / a["car"], 1),
+            u.update({"cpg": r2(a["car"] / g, 1), "rsh": r2(a["car"] / tc) if tc else None, "ypc": r2(a["ryd"] / a["car"], 1),
                       "epr": r2(a["uepa"] / a["car"]), "rsr": r2(a["usr"] / a["car"]), "rz_c": int(a["rz_c"]), "gl_c": int(a["gl_c"])})
         if a["db"]:
             u.update({"dbpg": r2(a["db"] / g, 1), "epd": r2(a["qepa"] / a["db"]), "cpoe": r2(a["cpoe"] / a["cpoe_n"], 1) if a["cpoe_n"] else None,
@@ -210,6 +212,11 @@ def player_usage(season, espn_ids):
 # ---------------------------------------------------------------- lineup changes: key players back from injury, or out
 KEY_TS, KEY_RS, KEY_DB = 0.18, 0.45, 20   # a key pass catcher (target share), lead back (carry share), starting QB (dropbacks/game)
 LINEUP_SHRINK = 0.5                       # how much of a player's measured edge over his replacements we trust
+QB_SHRINK, QB_PRIOR, QB_K = 0.7, -0.10, 150   # QB change: trust in the gap; EPA/dropback we assume for an unproven QB; dropbacks of prior
+RUSHER, COVER = 0.55, 0.9                 # key pass rusher: sacks + half QB hits per game; key cover man: passes defended + 2x INTs per game
+DEF_PTS = {"rush": 0.7, "cover": 0.6}     # points the opposing offense gains when one is out
+OL_PTS, OL_CAP = 0.5, 1.5                 # points an offense loses per starting lineman out, and the cap
+OL_POS = ("T", "G", "C", "OT", "OG", "OL", "LT", "RT", "LG", "RG")
 OUT_WORDS = ("out", "reserve", "doubtful", "suspend", "pup")
 norm = lambda n: " ".join(w for w in "".join(c for c in (n or "").lower() if c.isalpha() or c == " ").split() if w not in ("jr", "sr", "ii", "iii", "iv"))
 
@@ -228,16 +235,28 @@ def lineup_changes(season, games, depth):
     team_weeks, played = defaultdict(set), defaultdict(set)
     for w in cur: team_weeks[fix(w["team"])].add(i(w["week"])); played[(fix(w["team"]), norm(w["player_display_name"]))].add(i(w["week"]))
     for s in snaps:
-        if (f(s.get("offense_pct")) or 0) > 0 and s.get("game_type", "REG") == "REG": played[(fix(s["team"]), norm(s["player"]))].add(i(s["week"]))
+        if ((f(s.get("offense_pct")) or 0) > 0 or (f(s.get("defense_pct")) or 0) > 0) and s.get("game_type", "REG") == "REG":
+            played[(fix(s["team"]), norm(s["player"]))].add(i(s["week"]))
+    ol_snap = defaultdict(list)     # (team, name) -> offensive snap shares, for spotting starting linemen
+    for s in snaps:
+        if (s.get("position") or "") in OL_POS and (f(s.get("offense_pct")) or 0) > 0: ol_snap[(fix(s["team"]), norm(s["player"]))].append(f(s["offense_pct"]))
     # per team-week totals and per player-game lines, both seasons
     tot = defaultdict(lambda: defaultdict(float))
     games_of = defaultdict(list)    # normalized name -> [(season, week, team, row)]
     for yr, data in ((season, cur), (season - 1, prev)):
         for w in data:
             t, k = fix(w["team"]), (yr, i(w["week"]), fix(w["team"]))
-            for c in ("targets", "receiving_epa", "carries", "rushing_epa", "attempts", "sacks_suffered", "passing_epa"):
+            for c in ("targets", "receiving_epa", "carries", "rushing_epa", "attempts", "sacks_suffered", "passing_epa", "def_sacks", "def_qb_hits", "def_pass_defended", "def_interceptions"):
                 tot[k][c] += f(w.get(c)) or 0
             games_of[norm(w["player_display_name"])].append((yr, i(w["week"]), t, w))
+    team_qb = {}
+    for w in cur:
+        db_ = (f(w.get("attempts")) or 0) + (f(w.get("sacks_suffered")) or 0)
+        if db_ <= 0 or w.get("position") != "QB": continue
+        t, nm = fix(w["team"]), norm(w["player_display_name"])
+        q = team_qb.setdefault(t, {"db": 0.0, "epa": 0.0, "by": defaultdict(float), "wk": defaultdict(list), "name": {}})
+        q["db"] += db_; q["epa"] += f(w.get("passing_epa")) or 0; q["by"][nm] += db_; q["name"][nm] = w["player_display_name"]
+        if db_ >= 10: q["wk"][nm].append(i(w["week"]))
     inj_by_team = {}
     for g in games:
         if g.get("state") != "pre": continue
@@ -255,8 +274,7 @@ def lineup_changes(season, games, depth):
             def per(c): return [f(r.get(c)) or 0 for *_, r in gl]
             def share(c): return mean([(f(r.get(c)) or 0) / tot[(y, w, t)][c] for y, w, t, r in gl if tot[(y, w, t)][c]]) or 0
             db = mean([a + s for a, s in zip(per("attempts"), per("sacks_suffered"))])
-            kind_pos = ("QB" if pos == "QB" and db >= KEY_DB and nm == norm(dc.get("qb")) else
-                        "RB" if pos == "RB" and share("carries") >= KEY_RS else
+            kind_pos = ("RB" if pos == "RB" and share("carries") >= KEY_RS else
                         "REC" if pos in ("WR", "TE", "RB") and share("targets") >= KEY_TS else None)
             if not kind_pos: continue
             st = inj.get(nm)
@@ -295,5 +313,48 @@ def lineup_changes(season, games, depth):
             pts = round(edge * frac * (1 if kind == "back" else -1), 2)
             keys.append({"n": gl[-1][3]["player_display_name"], "nm": nm, "pos": pos, "role": kind_pos, "k": kind,
                          "miss": missed if kind == "back" else [], "have": sorted(have), "ts": round(share("targets"), 3), "rs": round(share("carries"), 3), "pts": pts})
-        if keys: out[team] = {"weeks": weeks, "keys": keys, "pts": round(sum(k["pts"] for k in keys), 2)}
+        # ---- quarterback: who actually starts (first healthy QB on the depth chart) vs the QBs behind the season numbers
+        isout = lambda nm: bool(inj.get(nm) and any(x in (inj[nm].get("s") or "").lower() for x in OUT_WORDS))
+        qbs = [q for q in dc.get("qbs", []) if q]
+        new = next((q for q in qbs if not isout(q)), None)
+        tq = team_qb.get(team) or {}
+        if new and tq.get("db"):
+            main = max(tq["by"], key=tq["by"].get)
+            share_new = tq["by"].get(new, 0) / tq["db"]
+            if share_new < 0.8:
+                gl = games_of.get(new, [])
+                ndb = sum((f(r.get("attempts")) or 0) + (f(r.get("sacks_suffered")) or 0) for *_, r in gl)
+                nepa = sum(f(r.get("passing_epa")) or 0 for *_, r in gl)
+                epd_new = (nepa + QB_PRIOR * QB_K) / (ndb + QB_K)
+                epd_team = tq["epa"] / tq["db"]
+                gap = (epd_new - epd_team) * (1 - share_new)
+                pts = round(max(-7.0, min(4.0, QB_SHRINK * gap * tq["db"] / len(weeks))), 2)
+                outq = [dc["qbname"].get(q, q) for q in qbs[:qbs.index(new)] if isout(q)]
+                keys.append({"n": dc["qbname"].get(new, new), "nm": new, "pos": "QB", "role": "QB", "k": "qb",
+                             "main": tq["name"].get(main, main), "outq": outq, "with": sorted(tq["wk"].get(new, [])), "db": int(ndb),
+                             "share": round(share_new, 2), "epd": round(epd_new, 3), "epdT": round(epd_team, 3),
+                             "eff": round(max(0.8, min(1.1, 1 + 1.2 * gap)), 3), "miss": [], "have": [], "pts": pts})
+        # ---- defense: top pass rushers and cover men who are out help the other team's offense
+        dkeys = []
+        for nm, x in inj.items():
+            if not isout(nm) or (x.get("p") or "") in OL_POS: continue
+            gl = [r for r in games_of.get(nm, []) if r[3].get("position_group") in ("DL", "LB", "DB")]
+            if len(gl) < 4: continue
+            have = played.get((team, nm), set()) & set(weeks)
+            if len(have) < max(1, len(weeks) / 2): continue   # long-term absence: the season numbers already reflect it
+            avg = lambda c: sum(f(r.get(c)) or 0 for *_, r in gl) / len(gl)
+            rush, cov = avg("def_sacks") + 0.5 * avg("def_qb_hits"), avg("def_pass_defended") + 2 * avg("def_interceptions")
+            kind = "rush" if rush >= RUSHER else "cover" if cov >= COVER else None
+            if kind: dkeys.append({"n": x["n"], "p": x.get("p"), "k": kind, "rate": round(rush if kind == "rush" else cov, 2), "pts": DEF_PTS[kind]})
+        # ---- offensive line: starting linemen (85%+ of snaps) who are out
+        ol = []
+        for nm, x in inj.items():
+            sh = ol_snap.get((team, nm), [])
+            if isout(nm) and len(sh) >= max(1, len(weeks) / 2) and mean(sh) >= 0.85: ol.append(x["n"])
+        if ol:
+            keys.append({"n": ", ".join(ol), "role": "OL", "k": "ol", "cnt": len(ol), "miss": [], "have": [],
+                         "pts": round(-min(OL_CAP, OL_PTS * len(ol)), 2)})
+        if keys or dkeys:
+            out[team] = {"weeks": weeks, "keys": keys, "pts": round(sum(k["pts"] for k in keys), 2),
+                         "def": dkeys, "dpts": round(min(2.0, sum(k["pts"] for k in dkeys)), 2)}
     return out

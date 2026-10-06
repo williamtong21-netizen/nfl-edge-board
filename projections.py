@@ -17,6 +17,9 @@ SHRINK_P = 0.85      # props: hit chances are pulled 15% of the way back toward 
 ANCHOR = 0.6         # props: how far we move from the book's line toward our raw number (books know injuries, game plans)
 LC_BACK_W = 0.4      # props: weight on a teammate's games played while a now-returning key player was out (his volume was inflated)
 LC_OUT_W = 0.6       # props: weight on a teammate's games played alongside a key player who is out this week
+TD_PER_PT = 0.105    # offensive touchdowns per projected point (about 2.4 TDs in a 23-point game)
+TD_FLOOR = {"RB": 0.07, "WR": 0.05, "TE": 0.05, "QB": 0.03}   # lowest TD rate (per game) we'll give a player with a prop line
+TD_PASS = 0.6        # share of offensive touchdowns that come through the air
 LC_SHARE = 0.5       # props: share of an out player's targets/carries we hand to a teammate in proportion to his own share
 
 PROP_STATS = {
@@ -78,13 +81,17 @@ def team_projections(games, an):
         h, a = pts(off[H], dfn[A]) + HFA / 2, pts(off[A], dfn[H]) - HFA / 2
         # key players back from injury or newly out: the season numbers were built with a different lineup
         lc = an.get("lineup") or {}
-        h += (lc.get(H) or {}).get("pts", 0); a += (lc.get(A) or {}).get("pts", 0)
+        h += (lc.get(H) or {}).get("pts", 0) + (lc.get(A) or {}).get("dpts", 0)   # our injuries, plus the other defense's
+        a += (lc.get(A) or {}).get("pts", 0) + (lc.get(H) or {}).get("dpts", 0)
         qb_out = {s: any(x.get("r") == "starting QB" and any(k in (x.get("s") or "").lower() for k in ("out", "reserve", "doubtful", "suspend"))
                          for x in g[s].get("inj", [])) for s in ("home", "away")}
-        if qb_out["home"]: h -= QB_OUT
-        if qb_out["away"]: a -= QB_OUT
+        # a missing starter is priced by the lineup model (who actually starts, and his record); the flat cut is the fallback
+        has_qb = lambda t: any(k["role"] == "QB" for k in (lc.get(t) or {}).get("keys", []))
+        if qb_out["home"] and not has_qb(H): h -= QB_OUT
+        if qb_out["away"] and not has_qb(A): a -= QB_OUT
         g["proj"] = {"h": h, "a": a, "qbOut": [s for s, v in qb_out.items() if v],
-                     "lc": {s: (lc.get(g[s]["abbr"]) or {}).get("pts", 0) for s in ("home", "away") if (lc.get(g[s]["abbr"]) or {}).get("pts")}}
+                     "lc": {s: round((lc.get(g[s]["abbr"]) or {}).get("pts", 0) + (lc.get(g[o]["abbr"]) or {}).get("dpts", 0), 2)
+                            for s, o in (("home", "away"), ("away", "home")) if (lc.get(g[s]["abbr"]) or {}).get("pts") or (lc.get(g[o]["abbr"]) or {}).get("dpts")}}
     # recenter so the average projected game matches this season's actual scoring (shrinkage pulls totals low otherwise)
     projected = [g for g in games if g.get("proj")]
     shift = (2 * sum(ppg.values()) / len(ppg) - sum(g["proj"]["h"] + g["proj"]["a"] for g in projected) / len(projected)) / 2 if projected else 0
@@ -166,35 +173,45 @@ def prop_projections(props, games, an, season):
                 env = max(0.85, min(1.15, 1 + 0.3 * (mine / team["stats"]["totalPointsPerGame"] - 1)))
             u = pl.get("u") or {}
             # lineup changes around this player: reweight his games and shift volume toward or away from him
-            lck = [k for k in ((an or {}).get("lineup", {}).get(team["abbr"]) or {}).get("keys", []) if k["n"] != pl["n"]]
+            lck = [k for k in ((an or {}).get("lineup", {}).get(team["abbr"]) or {}).get("keys", []) if k["n"] != pl["n"] and k["role"] != "OL"]
             me = next((k for k in ((an or {}).get("lineup", {}).get(team["abbr"]) or {}).get("keys", []) if k["n"] == pl["n"]), None)
             REC_M = ("Rec yds", "Receptions", "Long rec", "Rush+rec yds")
             def touches(k, m):   # does this lineup change move this market for this player?
                 if k["role"] == "QB": return pos != "QB" and m not in RUSH_MARKETS
                 if k["role"] == "RB": return pos == "RB" and m in ("Rush yds", "Carries", "Rush+rec yds")
                 return pos in ("WR", "TE", "RB") and m in REC_M
-            def hits(k, r): return r["y"] == season and (r["w"] in k["miss"] if k["k"] == "back" else r["w"] in k["have"])
+            def hits(k, r):
+                if k["k"] == "qb":   # games with other QBs count less, but only if the new starter has games of his own to lean on
+                    return bool(k["with"]) and (r["y"] != season or r["w"] not in k["with"])
+                return r["y"] == season and (r["w"] in k["miss"] if k["k"] == "back" else r["w"] in k["have"])
             def lc_w(r, m):
                 w = 1.0
                 for k in lck:
-                    if touches(k, m) and hits(k, r): w *= LC_BACK_W if k["k"] == "back" else LC_OUT_W
+                    if touches(k, m) and hits(k, r): w *= LC_BACK_W if k["k"] in ("back", "qb") else LC_OUT_W
                 return w
             notes = []
+            if me and me["k"] == "qb": notes.append(f'Starting at QB{" for " + ", ".join(me["outq"]) if me["outq"] else ""}; {me["db"]} dropbacks in the last two seasons')
             if me and me["k"] == "back": notes.append(f'Back after missing {"weeks" if len(me["miss"]) > 1 else "week"} {", ".join(map(str, me["miss"]))}')
             for k in lck:
                 if not any(touches(k, pr["m"]) for pr in pl["props"]): continue
                 n = sum(1 for r in pl["log"] if hits(k, r))
+                if k["k"] == "qb":
+                    who = f'{k["n"]} starts at QB' + (f' for {", ".join(k["outq"])}' if k["outq"] else '')
+                    eff = f', so we expect {"less" if k["eff"] < 1 else "more"} from the passing game' if abs(k["eff"] - 1) >= 0.03 else ''
+                    notes.append(who + eff + (f'; {n} of his games came with other QBs, so they count less' if n else '')); continue
                 if n: notes.append(f'{k["n"]} {"is back" if k["k"] == "back" else "is out"}; {n} of his games this year came {"without" if k["k"] == "back" else "with"} him, so they count less')
             if notes: pl["lc"] = notes
             def lc_vol(m):
                 v = 1.0
                 for k in lck:
+                    if k["k"] == "qb" and len(k["with"]) < 2 and pos != "QB" and m in ("Rec yds", "Long rec", "Rush+rec yds", "Receptions"):
+                        v *= k["eff"] if m != "Receptions" else 1 + (k["eff"] - 1) / 2   # a weaker QB: fewer yards per target
                     if k["k"] != "out": continue
                     without = sum(1 for r in pl["log"] if r["y"] == season and r["w"] not in k["have"])
                     if without >= 2: continue    # he already has games without the star; the reweighting covers it
                     if m in ("Rec yds", "Receptions", "Long rec") and u.get("ts"): v *= 1 + LC_SHARE * k["ts"] / max(0.5, 1 - k["ts"])   # his targets spread in proportion to everyone's share
                     if m in ("Rush yds", "Carries") and pos == "RB" and k["role"] == "RB": v *= 1 + LC_SHARE * k["rs"]
-                return round(min(v, 1.25), 3)
+                return round(max(0.75, min(v, 1.25)), 3)
             for pr in pl["props"]:
                 keys = PROP_STATS.get(pr["m"])
                 if not keys: continue
@@ -211,10 +228,20 @@ def prop_projections(props, games, an, season):
                 if opp_v is not None and lg.get(dk):
                     mult = max(0.85, min(1.15, 1 + 0.5 * (opp_v / lg[dk] - 1)))
                 if pr["m"] == "Anytime TD":
-                    lam = base * mult * env
+                    # three reads blended: his recent TDs, his red-zone looks, and his share of the offense times the
+                    # touchdowns his team should score tonight (so a regular with no TDs yet isn't rated near zero)
+                    hist = base * mult * env
                     looks = ((u.get("rz_t") or 0) + (u.get("rz_c") or 0)) / u["g"] if u.get("g") else None
-                    if looks is not None: lam = 0.5 * lam + 0.5 * 0.17 * looks * env
-                    lam = min(lam, 1.2)
+                    usage = None
+                    if g.get("proj"):
+                        mine = g["proj"]["h"] if side == "home" else g["proj"]["a"]
+                        us = [r.get("us") or {} for r in pl["log"] if r["y"] == season]
+                        ts = u.get("ts") if u.get("ts") is not None else (sum(x.get("ts") or 0 for x in us) / len(us) if us else 0)
+                        rs = u.get("rsh") if u.get("rsh") is not None else (sum(x.get("rs") or 0 for x in us) / len(us) if us else 0)
+                        if ts or rs: usage = TD_PER_PT * mine * (TD_PASS * (ts or 0) + (1 - TD_PASS) * (rs or 0)) * mult
+                    parts = [(0.35, hist)] + ([(0.25, 0.17 * looks * env)] if looks is not None else []) + ([(0.4, usage)] if usage is not None else [])
+                    lam = min(sum(w * v for w, v in parts) / sum(w for w, _ in parts), 1.2)
+                    lam = max(lam, TD_FLOOR.get(pos, 0.04))   # anyone getting a prop line plays; nobody is a true zero
                     pr["proj"] = round(lam, 2)
                     pr["pOver"] = round(min(0.75, 1 - math.exp(-lam)), 3)
                     for b in pr.get("books", []): b["p"] = pr["pOver"]

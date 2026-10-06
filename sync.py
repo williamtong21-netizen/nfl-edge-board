@@ -15,7 +15,7 @@ from datetime import datetime, timezone, timedelta
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 
-import analytics, projections, trends, traps, kalshi
+import analytics, projections, trends, traps, kalshi, grades
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # EDGE_OUT / EDGE_DATA let the GitHub Actions job write into the app repo's own folders
@@ -511,15 +511,18 @@ def depth_info(games):
             if t["abbr"] in out: continue
             try: d = depth_chart(t["id"])
             except Exception: continue
-            names, qb = set(), None
+            names, qb, qbs, qbname = set(), None, [], {}
             for f in d:
                 pos = f.get("positions", {})
                 if "qb" not in pos: continue
                 for key in ("qb", "rb", "wr1", "wr2", "wr3", "te"):
                     ath = (pos.get(key) or {}).get("athletes", [])
-                    if key == "qb" and ath and not qb: qb = ath[0].get("displayName")
+                    if key == "qb" and ath and not qb:
+                        qb = ath[0].get("displayName")
+                        qbs = [analytics.norm(x.get("displayName")) for x in ath]
+                        qbname = {analytics.norm(x.get("displayName")): x.get("displayName") for x in ath}
                     names.update(analytics.norm(a.get("displayName")) for a in ath[:2])
-            out[t["abbr"]] = {"qb": qb, "names": names}
+            out[t["abbr"]] = {"qb": qb, "qbs": qbs, "qbname": qbname, "names": names}
     return out
 
 
@@ -627,7 +630,7 @@ def main():
             team_an["lineup"] = lc
             for g in games:
                 ch = {s: lc[g[s]["abbr"]] for s in ("home", "away") if g["state"] == "pre" and g[s]["abbr"] in lc}
-                if ch: g["lineup"] = {s: v["keys"] for s, v in ch.items()}
+                if ch: g["lineup"] = {s: v["keys"] + [{**d, "role": "DEF"} for d in v.get("def", [])] for s, v in ch.items()}
     except Exception as e:
         print("lineup changes failed", e, file=sys.stderr)
     # our own projections, betting trends and player pages
@@ -661,6 +664,18 @@ def main():
         pages = trends.player_pages(season, games)
     except Exception as e:
         print("trends/pages failed", e, file=sys.stderr)
+    # report card: grade finished games against the readings frozen at kickoff, then freeze the upcoming ones
+    report = None
+    try:
+        rd = load(f"readings_{season}.json", {"season": season, "games": {}})
+        graded = grades.grade(games, sums, rd)
+        grades.freeze(games, props, rd)
+        save(os.path.join(DATA, f"readings_{season}.json"), rd)
+        report = grades.report(rd, res)
+        if graded: print("graded", graded, "games", file=sys.stderr)
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print("report card failed", e, file=sys.stderr)
     lu = lineups(games)
     chunks, lchunks, pchunks = chunk(props), chunk(lu), chunk(pages)
     for f in os.listdir(OUT):
@@ -680,7 +695,7 @@ def main():
     save(os.path.join(OUT, "manifest.json"), manifest)
 
     for g in games: g.pop("city", None)
-    slate = {"updatedAt": now, "propParts": len(chunks), "analytics": team_an, "season": season, "week": week, "seasonType": stype, "odds": odds_meta, "games": games}
+    slate = {"updatedAt": now, "propParts": len(chunks), "analytics": team_an, "season": season, "week": week, "seasonType": stype, "odds": odds_meta, "report": report, "games": games}
     save(os.path.join(OUT, "slate.json"), slate)
     save(os.path.join(OUT, "history.json"), hist_out)
     save(os.path.join(OUT, "results.json"), res)
