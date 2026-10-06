@@ -161,6 +161,8 @@ def game_tilt(g, an):
     return out
 
 
+MKT_TD_W = 0.5    # TD chance: weight on the market's own chance (books are sharper than us on touchdowns)
+TD_VIG = 1.07     # books' typical margin on a Yes-only anytime-TD price
 MKT_PTS_W = 0.7   # TD model: weight on the market's implied team total (spread + total) vs our own projected points
 
 
@@ -316,7 +318,14 @@ def prop_projections(props, games, an, season):
                         if pos == "RB" and not glb and sum(recent) / len(recent) < 0.45: lam *= RB2_TD   # committee/backup backs lose the money touches
                     lam = max(lam, TD_FLOOR.get(pos, 0.04) * (0.5 if recent and max(recent) < 0.15 else 1))   # nobody is a true zero
                     pr["proj"] = round(lam, 2)
-                    pr["pOver"] = round(min(0.75, 1 - math.exp(-lam)), 3)
+                    ours = min(0.75, 1 - math.exp(-lam))
+                    # blend with the market: the books' Yes prices (vig trimmed), or Kalshi's mid-price when no book has it
+                    imps = sorted((100 / (b["o"] + 100) if b["o"] > 0 else -b["o"] / (-b["o"] + 100)) / TD_VIG for b in pr.get("books", []) if b.get("o"))
+                    k = next((a for a in (pr.get("alt") or []) if a.get("l") == 0.5 and a.get("ya") and a.get("yb")), None)
+                    mkt = imps[len(imps) // 2] if imps else ((k["ya"] + k["yb"]) / 2 if k else None)
+                    pr["pModel"] = round(ours, 3)
+                    if mkt is not None: pr["pMkt"] = round(mkt, 3)
+                    pr["pOver"] = round(ours if mkt is None else (1 - MKT_TD_W) * ours + MKT_TD_W * min(0.95, mkt), 3)
                     pr["tdw"] = {"rz": round(f_rz, 3), "air": round(pshare, 3), "dvp": round(mult, 3),
                                  "ez": round((u.get("ez_t") or 0) / gpl, 2) if gpl else None, "gl": round((u.get("gl_c") or 0) / gpl, 2) if gpl else None,
                                  "gls": u.get("gls"), "glb": glb}

@@ -637,12 +637,54 @@ details.moreangles > summary::after{content:" ▾";color:var(--muted)}details.mo
 .partbook{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:12px;background:var(--surface2);flex-basis:100%}
 .partbook .sendbook{align-self:flex-start}.partbook .on{color:var(--good)}.partbook .off{color:var(--muted)}
 .partbook small{font-size:12px;line-height:1.45}
+.slipcard .sc-legs li .ck{display:inline-grid;place-items:center;font:800 12px var(--f-body);color:transparent}
+.slipcard .sc-legs li .ck.hit{background:var(--good);border-color:var(--good);color:var(--on-good)}
+.slipcard .sc-legs li .ck.miss{background:var(--bad);border-color:var(--bad);color:#fff}
+.slipcard .sc-legs li .ck.live{border-color:var(--warn);border-style:dashed;animation:spin 3s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion: reduce){.slipcard .sc-legs li .ck.live{animation:none}}
+.slipcard .sc-legs li .prog{display:flex;flex-direction:column;align-items:flex-end;margin-left:auto;gap:2px;font:700 12px var(--f-display);color:var(--muted);white-space:nowrap}
+.slipcard .sc-legs li .prog + .ck{margin-left:8px}
+.slipcard .sc-legs li .bar{width:64px;height:5px;border-radius:9px;background:var(--line);overflow:hidden}
+.slipcard .sc-legs li .bar i{display:block;height:100%;background:var(--warn)}
+.slipcard .sc-legs li.hit b{color:var(--good)}.slipcard .sc-legs li.miss b{color:var(--muted);text-decoration:line-through}
+.slipcard .sc-live{padding:4px 14px 0;font:700 13px var(--f-body);color:var(--warn)}
+.sc-share{background:none;border:1.5px solid var(--line);color:var(--ink);border-radius:999px;padding:5px 12px;font:700 12.5px var(--f-body);cursor:pointer}
+.sc-share:hover{border-color:var(--good);color:var(--good)}
+/* welcome + easy mode */
+.hdr-btns{display:flex;gap:6px;align-items:center}
+.hdr-btn{background:var(--surface2);border:1px solid var(--line);color:var(--ink);border-radius:999px;width:32px;height:32px;font:700 15px var(--f-body);cursor:pointer}
+.welcome{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(3,6,10,.72)}
+.welcome[hidden]{display:none}
+.welcome .box{width:min(520px,100%);max-height:92vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px 18px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.welcome h2{font-size:26px;margin:0 0 4px}.welcome .sub{color:var(--muted);margin:0 0 14px}
+.welcome .tiles2{display:grid;gap:8px}
+.welcome .t2{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:var(--surface2)}
+.welcome .t2 .ic2{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--good-soft);color:var(--good);font:800 18px var(--f-display)}
+.welcome .t2 b{display:block;font:800 16px var(--f-display);letter-spacing:.4px}.welcome .t2 span{color:var(--muted);font-size:13px}
+.welcome .easy{display:flex;gap:10px;align-items:center;margin:14px 0 4px;padding:10px 12px;border-radius:12px;border:1px solid var(--line)}
+.welcome .easy input{width:20px;height:20px;accent-color:var(--good)}
+.welcome .go{width:100%;margin-top:12px;padding:12px;border:0;border-radius:999px;background:var(--good);color:var(--on-good);font:800 16px var(--f-display);letter-spacing:1px;text-transform:uppercase;cursor:pointer}
+body.easy nav [data-tab="shop"],body.easy nav [data-tab="lineups"],body.easy nav [data-tab="players"],body.easy nav [data-tab="teams"],body.easy .navsep{display:none}
 </style>
 
+<div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
+  <h2 id="wTitle">Welcome to Edge Board</h2>
+  <p class="sub">Our numbers vs. the sportsbooks, for every NFL game. Here's where to start:</p>
+  <div class="tiles2">
+    <div class="t2"><span class="ic2">★</span><div><b>Picks</b><span>Our best bets this week: where our numbers and the books disagree most.</span></div></div>
+    <div class="t2"><span class="ic2">🏈</span><div><b>Games</b><span>Every game with lines, injuries and the storylines that matter.</span></div></div>
+    <div class="t2"><span class="ic2">TD</span><div><b>TDs</b><span>Who's most likely to score, with the best price. Tap + Add to build a TD parlay.</span></div></div>
+    <div class="t2"><span class="ic2">+</span><div><b>Parlay</b><span>Build a parlay and get a grade, then open it in FanDuel or DraftKings in one tap.</span></div></div>
+    <div class="t2"><span class="ic2">$</span><div><b>My Bets</b><span>Your tickets, tracked live during games: every leg checks itself off.</span></div></div>
+  </div>
+  <label class="easy"><input type="checkbox" id="easyMode"><span><b>Easy mode</b> · hide the research tabs (Line Shop, Lineups, Players, Teams). You can change this any time with the ? button.</span></label>
+  <button class="go" id="welcomeGo">Let's go</button>
+</div></div>
 <header>
   <div class="bar">
     <p class="brand">Edge Board <small>NFL</small></p>
     <div class="sync"><span class="dot off" id="syncDot"></span><span id="syncText">Waiting for data…</span></div>
+    <div class="hdr-btns"><button class="hdr-btn" id="helpBtn" aria-label="How the app works">?</button></div>
   </div>
   <nav role="tablist">
     <button role="tab" id="tab-picks" data-tab="picks" aria-selected="false">Picks</button>
@@ -1364,7 +1406,7 @@ async function pollLocal() {
         wp: sm?.winprobability?.length ? sm.winprobability[sm.winprobability.length - 1].homeWinPercentage : sit.lastPlay?.probability?.homeWinPercentage ?? null,
         players: sm ? parsePlayers(sm) : {} };
     }) };
-    renderLive(); renderSpot();
+    renderLive(); renderSpot(); if (!$('#view-bets').hidden) renderBets();
   } catch (err) { $('#liveMode').textContent = 'Could not reach ESPN for live scores: ' + err.message; }
 }
 // Bets and settings for the standalone app: kept on this device, same calls as the hosted db.
@@ -1857,9 +1899,66 @@ document.addEventListener('change', e => {
   if (e.target.id === 'slipUnits') { store.set('edge-parlay-units', e.target.value); renderSlip(); }
 });
 // a parlay grades itself once every leg can be graded: any loss loses; pushed legs drop out
+// ------------------------------------------------------------ live tickets: every leg tracks itself from ESPN box scores
+const BOX = {};   // game id -> { state, hs, as, players, at }
+function boxFor(gid) {
+  const lv = S.live?.games?.find(x => x.id === gid);
+  if (lv && lv.state !== 'pre') return { state: lv.state, hs: +lv.home.score, as: +lv.away.score, players: lv.players || {} };
+  return BOX[gid] || null;
+}
+let boxBusy = false;
+async function refreshBoxes(gids) {   // games on open tickets that have started: fetch ESPN's box score (live ones every 30s)
+  if (boxBusy) return; boxBusy = true;
+  try {
+    const now = Date.now(), todo = [...new Set(gids)].filter(gid => {
+      const g = S.slate?.games.find(x => x.id === gid), b = BOX[gid], kick = g ? new Date(g.date).getTime() : null;
+      if (kick && kick > now) return false;
+      return !b || (b.state !== 'post' && now - b.at > 30e3) || (b.state === 'post' && !b.players);
+    });
+    if (!todo.length) return;
+    await Promise.all(todo.map(async gid => {
+      try {
+        const sm = await (await fetch(ESPN_SUM + gid, { cache: 'no-store' })).json(), c = sm?.header?.competitions?.[0];
+        const side = Object.fromEntries((c?.competitors || []).map(x => [x.homeAway, x]));
+        BOX[gid] = { state: c?.status?.type?.state || 'pre', hs: +side.home?.score, as: +side.away?.score, players: parsePlayers(sm), at: Date.now() };
+      } catch (e) {}
+    }));
+    renderBets();
+  } finally { boxBusy = false; }
+}
+setInterval(() => { if (!$('#view-bets').hidden) renderBets(); }, 30e3);
+// one leg's status: pre (not started), live (with progress), hit, miss, push, void (player didn't play)
+function legStatus(l) {
+  const bx = boxFor(l.gid); if (!bx || bx.state === 'pre') return { st: 'pre' };
+  const fin = bx.state === 'post';
+  if (l.kind === 'prop') {
+    const keys = LIVE_STAT[l.m]; if (!keys) return { st: 'pre' };
+    const ps = bx.players?.[l.pid];
+    if (!ps) return fin ? { st: 'void' } : { st: 'live', v: 0 };
+    const v = keys.reduce((a, k) => a + (ps.s?.[k] || 0), 0), L = l.m === 'Anytime TD' ? 0.5 : +l.line, over = l.side !== 'under';
+    if (over && v > L) return { st: 'hit', v };
+    if (!over && v > L) return { st: 'miss', v };
+    if (fin) return v === L ? { st: 'push', v } : { st: over ? 'miss' : 'hit', v };
+    return { st: 'live', v, L };
+  }
+  const g = S.slate?.games.find(x => x.id === l.gid), H = g?.home.abbr;
+  const mine = l.team ? (l.team === H ? bx.hs : bx.as) : null, theirs = l.team ? (l.team === H ? bx.as : bx.hs) : null;
+  let d = null;
+  if (l.kind === 'ml') d = (l.side === 'home' ? bx.hs - bx.as : bx.as - bx.hs);
+  if (l.kind === 'spread') d = (l.side === 'home' ? bx.hs - bx.as : bx.as - bx.hs) + +l.line;
+  if (l.kind === 'total') d = (bx.hs + bx.as - +l.line) * (l.side === 'under' ? -1 : 1);
+  if (l.kind === 'tt') d = (mine - +l.line) * (l.side === 'under' ? -1 : 1);
+  if (d == null) return { st: 'pre' };
+  if (l.kind === 'total' && l.side !== 'under' && d > 0) return { st: 'hit', v: bx.hs + bx.as };
+  if (l.kind === 'tt' && l.side !== 'under' && d > 0) return { st: 'hit', v: mine };
+  if (fin) return { st: d > 0 ? 'hit' : d < 0 ? 'miss' : 'push' };
+  return { st: 'live', d, v: l.kind === 'total' ? bx.hs + bx.as : l.kind === 'tt' ? mine : null };
+}
+const legOK = st => ({ hit: 'win', miss: 'loss', push: 'push', void: 'push' })[st] || 'pending';
+
 function gradeParlay(b) {
   const res = (b.legs || []).map(l => {
-    if (l.kind === 'prop') return 'pending';
+    if (l.kind === 'prop') return legOK(legStatus(l).st);
     if (l.kind === 'tt') { const r = S.results?.games?.[l.gid]; if (!r || r.st !== 'post' || r.hs == null) return 'pending'; const pts = l.team === r.h ? r.hs : r.as, d = pts - l.line;
       return d === 0 ? 'push' : (d > 0) === (l.side === 'over') ? 'win' : 'loss'; }
     return gradeBet({ gameId: l.gid, market: l.kind, side: l.side, line: l.line }); });
@@ -2389,7 +2488,8 @@ function renderTD() {
     const cur = x.last[0]?.y;
     const rows = x.last.map(r => `<tr><td>W${r.w} ${r.h ? 'vs' : '@'} ${esc(r.o || '')}${r.y !== cur ? ` <span class="note">'${String(r.y).slice(2)}</span>` : ''}</td><td class="${r.n ? 'td' : ''}">${r.n}</td>
       ${rec ? `<td>${r.tgt ?? 0}</td><td>${r.rec ?? 0}</td><td>${r.yds ?? 0}</td>` : `<td>${r.car ?? 0}</td><td>${r.ryd ?? 0}</td><td>${r.rec ?? 0}</td>`}<td>${r.snap != null ? Math.round(r.snap * 100) + '%' : '–'}</td></tr>`).join('');
-    return `<div class="tdlog">${mu(x, true)}${svg}<div class="tbl"><table><tr><th>Game</th><th>TD</th>${rec ? '<th>Tgt</th><th>Rec</th><th>Yds</th>' : '<th>Car</th><th>Yds</th><th>Rec</th>'}<th>Snap</th></tr>${rows}</table></div>
+    const mm = x.pr.pModel != null && x.pr.pMkt != null ? `<p class="note" style="margin:0 0 6px">Our model <b>${Math.round(x.pr.pModel * 100)}%</b> · the books <b>${Math.round(x.pr.pMkt * 100)}%</b> · we show the blend, <b>${Math.round(x.p * 100)}%</b></p>` : '';
+    return `<div class="tdlog">${mm}${mu(x, true)}${svg}<div class="tbl"><table><tr><th>Game</th><th>TD</th>${rec ? '<th>Tgt</th><th>Rec</th><th>Yds</th>' : '<th>Car</th><th>Yds</th><th>Rec</th>'}<th>Snap</th></tr>${rows}</table></div>
       <p class="note" style="margin:6px 0 0">Games where he recorded a stat, newest first in the table.</p></div>`; };
   const tdS = x => x.gp != null ? `${x.td} TD in ${x.gp} G this year${x.gPrev ? ` · ${x.tdPrev} in ${x.gPrev} last year` : ''}` : '';
   const nTd = PAR.legs.length;
@@ -2426,9 +2526,11 @@ document.addEventListener('click', e => {
 function renderParlay() {
   const box = $('#parlay'); if (!box) return;
   PAR.legs = PAR.legs.map(l => l.kind ? l : null).filter(Boolean);
-  if (!PAR.legs.length) { box.innerHTML = `<div class="empty"><b>Your parlay is empty</b>Tap “+ Parlay” on any pick, prop, ladder rung or game, and the legs land here. Then grade it.</div>`; return; }
+  let bk = null; try { bk = JSON.parse(store.get('edge-parlay-backup') || 'null'); } catch (e) {}
+  const restore = bk?.length ? `<div class="bestbook" style="display:flex;gap:10px;align-items:center;justify-content:space-between">This is a shared parlay. Your own ${bk.length}-leg parlay is saved.<button class="btn small" data-restorepar>Restore my parlay</button></div>` : '';
+  if (!PAR.legs.length) { box.innerHTML = `${restore}<div class="empty"><b>Your parlay is empty</b>Tap “+ Parlay” on any pick, prop, ladder rung or game, and the legs land here. Then grade it.</div>`; return; }
   const units = +(store.get('edge-parlay-units') || 1), rep = gradeReport(PAR.legs), d = PAR.legs.reduce((x, l) => x * amToDec(+l.odds || -110), 1);
-  box.innerHTML = `<div class="pbuild">
+  box.innerHTML = `${restore}<div class="pbuild">
     ${PAR.legs.map((l, i) => { const c = legChance(l), rungs = legRungs(l);
       return `<div class="pleg"><div class="pleg-main"><b>${esc(l.label)}</b><small>${esc(l.sub)}</small></div>
         ${rungs.length > 1 ? `<label class="note">Line <select data-legline="${i}">${rungs.map(L => `<option value="${L}"${L === l.line ? ' selected' : ''}>${l.kind === 'spread' ? fmtLine(L) : L}</option>`).join('')}</select></label>` : ''}
@@ -3205,19 +3307,26 @@ function slipCard({ b, res, p }) {
   const legs = b.legs?.length ? b.legs : [{ label: pickText(b), team: null }];
   const kind = b.market === 'parlay' ? (b.label || `${legs.length}-leg parlay`) : ({ spread: 'Spread', ml: 'Moneyline', total: 'Total' })[b.market] || 'Bet';
   const plS = st != null ? (p > 0 ? '+' : p < 0 ? '−' : '') + usd(p * (st / (+b.units || 1))) : (p > 0 ? '+' : '') + p.toFixed(2) + 'u';
-  const legRow = l => { const t = l.team || (l.side === 'home' ? null : null), parts = (l.label || '').split(/ (anytime TD|o[\d.]+.*|u[\d.]+.*|moneyline)$/);
-    return `<li>${t ? logo(t, 22) : ''}<b>${esc(parts[0] || l.label)}</b><span>${esc(parts[1] || '')}</span><i class="ck" aria-hidden="true"></i></li>`; };
+  const tl = ticketLegs(b), stats = tl.map(legStatus);
+  const legRow = (l, i) => { const t = l.team || null, parts = (l.label || '').split(/ (anytime TD|o[\d.]+.*|u[\d.]+.*|moneyline)$/), x = stats[i] || { st: 'pre' };
+    const fmtV = v => Number.isInteger(v) ? v : (+v).toFixed(1);
+    const prog = x.st === 'live' && x.L != null ? `<span class="prog">${fmtV(x.v)} / ${x.L}<span class="bar"><i style="width:${Math.min(100, Math.round(x.v / x.L * 100))}%"></i></span></span>`
+      : x.st === 'live' && x.d != null ? `<span class="prog">${x.v != null ? fmtV(x.v) + ' pts · ' : ''}${x.d > 0 ? 'covering' : x.d < 0 ? 'not yet' : 'even'}</span>`
+      : (x.st === 'hit' || x.st === 'miss') && x.v != null && l.m !== 'Anytime TD' ? `<span class="prog">${fmtV(x.v)}</span>` : '';
+    return `<li class="${x.st}">${t ? logo(t, 22) : ''}<b>${esc(parts[0] || l.label)}</b><span>${esc(parts[1] || '')}</span>${prog}<i class="ck ${x.st}" aria-label="${x.st}">${x.st === 'hit' ? '✓' : x.st === 'miss' ? '✕' : ''}</i></li>`; };
+  const nHit = stats.filter(x => x.st === 'hit').length, nMiss = stats.filter(x => x.st === 'miss').length, nLive = stats.filter(x => x.st === 'live').length;
+  const liveLine = res === 'pending' && (nHit || nMiss || nLive) ? `<div class="sc-live">${nMiss ? `✕ Busted · ${nMiss} leg${nMiss > 1 ? 's' : ''} missed` : `${nHit} of ${tl.length} hit${nLive ? ` · ${nLive} live` : ''} · ${tl.length - nHit} to go`}</div>` : '';
   return `<article class="slipcard r-${res}">
     <div class="sc-top"><div><b>${esc(kind)}</b><br><small>${new Date(b.placedAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}${b.book ? ' · ' + esc(b.book) : ''}</small></div>
       <span class="sc-badge">${res === 'pending' ? 'Live ticket' : res === 'win' ? 'Cashed!' : res === 'loss' ? 'Busted' : res}</span></div>
     <div class="sc-pay"><div><small>Bet</small><b>${st != null ? usd(st) : (+b.units).toFixed(2) + 'u'}</b></div><span class="arr">→</span>
       <div class="win"><small>${res === 'win' ? 'Won' : 'To win'}</small><b>${win != null ? usd(win) : ((+b.units) * (dec(+b.odds) - 1)).toFixed(2) + 'u'}</b></div></div>
     <div class="sc-odds">${fmtOdds(+b.odds)}${legs.length > 1 ? ` · ${legs.length} legs` : ''}</div>
-    <ul class="sc-legs">${legs.map(legRow).join('')}</ul>
+    ${liveLine}<ul class="sc-legs">${legs.map(legRow).join('')}</ul>
     ${res === 'pending' ? `<div style="padding:0 14px">${sendButtons(ticketLegs(b), 'ticket', b.book)}</div>` : ''}
     ${res === 'pending' && S.canWrite ? `<div class="stake-row" style="margin:6px 14px 0"><label>Bet ($)<input class="sc-stake" data-id="${esc(b.id)}" inputmode="decimal" value="${b.stake ?? ''}" placeholder="amount" style="width:90px"></label>
       <label>Odds<input class="sc-oddsin" data-id="${esc(b.id)}" inputmode="numeric" value="${fmtOdds(+b.odds)}" style="width:100px"></label></div>` : ''}
-    <div class="sc-foot"><span>${res === 'pending' ? 'Waiting on kickoff' : `<span class="sc-pl ${p > 0 ? 'pos' : p < 0 ? 'neg' : ''}">${plS}</span>`}</span>
+    <div class="sc-foot"><button class="sc-share" data-share="${esc(b.id)}">Share ↗</button><span>${res === 'pending' ? 'Waiting on kickoff' : `<span class="sc-pl ${p > 0 ? 'pos' : p < 0 ? 'neg' : ''}">${plS}</span>`}</span>
       <select class="setres" data-id="${esc(b.id)}" aria-label="Set result" ${S.canWrite ? '' : 'disabled'}>
         <option value="">${b.result ? 'Auto-grade' : 'Mark result…'}</option><option value="win">Won</option><option value="loss">Lost</option><option value="push">Push</option><option value="void">Void</option><option value="delete">Delete</option></select></div></article>`;
 }
@@ -3257,6 +3366,7 @@ function renderBets() {
 
   const f = S.filter, list = rows.filter(x => f === 'all' || (f === 'pending' ? x.res === 'pending' : x.res !== 'pending'))
     .sort((a, b) => (b.b.placedAt || '').localeCompare(a.b.placedAt || ''));
+  queueMicrotask(() => refreshBoxes(rows.filter(x => x.res === 'pending').flatMap(x => ticketLegs(x.b).map(l => l.gid))));
   $('#ledger').innerHTML = list.length ? `<div class="slips">${list.map(slipCard).join('')}</div>` : `<div class="empty"><b>${S.bets.length ? 'Nothing here' : 'No bets yet'}</b>${S.bets.length ? 'No bets match this filter.' : 'Track a bet from any game, or build a parlay and hit “Track it”. Your tickets show up here.'}</div>`;
 }
 
@@ -3368,7 +3478,88 @@ function foldHowTos() {
   }
 }
 queueMicrotask(foldHowTos);
-function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); }
+// ------------------------------------------------------------ welcome sheet and easy mode
+function setEasy(on) { document.body.classList.toggle('easy', on); store.set('edge-easy', on ? '1' : ''); const c = $('#easyMode'); if (c) c.checked = on;
+  if (on && ['shop', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('picks'); }
+function showWelcome(on) { $('#welcome').hidden = !on; if (on) $('#welcomeGo').focus(); }
+queueMicrotask(() => {
+  setEasy(store.get('edge-easy') === '1');
+  if (!store.get('edge-welcomed')) showWelcome(true);
+  $('#welcomeGo').onclick = () => { store.set('edge-welcomed', '1'); showWelcome(false); };
+  $('#helpBtn').onclick = () => showWelcome(true);
+  $('#easyMode').onchange = e => setEasy(e.target.checked);
+  $('#welcome').onclick = e => { if (e.target.id === 'welcome') { store.set('edge-welcomed', '1'); showWelcome(false); } };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#welcome').hidden) { store.set('edge-welcomed', '1'); showWelcome(false); } });
+});
+
+// ------------------------------------------------------------ share a ticket: a slip image for the group chat + a link that loads the parlay
+const SHARE_KEYS = ['gid', 'kind', 'side', 'pid', 'm', 'line', 'team'];
+const b64u = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
+function shareUrl(legs) {
+  const packed = legs.map(l => SHARE_KEYS.map(k => l[k] ?? ''));
+  return `${location.origin}${location.pathname}?slip=${b64u(JSON.stringify(packed))}`;
+}
+function loadImg(src) { return new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; }); }
+async function ticketImage(b) {
+  const legs = b.legs?.length ? b.legs : [{ label: pickText(b), team: null }];
+  const W = 1080, rowH = 92, H = 330 + legs.length * rowH + 150, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'), st = stakeOf(b), win = st != null ? st * (dec(+b.odds) - 1) : null;
+  const bg = x.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#0b1119'); bg.addColorStop(1, '#0d2a1d'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  const head = x.createLinearGradient(0, 0, W, 0); head.addColorStop(0, '#2edc84'); head.addColorStop(1, '#1d9e63'); x.fillStyle = head; x.fillRect(0, 0, W, 120);
+  x.fillStyle = '#03140b'; x.font = '800 54px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText((b.label || 'My bet').toUpperCase(), 48, 80);
+  x.font = '700 30px Barlow, Arial, sans-serif'; x.textAlign = 'right'; x.fillText('EDGE BOARD', W - 48, 78); x.textAlign = 'left';
+  x.fillStyle = '#8e9aa9'; x.font = '600 28px Barlow, Arial, sans-serif'; x.fillText('BET', 48, 180); x.textAlign = 'right'; x.fillText('TO WIN', W - 48, 180); x.textAlign = 'left';
+  x.fillStyle = '#f3f6f9'; x.font = '800 72px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText(st != null ? usd(st) : (+b.units).toFixed(2) + 'u', 48, 252);
+  x.fillStyle = '#2edc84'; x.textAlign = 'right'; x.fillText(win != null ? usd(win) : ((+b.units) * (dec(+b.odds) - 1)).toFixed(2) + 'u', W - 48, 252); x.textAlign = 'left';
+  x.fillStyle = '#8e9aa9'; x.font = '700 30px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText(`${fmtOdds(+b.odds)} · ${legs.length} leg${legs.length > 1 ? 's' : ''}${b.book ? ' · ' + b.book : ''}`, 48, 300);
+  x.setLineDash([10, 10]); x.strokeStyle = '#243041'; x.lineWidth = 3; x.beginPath(); x.moveTo(48, 322); x.lineTo(W - 48, 322); x.stroke(); x.setLineDash([]);
+  const imgs = await Promise.all(legs.map(l => l.team ? loadImg(`${LOGO_BASE}${l.team}.png`) : null));
+  legs.forEach((l, i) => {
+    const y = 330 + i * rowH, parts = (l.label || '').split(/ (anytime TD|o[\d.]+.*|u[\d.]+.*|moneyline)$/);
+    if (imgs[i]) x.drawImage(imgs[i], 48, y + 18, 56, 56);
+    x.fillStyle = '#f3f6f9'; x.font = '700 38px Barlow, Arial, sans-serif'; x.fillText(parts[0] || l.label || '', 124, y + 52);
+    const wName = x.measureText(parts[0] || l.label || '').width;
+    x.fillStyle = '#8e9aa9'; x.font = '500 30px Barlow, Arial, sans-serif'; x.fillText(parts[1] || '', 124 + wName + 14, y + 52);
+    if (i < legs.length - 1) { x.strokeStyle = '#1c2633'; x.lineWidth = 2; x.beginPath(); x.moveTo(48, y + rowH); x.lineTo(W - 48, y + rowH); x.stroke(); }
+  });
+  x.fillStyle = '#8e9aa9'; x.font = '600 26px Barlow, Arial, sans-serif'; x.fillText('Built on Edge Board · tap the link to load this parlay', 48, H - 56);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+async function shareTicket(b) {
+  const legs = ticketLegs(b), url = legs.length ? shareUrl(legs) : location.href.split('?')[0];
+  const text = `${b.label || 'My bet'} (${fmtOdds(+b.odds)}): ${(b.legs || []).map(l => l.label).join(', ') || pickText(b)}`;
+  try {
+    const blob = await ticketImage(b), file = blob && new File([blob], 'edge-board-ticket.png', { type: 'image/png' });
+    if (file && navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], text: `${text}\n${url}` }); return; }
+    if (navigator.share) { await navigator.share({ text, url }); return; }
+  } catch (e) { if (e?.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('Link copied: paste it in the group chat'); }
+  catch { prompt('Copy this link:', url); }
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-restorepar]')) { try { PAR.legs = JSON.parse(store.get('edge-parlay-backup')); } catch (err) {} store.set('edge-parlay-backup', ''); saveParlay(); renderSlip(); toast('Your parlay is back'); return; }
+  const sh = e.target.closest('[data-share]'); if (!sh) return;
+  const b = S.bets.find(x => x.id === sh.dataset.share); if (b) shareTicket(b);
+});
+// opening a shared link loads that parlay into your Parlay tab
+let slipLoaded = false;
+function loadSharedSlip() {
+  if (slipLoaded || !S.slate) return;
+  const q = new URLSearchParams(location.search).get('slip'); if (!q) { slipLoaded = true; return; }
+  if (q.length && !Object.keys(S.props || {}).length) return;   // wait for props so prop legs can be rebuilt
+  slipLoaded = true;
+  try {
+    const legs = JSON.parse(unb64u(q)).map(a => Object.fromEntries(SHARE_KEYS.map((k, i) => [k, a[i] === '' ? null : a[i]])))
+      .map(l => makeLeg(l.gid, l.kind, l.side, l.pid, l.m, l.line)).filter(Boolean);
+    history.replaceState(null, '', location.pathname);
+    if (!legs.length) { toast('Those games are over, so the shared parlay could not be loaded'); return; }
+    if (PAR.legs.length) store.set('edge-parlay-backup', JSON.stringify(PAR.legs));   // keep the parlay you were building
+    PAR.legs = legs; saveParlay(); renderSlip(); setTab('parlay'); toast(`Loaded a shared ${legs.length}-leg parlay`);
+  } catch (e) { toast('Could not read that shared link'); }
+}
+
+function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
 
 function setTab(t) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
@@ -3454,7 +3645,7 @@ renderBets();
     // only parts written by the latest sync; older parts can linger after a week with more games
     const latest = q.docs.map(d => d.data().sync).sort().pop();
     for (const d of q.docs) if (d.data().sync === latest) Object.assign(merged, d.data().games);
-    S.props = q.empty ? null : merged; normProps(); if (S.slate) { renderProps(); renderLive(); renderSpot(); renderPicks(); }
+    S.props = q.empty ? null : merged; normProps(); if (S.slate) { renderProps(); renderLive(); renderSpot(); renderPicks(); loadSharedSlip(); }
   }, () => {});
   db.doc('live/current').onSnapshot(snap => {
     S.live = snap.exists ? snap.data() : null;
