@@ -9,7 +9,7 @@ contracts priced in dollars, so a 0.49 Yes ask is roughly a 49% chance. We attac
 Player markets Kalshi lists that ESPN has no line for are added as new props (line = the middle rung), so they get
 projections and ladders too.
 """
-import json, sys
+import json, os, re, sys, time
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 
@@ -46,6 +46,34 @@ def _price(m):
     return {"ya": ya, "na": na, "yb": f("yes_bid_dollars"), "v": round(float(m.get("volume_fp") or 0))}
 
 
+SERIES_API = "https://api.elections.kalshi.com/trade-api/v2/series/"
+_TITLES = {}
+
+
+def _series_title(series):
+    """Kalshi's name for a series ('Pro Football Touchdowns'), cached on disk; it's part of their market page links."""
+    path = os.path.join(os.environ.get("EDGE_DATA") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"), "kalshi_series.json")
+    if not _TITLES:
+        try:
+            with open(path, encoding="utf-8") as f: _TITLES.update(json.load(f))
+        except (FileNotFoundError, json.JSONDecodeError): pass
+    if series not in _TITLES:
+        try:
+            req = Request(SERIES_API + series, headers={"User-Agent": "nfl-edge-board", "Accept": "application/json"})
+            with urlopen(req, timeout=30) as r: _TITLES[series] = json.loads(r.read().decode("utf-8")).get("series", {}).get("title") or ""
+            time.sleep(0.3)
+            with open(path, "w", encoding="utf-8") as f: json.dump(_TITLES, f)
+        except Exception as e:
+            print("kalshi series title failed", series, e, file=sys.stderr); return ""
+    return _TITLES.get(series, "")
+
+
+def page_url(series, event_ticker):
+    """Kalshi's web page for one game's market, e.g. kalshi.com/markets/kxnfltd/pro-football-touchdowns/kxnfltd-26oct11nygwas."""
+    slug = re.sub(r"[^a-z0-9]+", "-", _series_title(series).lower()).strip("-")
+    return f"https://kalshi.com/markets/{series.lower()}/{slug}/{event_ticker.lower()}" if slug else f"https://kalshi.com/markets/{series.lower()}"
+
+
 def _game_for(event_ticker, games):
     """'KXNFLRSHYDS-26OCT05ATLNO' -> the slate game whose away+home codes spell 'ATLNO'."""
     code = event_ticker.split("-")[1][7:]
@@ -75,6 +103,7 @@ def apply(games, props):
             p = _price(m)
             if not g or not p: continue
             k = g.setdefault("kalshi", {})
+            k.setdefault("url", {}).setdefault({"KXNFLGAME": "ml", "KXNFLTOTAL": "total", "KXNFLSPREAD": "spread"}.get(series, "tt"), page_url(series, m["event_ticker"]))
             suffix = m["ticker"].split("-")[-1]
             if series == "KXNFLGAME":
                 t = _team(suffix, g)
@@ -99,10 +128,12 @@ def apply(games, props):
             if g and p and g["id"] in props: by_game.setdefault(g["id"], []).append((m, p))
         for gid, rows in by_game.items():
             players = {norm(pl["n"]): pl for pl in props[gid]}
-            ladders = {}
+            ladders, urls = {}, {}
             for m, p in rows:
                 pl = players.get(norm(m["title"].split(":")[0]))
-                if pl: ladders.setdefault(pl["n"], []).append({"l": m["floor_strike"], **p})
+                if pl:
+                    ladders.setdefault(pl["n"], []).append({"l": m["floor_strike"], **p})
+                    urls[pl["n"]] = page_url(series, m["event_ticker"])
             for name, rungs in ladders.items():
                 pl = players[norm(name)]
                 rungs.sort(key=lambda r: r["l"])
@@ -112,4 +143,5 @@ def apply(games, props):
                     pr = {"m": ours, "l": 0.5 if ours == "Anytime TD" else mid["l"], "o": None, "kalshiOnly": True}
                     pl["props"].append(pr)
                 pr["alt"] = rungs; n += len(rungs)
+                if urls.get(name): pr["kx"] = urls[name]
     return n

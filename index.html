@@ -614,6 +614,10 @@ table th{font:700 11px var(--f-body);letter-spacing:.8px;text-transform:uppercas
 .sendbook:hover{filter:brightness(1.1)}.sendbook.fd{background:#1493ff}.sendbook.dk{background:#53b829;color:#06180a}.sendbook.mgm{background:#c5a35a;color:#191207}
 .sendrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
 .sendrow .note{flex-basis:100%}
+.sendbook.kx{background:#00d395;color:#03140b}
+.kxlink{display:inline-flex;align-items:center;gap:4px;font:700 12px var(--f-body);color:#00d395;text-decoration:none;border:1.5px solid #00d395;border-radius:999px;padding:2px 9px}
+.kxlink:hover{background:#00d395;color:#03140b}
+.kxrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
 </style>
 
 <header>
@@ -2373,7 +2377,7 @@ function renderTD() {
     ${c.slice(0, TDB.n).map(x => { const on = inPar(x.g.id, x.pl.id);
       return `<div class="tdrow">${logo(x.team.abbr, 26)}
         <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}</small>${l10(x)}${mu(x)}</div>
-        <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · Kalshi ${fmtOdds(x.price)}` : ''}${x.edge != null && x.edge >= 0.03 ? ' · <span class="val">value</span>' : ''}</small></div>
+        <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · ${x.pr.kx ? `<a class="kxlink" href="${esc(x.pr.kx)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(x.price)} ↗</a>` : `Kalshi ${fmtOdds(x.price)}`}` : ''}${x.edge != null && x.edge >= 0.03 ? ' · <span class="val">value</span>' : ''}</small></div>
         <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>
         ${TDB.open.has(x.pl.id) && x.last.length ? tdLog(x) : ''}</div>`; }).join('')}
     ${c.length > TDB.n ? `<button class="btn small" data-tdmore style="margin-top:8px">Show more (${c.length - TDB.n})</button>` : ''}
@@ -2525,7 +2529,7 @@ function propLadder(p, propsRow, pr, g) {
     l5: games.length ? `${hitCount(games.slice(0, 5), r.l, true)}/${Math.min(5, games.length)}` : null, l10: games.length ? `${hitCount(games, r.l, true)}/${games.length}` : null,
     add: { over: `${g.id}|prop|over|${propsRow.id}|${pr.m}|${r.l}`, under: `${g.id}|prop|under|${propsRow.id}|${pr.m}|${r.l}` } }))
     .filter(r => r.main || r.p == null || (r.p > 0.02 && r.p < 0.985));
-  return `<h3 style="margin:4px 0 0">Alternate lines</h3>${bookToggle()}${ladderTable(rows, { head: 'Line', yes: td ? 'Yes' : 'Over', no: td ? 'No' : 'Under', noValue: td })}${td ? '<p class="note">Touchdowns are the hardest thing to project, so we show our chance and fair odds but do not rate value here.</p>' : ''}${ALT_NOTE2}`;
+  return `<h3 style="margin:4px 0 0">Alternate lines ${pr.kx ? kxLink(pr.kx, 'Open on Kalshi') : ''}</h3>${bookToggle()}${ladderTable(rows, { head: 'Line', yes: td ? 'Yes' : 'Over', no: td ? 'No' : 'Under', noValue: td })}${td ? '<p class="note">Touchdowns are the hardest thing to project, so we show our chance and fair odds but do not rate value here.</p>' : ''}${ALT_NOTE2}`;
 }
 
 function gameOffers(g, kind, a, b, L) {
@@ -2572,7 +2576,8 @@ function gameLadders(g) {
     return rs.length ? ladderTable(rs, { head: `${t.abbr} team total`, yes: 'Over', no: 'Under' }) : ''; };
   const k = g.kalshi || {};
   const ml = k.ml ? `<p class="offer">Kalshi moneyline: ${[A, H].map(t => k.ml[t.abbr] ? `${esc(t.abbr)} ${Math.round(k.ml[t.abbr].ya * 100)}¢ (${fmtOdds(centsAm(k.ml[t.abbr].ya))})` : '').filter(Boolean).join(' · ')} · our win chance ${esc(H.abbr)} ${Math.round(g.proj.pHome * 100)}%</p>` : '';
-  return `<div style="grid-column:1/-1;min-width:0"><h3>Alternate lines</h3>${bookToggle()}${ml}
+  const ku = g.kalshi?.url || {};
+  return `<div style="grid-column:1/-1;min-width:0"><h3>Alternate lines</h3>${Object.keys(ku).length ? `<div class="kxrow"><span class="note">On Kalshi:</span>${kxLink(ku.ml, 'Winner')}${kxLink(ku.spread, 'Spreads')}${kxLink(ku.total, 'Totals')}${kxLink(ku.tt, 'Team totals')}</div>` : ''}${bookToggle()}${ml}
     ${ladderTable(srows, { head: 'Spread', yes: fav.abbr, no: dog.abbr })}<br>${ladderTable(trows, { head: 'Total', yes: 'Over', no: 'Under' })}${team(A)}${team(H)}${ALT_NOTE2}</div>`;
 }
 
@@ -2622,6 +2627,12 @@ function legLinks(l, anyLine) {   // {book: link} for one leg; the book's line m
   }
   return out;
 }
+function kalshiUrl(l) {
+  if (l.kind === 'prop') return findProp(l.gid, l.pid, l.m).pr?.kx || null;
+  const g = S.slate?.games.find(x => x.id === l.gid), u = g?.kalshi?.url || {};
+  return ({ ml: u.ml, spread: u.spread, total: u.total, tt: u.tt })[l.kind] || null;
+}
+const kxLink = (url, text = 'Kalshi') => url ? `<a class="kxlink" href="${esc(url)}" target="_blank" rel="noopener">${esc(text)} ↗</a>` : '';
 const MGM_STATE = () => store.get('edge-state') || 'nj';
 function combineLinks(book, links) {   // one bet slip with every selection, where the book's link format allows it
   if (links.length === 1) return links[0].replace('{state}', MGM_STATE());
@@ -2642,9 +2653,11 @@ function sendButtons(legs, compact, prefer) {   // compact: true on pick cards, 
   let full = books.filter(b => per.every(o => o[b])).map(b => ({ b, url: combineLinks(b, per.map(o => o[b])) })).filter(x => x.url).sort((a, b) => rank(a.b) - rank(b.b));
   if (compact) full = full.slice(0, 2);   // cards: your book plus one more
   const partial = books.filter(b => !full.some(f => f.b === b));
-  if (!full.length && !partial.length && compact === 'ticket') return `<div class="sendrow"><span class="note">No bet-slip link for this ticket${legs.some(l => l.kind === 'prop') ? ': player props (including TDs) need the props odds feed' : ' yet'}.</span></div>`;
-  if (!full.length && !partial.length) return compact ? '' : `<div class="sendrow"><span class="note">No bet-slip links for ${legs.length > 1 ? 'these legs' : 'this bet'} yet. Books share links for game lines${S.props && legs.some(l => l.kind === 'prop') ? '; player props (including TDs) need the paid props feed' : ''}.</span></div>`;
-  return `<div class="sendrow">${full.map(f => `<a class="sendbook ${BOOK_CLS[f.b] || ''}" href="${esc(f.url)}" target="_blank" rel="noopener">Bet at ${esc(f.b)} ↗</a>`).join('')}
+  if (!full.length && !partial.length && !legs.some(kalshiUrl) && compact === 'ticket') return `<div class="sendrow"><span class="note">No bet-slip link for this ticket${legs.some(l => l.kind === 'prop') ? ': player props (including TDs) need the props odds feed' : ' yet'}.</span></div>`;
+  if (!full.length && !partial.length && !legs.some(kalshiUrl)) return compact ? '' : `<div class="sendrow"><span class="note">No bet-slip links for ${legs.length > 1 ? 'these legs' : 'this bet'} yet. Books share links for game lines${S.props && legs.some(l => l.kind === 'prop') ? '; player props (including TDs) need the paid props feed' : ''}.</span></div>`;
+  const kx = legs.map(kalshiUrl), kxHtml = !kx.some(Boolean) ? '' : legs.length === 1 ? `<a class="sendbook kx" href="${esc(kx[0])}" target="_blank" rel="noopener">Open on Kalshi ↗</a>`
+    : compact === true ? '' : `<span class="kxrow"><span class="note">Kalshi (one market at a time):</span>${legs.map((l, i) => kx[i] ? kxLink(kx[i], (l.label || '').replace(/ anytime TD$/, ' TD')) : '').join('')}</span>`;
+  return `<div class="sendrow">${full.map(f => `<a class="sendbook ${BOOK_CLS[f.b] || ''}" href="${esc(f.url)}" target="_blank" rel="noopener">Bet at ${esc(f.b)} ↗</a>`).join('')}${kxHtml}
     ${!compact && partial.length ? `<span class="note">${esc(partial.join(', '))} ${partial.length > 1 ? 'have' : 'has'} links for some legs only.</span>` : ''}
     ${!compact ? `<span class="note">Opens the book with ${legs.length > 1 ? 'your legs' : 'the bet'} in the slip. Check the line and price there, then place it yourself.${full.some(f => f.b === 'BetMGM') ? ` BetMGM state: <select id="mgmState">${['az','co','dc','ia','il','in','ks','ky','la','ma','md','mi','nc','nj','ny','oh','pa','tn','va','wv','wy'].map(x => `<option${x === MGM_STATE() ? ' selected' : ''}>${x}</option>`).join('')}</select>` : ''}</span>` : ''}</div>`;
 }
