@@ -161,7 +161,7 @@ def game_tilt(g, an):
     return out
 
 
-MKT_TD_W = 0.5    # TD chance: weight on the market's own chance (books are sharper than us on touchdowns)
+MKT_TD_W = 0.6    # TD chance: weight on the market's own chance; 0.6 tested best on weeks 1-4 of 2026 (td_backtest.py)
 TD_VIG = 1.07     # books' typical margin on a Yes-only anytime-TD price
 MKT_PTS_W = 0.7   # TD model: weight on the market's implied team total (spread + total) vs our own projected points
 

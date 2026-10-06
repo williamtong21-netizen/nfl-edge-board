@@ -1554,6 +1554,16 @@ function gamePicks() {
 // ------------------------------------------------------------ report card: how every kind of read has done once graded
 const recS2 = d => d ? `${d.w}–${d.l}${d.push ? `–${d.push}` : ''}` : '–';
 const rcPct = d => d?.pct != null ? `${Math.round(d.pct * 100)}%` : '';
+function tdBacktest(R) {   // weekly TD backtest totals for the report card
+  const W = Object.entries(R?.tdbt || {}).sort((a, b) => +a[0] - +b[0]);
+  if (!W.length) return { rows: [], chip: null };
+  const sum = k => W.reduce((s, [, v]) => s + (k(v) || 0), 0), n = sum(v => v.n);
+  const br = key => sum(v => v[key]?.sse) / n, best = v => { const b = { 'our model': v.p.sse, Kalshi: v.mid.sse, blend: v.blend.sse }; return Object.entries(b).sort((x, y) => x[1] - y[1])[0][0]; };
+  const bets = sum(v => v.blend?.bets), pl = sum(v => v.blend?.pl), won = sum(v => v.blend?.won);
+  const rows = W.map(([w, v]) => `<tr><td>Week ${w}</td><td class="n">${v.scored}/${v.n}</td><td class="n">${best(v)}</td><td class="n">${v.blend.won}/${v.blend.bets}</td><td class="n"><b class="${v.blend.pl > 0 ? 'pos' : v.blend.pl < 0 ? 'neg' : ''}">${v.blend.pl > 0 ? '+' : v.blend.pl < 0 ? '−' : ''}$${Math.abs(v.blend.pl).toFixed(0)}</b></td></tr>`);
+  rows.push(`<tr><td><b>All</b></td><td class="n">${sum(v => v.scored)}/${n}</td><td class="n">model ${br('p').toFixed(3)} · Kalshi ${br('mid').toFixed(3)} · blend ${br('blend').toFixed(3)}</td><td class="n">${won}/${bets}</td><td class="n"><b class="${pl > 0 ? 'pos' : 'neg'}">${pl > 0 ? '+' : '−'}$${Math.abs(pl).toFixed(0)}</b></td></tr>`);
+  return { rows, wt: W[W.length - 1][1].wt, chip: { w: won, l: bets - won, pct: bets ? won / bets : null, pl } };
+}
 function reportCard() {
   const R = S.slate?.report;
   if (!R?.games) return `<div class="rc"><div class="rc-h"><b>Our report card</b><small>Every read gets graded after the final whistle. The first results show up after this week's games.</small></div></div>`;
@@ -1567,15 +1577,18 @@ function reportCard() {
   const td = (R.td || []).map(d => `<tr><td>${esc(d.bin)}</td><td class="n">${Math.round(d.ours * 100)}%</td><td class="n">${d.scored}/${d.n} (${Math.round(d.scored / d.n * 100)}%)</td></tr>`);
   const sd = (o, lbl) => Object.entries(o || {}).filter(([k]) => k !== 'all').map(([k, d]) => `<tr><td>${lbl} · edge ${esc(k)}</td><td class="n">${recS2(d)}</td><td class="n">${rcPct(d)}</td></tr>`);
   const miss = (R.misses || []).map(m => `<tr><td>${esc(m.n)} <span class="note">${esc(m.m)} ${esc(m.side)} ${m.l}</span></td><td class="n">${Math.round(m.p * 100)}%</td><td class="n">${m.a}</td></tr>`);
+  const tdbt = tdBacktest(R);
   const line = [['props', R.props.all], ['spreads', R.sides?.all], ['totals', R.totals?.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
   return `<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
-    <div class="rc-chips">${chip('Prop leans', R.props.all)}${chip('Strong leans (60%+)', strong)}${chip('Spreads', R.sides?.all)}${chip('Totals', R.totals?.all)}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
+    <div class="rc-chips">${chip('Prop leans', R.props.all)}${chip('Strong leans (60%+)', strong)}${chip('Spreads', R.sides?.all)}${chip('Totals', R.totals?.all)}${tdbt.chip ? `<div class="rc-chip"><span>TD value bets</span><b class="${tdbt.chip.pl > 0 ? 'pos' : 'neg'}">${tdbt.chip.pl > 0 ? '+' : '−'}$${Math.abs(tdbt.chip.pl).toFixed(0)}</b><span>${tdbt.chip.w}–${tdbt.chip.l}, $10 each</span></div>` : ''}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
     <details><summary>Full breakdown</summary><div class="rc-grid">
       <div><h4>Props by confidence</h4>${tbl(['Our chance', 'Record', 'Hit'], conf)}<p class="note">If the reads are honest, higher confidence should hit more often.</p></div>
       <div><h4>Props by market</h4>${tbl(['Market', 'Record', 'Hit'], mk)}</div>
       ${td.length ? `<div><h4>Touchdown calibration</h4>${tbl(['Our chance', 'Avg we gave', 'Scored'], td)}<p class="note">Good TD reads score about as often as we said they would.</p></div>` : ''}
       ${sd(R.sides, 'Spread').length + sd(R.totals, 'Total').length ? `<div><h4>Game reads by edge size</h4>${tbl(['Read', 'Record', 'Hit'], [...sd(R.sides, 'Spread'), ...sd(R.totals, 'Total')])}</div>` : ''}
       ${miss.length ? `<div><h4>Biggest misses</h4>${tbl(['Read', 'Our chance', 'Actual'], miss)}</div>` : ''}
+      ${tdbt.rows.length ? `<div><h4>TD reads vs Kalshi, week by week</h4>${tbl(['Week', 'Scored', 'Most accurate', 'Value bets', 'P/L ($10 each)'], tdbt.rows)}
+        <p class="note">Every anytime-TD market Kalshi listed, graded after the games. Accuracy compares our model, Kalshi's price before kickoff, and the blend the app shows (${Math.round((tdbt.wt || 0.6) * 100)}% market). Value bets: $10 whenever the blend beat Kalshi's price by 3+ points after fees.</p></div>` : ''}
     </div></details></details>`;
 }
 
@@ -2412,6 +2425,8 @@ function gradeReport(legs) {
 
 const PAR_VIEW = { graded: false };
 // ------------------------------------------------------------ TD parlay builder: every anytime-TD candidate, our chance vs the price
+// a TD price counts as value only when our chance beats it by this much: sportsbooks take a bigger cut than Kalshi's fee
+const TD_EDGE_BOOK = 0.05, TD_EDGE_KALSHI = 0.03;
 const TDB = { game: 'all', pos: 'all', sort: 'chance', n: 10, open: new Set() };
 function tdCandidates() {
   const out = [], now = Date.now();
@@ -2422,7 +2437,7 @@ function tdCandidates() {
       const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home, u = pl.u || {}, th = u.tdh || {};
       const bk = (pr.books || []).filter(b => b.o != null).sort((a, b) => b.o - a.o)[0];   // best sportsbook price, when the TD feed has it
       out.push({ g, pl, pr, p: pr.pOver, team, opp, price: cost ? centsAm(cost) : null, book: bk ? { n: bk.n, o: bk.o } : null,
-        edge: bk ? pr.pOver - impl(bk.o) : cost ? pr.pOver - cost : null,
+        edge: bk ? pr.pOver - impl(bk.o) : cost ? pr.pOver - cost : null, edgeMin: bk ? TD_EDGE_BOOK : TD_EDGE_KALSHI,
         td: th.cur?.[1] ?? null, gp: th.cur?.[0] ?? null, tdPrev: th.prev?.[1] ?? null, gPrev: th.prev?.[0] ?? null,
         rz: u.g ? ((u.rz_t || 0) + (u.rz_c || 0)) / u.g : null, w: pr.tdw || null,
         rzRk: AN()[opp.abbr]?.def?.rk?.rz, dvpRk: AN()[opp.abbr]?.dvp?.[posGroup(pl.p)]?.rk?.td,
@@ -2437,7 +2452,7 @@ function tdQuick(kind) {
   const take = (list, n, perGame) => { for (const x of list) { if (pick.length >= n) break; if (perGame && pick.some(y => y.g.id === x.g.id)) continue; if (!pick.some(y => y.pl.id === x.pl.id)) pick.push(x); } };
   if (kind === 'safe2') take(c.sort((a, b) => b.p - a.p), 2);
   if (kind === 'safe3') take(c.sort((a, b) => b.p - a.p), 3);
-  if (kind === 'value') take(c.filter(x => x.edge != null && x.edge > 0).sort((a, b) => b.edge - a.edge), 3);
+  if (kind === 'value') take(c.filter(x => x.edge != null && x.edge >= x.edgeMin).sort((a, b) => b.edge - a.edge), 3);
   if (kind === 'spread') take(c.sort((a, b) => b.p - a.p), 4, true);
   if (!pick.length) { toast(kind === 'value' ? 'No priced TD props beat their price right now' : 'Not enough TD candidates yet'); return; }
   let n = 0; for (const x of pick) if (!inPar(x.g.id, x.pl.id)) { const l = makeLeg(x.g.id, 'prop', 'over', x.pl.id, 'Anytime TD'); if (l) { PAR.legs.push(l); n++; } }
@@ -2506,7 +2521,7 @@ function renderTD() {
     ${c.slice(0, TDB.n).map(x => { const on = inPar(x.g.id, x.pl.id);
       return `<div class="tdrow">${logo(x.team.abbr, 26)}
         <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}</small>${l10(x)}${mu(x)}</div>
-        <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · ${x.pr.kx ? `<a class="kxlink" href="${esc(x.pr.kx)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(x.price)} ↗</a>` : `Kalshi ${fmtOdds(x.price)}`}` : ''}${x.edge != null && x.edge >= 0.03 ? ' · <span class="val">value</span>' : ''}</small></div>
+        <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · ${x.pr.kx ? `<a class="kxlink" href="${esc(x.pr.kx)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(x.price)} ↗</a>` : `Kalshi ${fmtOdds(x.price)}`}` : ''}${x.edge != null && x.edge >= x.edgeMin ? ' · <span class="val">value</span>' : ''}</small></div>
         <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>
         ${TDB.open.has(x.pl.id) && x.last.length ? tdLog(x) : ''}</div>`; }).join('')}
     ${c.length > TDB.n ? `<button class="showmore" data-tdmore>Show more players (${c.length - TDB.n} left)</button>` : ''}

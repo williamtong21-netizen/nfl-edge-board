@@ -766,6 +766,17 @@ def main():
         grades.freeze(games, props, rd)
         save(os.path.join(DATA, f"readings_{season}.json"), rd)
         report = grades.report(rd, res)
+        # touchdown backtest: once a week is final, grade our TD model, Kalshi's prices and the app's blend (free, ~2 min a week)
+        try:
+            import td_backtest
+            bt = load("td_backtest.json", {})
+            todo = [w for w in range(1, (week or 1) + 1) if str(w) not in bt and td_backtest.ready(w)][:2]
+            for w in todo:
+                bt[str(w)] = td_backtest.summarize(td_backtest.build(w), projections.MKT_TD_W)
+            if todo: save(os.path.join(DATA, "td_backtest.json"), bt)
+            if report is not None: report["tdbt"] = bt
+        except Exception as e:
+            print("td backtest failed", e, file=sys.stderr)
         if graded: print("graded", graded, "games", file=sys.stderr)
     except Exception as e:
         import traceback; traceback.print_exc()
