@@ -19,7 +19,10 @@ LC_BACK_W = 0.4      # props: weight on a teammate's games played while a now-re
 LC_OUT_W = 0.6       # props: weight on a teammate's games played alongside a key player who is out this week
 TD_PER_PT = 0.105    # offensive touchdowns per projected point (about 2.4 TDs in a 23-point game)
 TD_FLOOR = {"RB": 0.07, "WR": 0.05, "TE": 0.05, "QB": 0.06}   # lowest TD rate (per game) we'll give a player with a prop line
-RZ_T_TD, RZ_C_TD = 0.25, 0.13   # touchdowns per red-zone target / red-zone carry (league-wide)
+RZ_T_TD, RZ_C_TD = 0.22, 0.10   # touchdowns per red-zone target / red-zone carry (league-wide)
+EZ_T_TD, GL_C_TD = 0.20, 0.20   # extra for end-zone targets and goal-line (inside the 5) carries, the best TD signals
+TD_SPLIT_PRIOR = 6              # games-worth of league-average 60/40 pass/rush TD split blended into each team's own split
+RZ_D_SLOPE = 0.6                # how much an opponent's red-zone TD rate allowed (vs league) moves TD chances
 QB_TD_PER_CARRY = 0.035  # QB rushing TDs per carry, sneaks and scrambles included
 TD_PASS = 0.6        # share of offensive touchdowns that come through the air
 LC_SHARE = 0.5       # props: share of an out player's targets/carries we hand to a teammate in proportion to his own share
@@ -169,6 +172,12 @@ def prop_projections(props, games, an, season):
             for k, x in v.items():
                 if k != "rk": lg.setdefault((pos, k), []).append(x)
     lg = {k: sum(v) / len(v) for k, v in lg.items() if v}
+    rzs = [d["def"]["rz"] for d in teams.values() if (d.get("def") or {}).get("rz") is not None]
+    lg_rz = sum(rzs) / len(rzs) if rzs else None
+    def td_split(t, side_):   # share of TDs through the air, shrunk toward 60%
+        x = (teams.get(t) or {}).get(side_) or {}
+        p_, r_ = x.get("ptd") or 0, x.get("rtd") or 0
+        return (p_ + TD_SPLIT_PRIOR * TD_PASS) / (p_ + r_ + TD_SPLIT_PRIOR)
     for gid, rows in props.items():
         g = by_id.get(gid)
         if not g: continue
@@ -252,7 +261,15 @@ def prop_projections(props, games, an, season):
                     c, pv = th.get("cur") or [0, 0], th.get("prev") or [0, 0]
                     g_all = c[0] + prev_w * pv[0]
                     hist = ((c[1] + prev_w * pv[1]) / g_all if g_all >= 3 else base) * mult * env
-                    looks = (RZ_T_TD * (u.get("rz_t") or 0) + RZ_C_TD * (u.get("rz_c") or 0)) / u["g"] if u.get("g") else None
+                    # the matchup: how often this defense lets red-zone trips become TDs, and whether it gives them up
+                    # through the air or on the ground (blended with how this offense scores, and tilted by game script)
+                    od = (teams.get(opp["abbr"]) or {}).get("def") or {}
+                    f_rz = max(0.85, min(1.15, 1 + RZ_D_SLOPE * (od["rz"] / lg_rz - 1))) if od.get("rz") is not None and lg_rz else 1.0
+                    tilt = ((g.get("proj") or {}).get("tilt") or {}).get(side, 0)
+                    pshare = max(0.35, min(0.8, 0.5 * td_split(team["abbr"], "off") + 0.5 * td_split(opp["abbr"], "def") + tilt))
+                    gpl = u.get("g") or 0
+                    looks = ((RZ_T_TD * (u.get("rz_t") or 0) + EZ_T_TD * (u.get("ez_t") or 0) + RZ_C_TD * (u.get("rz_c") or 0)
+                              + GL_C_TD * (u.get("gl_c") or 0)) / gpl * f_rz) if gpl else None
                     usage = None
                     if g.get("proj"):
                         mine = g["proj"]["h"] if side == "home" else g["proj"]["a"]
@@ -262,13 +279,19 @@ def prop_projections(props, games, an, season):
                         if pos == "QB":   # QBs only score this prop running: expected carries x a QB's TD rate per carry, scaled by scoring
                             car = next((x["l"] for x in pl["props"] if x["m"] == "Carries"), None) or u.get("cpg")
                             if car: usage = QB_TD_PER_CARRY * car * env * mult
-                        elif ts or rs: usage = TD_PER_PT * mine * (TD_PASS * (ts or 0) + (1 - TD_PASS) * (rs or 0)) * mult
+                        elif ts or rs:
+                            # end-zone targets and goal-line carries say more about scoring than overall shares
+                            ts_e = 0.65 * (ts or 0) + 0.35 * min(0.6, (u.get("ez_t") or 0) / gpl / 1.6) if gpl else (ts or 0)
+                            rs_e = 0.6 * (rs or 0) + 0.4 * min(1.0, (u.get("gl_c") or 0) / gpl / 1.3) if gpl and pos == "RB" else (rs or 0)
+                            usage = TD_PER_PT * mine * f_rz * (pshare * ts_e + (1 - pshare) * rs_e) * (1 + (mult - 1) / 2)
                     thin = g_all < 3 and usage is not None      # too few games to trust his own TD rate: lean on usage
                     parts = ([] if thin else [(0.35, hist)]) + ([(0.25, looks * env)] if looks is not None else []) + ([(0.4, usage)] if usage is not None else [])
                     lam = min(sum(w * v for w, v in parts) / sum(w for w, _ in parts), 1.2)
                     lam = max(lam, TD_FLOOR.get(pos, 0.04))   # anyone getting a prop line plays; nobody is a true zero
                     pr["proj"] = round(lam, 2)
                     pr["pOver"] = round(min(0.75, 1 - math.exp(-lam)), 3)
+                    pr["tdw"] = {"rz": round(f_rz, 3), "air": round(pshare, 3), "dvp": round(mult, 3),
+                                 "ez": round((u.get("ez_t") or 0) / gpl, 2) if gpl else None, "gl": round((u.get("gl_c") or 0) / gpl, 2) if gpl else None}
                     for b in pr.get("books", []): b["p"] = pr["pOver"]
                 else:
                     # game script: a pass-leaning matchup feeds passing and receiving volume and starves the run game

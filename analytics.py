@@ -54,6 +54,7 @@ def team_analytics(season):
     side = {"off": defaultdict(lambda: defaultdict(list)), "def": defaultdict(lambda: defaultdict(list))}
     games = {"off": defaultdict(set), "def": defaultdict(set)}
     drives = defaultdict(lambda: {"rz": False, "td": False})
+    tds = {"off": defaultdict(lambda: defaultdict(int)), "def": defaultdict(lambda: defaultdict(int))}   # passing / rushing TDs
     for p in pbp:
         pos, dfn = p.get("posteam"), p.get("defteam")
         if not pos or not dfn: continue
@@ -61,7 +62,10 @@ def team_analytics(season):
         key = (p["game_id"], pos, p.get("drive"))
         yl = f(p.get("yardline_100"))
         if yl is not None and yl <= 20: drives[key]["rz"] = True
-        if p.get("touchdown") == "1" and fix(p.get("td_team") or "") == pos: drives[key]["td"] = True
+        if p.get("touchdown") == "1" and fix(p.get("td_team") or "") == pos:
+            drives[key]["td"] = True
+            kind = "ptd" if p.get("pass") == "1" else "rtd" if p.get("rush") == "1" else None
+            if kind: tds["off"][pos][kind] += 1; tds["def"][dfn][kind] += 1
         if p.get("play_type") not in ("pass", "run") or f(p.get("epa")) is None: continue
         epa, is_pass, yds = f(p["epa"]), p.get("pass") == "1", f(p.get("yards_gained")) or 0
         neutral = (0.2 <= (f(p.get("wp")) or 0) <= 0.8 and p.get("down") in ("1", "2")
@@ -92,7 +96,8 @@ def team_analytics(season):
                       "sr": r2(mean(d["sr"])), "exp": r2(mean(d["exp"])), "ypp": r2(mean(d["ypp"]), 2),
                       "prate": r2(pr), "proe": r2((pr - xp) if pr is not None and xp is not None else None),
                       "ppg": r2(len(d["epa"]) / max(1, len(games[s][t])), 1), "rz": r2(mean(rz[s][t])),
-                      "third": r2(mean(d["third"])), "sackr": r2(mean(d["sackr"])), "g": len(games[s][t])}
+                      "third": r2(mean(d["third"])), "sackr": r2(mean(d["sackr"])), "g": len(games[s][t]),
+                      "ptd": tds[s][t]["ptd"], "rtd": tds[s][t]["rtd"]}
         rk = {}
         for k, hb in OFF_BETTER.items():
             if hb is None: hb = True  # neutral-style stats: rank 1 = highest

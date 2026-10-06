@@ -513,6 +513,9 @@ details.nerd .usage{border-bottom:0}
 .tdrow .pct{font:700 15px var(--f-mono);text-align:right}.tdrow .pct small{display:block;font:500 11px var(--f-body);color:var(--muted)}
 .tdrow .val{color:var(--good);font-weight:600}.tdrow .addp.on{background:var(--accent-soft);border-style:solid}
 @media (max-width:520px){.tdrow{grid-template-columns:24px minmax(0,1fr) auto}.tdrow .addp{grid-column:2/-1;justify-self:start}}
+.tdrow .mu{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:3px;font-size:11.5px;color:var(--muted)}
+.tdrow .mu .mchip{padding:0 6px;border-radius:999px;font-weight:600}
+.tdb-sort-note{font-size:11.5px;color:var(--muted)}
 </style>
 
 <header>
@@ -529,6 +532,7 @@ details.nerd .usage{border-bottom:0}
     <button role="tab" id="tab-players" data-tab="players" aria-selected="false">Players</button>
     <button role="tab" id="tab-teams" data-tab="teams" aria-selected="false">Teams</button>
     <button role="tab" id="tab-shop" data-tab="shop" aria-selected="false">Line shop</button>
+    <button role="tab" id="tab-tds" data-tab="tds" aria-selected="false">TDs</button>
     <button role="tab" id="tab-parlay" data-tab="parlay" aria-selected="false">Parlay</button>
     <button role="tab" id="tab-bets" data-tab="bets" aria-selected="false">Bets</button>
   </nav>
@@ -636,9 +640,13 @@ details.nerd .usage{border-bottom:0}
 
   <div id="view-parlay" hidden>
     <div class="toolbar"><h2 style="margin:0">Parlay builder</h2></div>
-    <p class="note">Add legs from anywhere (picks, props, alternate-line ladders, game details), switch any leg to an alternate line, enter your app's odds if they differ, then grade it.</p>
-    <div id="tdBuilder"></div>
+    <p class="note">Add legs from anywhere (picks, props, the TDs tab, alternate-line ladders, game details), switch any leg to an alternate line, enter your app's odds if they differ, then grade it.</p>
     <div id="parlay"></div>
+  </div>
+
+  <div id="view-tds" hidden>
+    <div class="toolbar"><h2 style="margin:0">Player TDs</h2></div>
+    <div id="tdBuilder"></div>
   </div>
 
   <div id="view-bets" hidden>
@@ -2172,7 +2180,8 @@ function tdCandidates() {
       const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home, u = pl.u || {}, th = u.tdh || {};
       out.push({ g, pl, pr, p: pr.pOver, team, opp, price: cost ? centsAm(cost) : null, edge: cost ? pr.pOver - cost : null,
         td: th.cur?.[1] ?? null, gp: th.cur?.[0] ?? null, tdPrev: th.prev?.[1] ?? null, gPrev: th.prev?.[0] ?? null,
-        rz: u.g ? ((u.rz_t || 0) + (u.rz_c || 0)) / u.g : null });
+        rz: u.g ? ((u.rz_t || 0) + (u.rz_c || 0)) / u.g : null, w: pr.tdw || null,
+        rzRk: AN()[opp.abbr]?.def?.rk?.rz, dvpRk: AN()[opp.abbr]?.dvp?.[posGroup(pl.p)]?.rk?.td });
     }
   return out;
 }
@@ -2192,24 +2201,39 @@ function tdQuick(kind) {
 function renderTD() {
   const box = $('#tdBuilder'); if (!box) return;
   let c = tdCandidates();
-  if (!c.length) { box.innerHTML = `<div class="tdb"><div class="tdb-h"><h3>TD parlay builder</h3><span class="note">Anytime touchdown props show up here once books post them.</span></div></div>`; return; }
+  if (!c.length) { box.innerHTML = `<div class="tdb"><div class="tdb-h"><span class="note">Anytime touchdown props show up here once books post them.</span></div></div>`; return; }
   const games = [...new Map(c.map(x => [x.g.id, x.g])).values()].sort((a, b) => new Date(a.date) - new Date(b.date));
   if (TDB.game !== 'all') c = c.filter(x => x.g.id === TDB.game);
   if (TDB.pos !== 'all') c = c.filter(x => posGroup(x.pl.p) === TDB.pos);
-  c.sort(TDB.sort === 'value' ? (a, b) => (b.edge ?? -9) - (a.edge ?? -9) || b.p - a.p : (a, b) => b.p - a.p);
+  const muF = x => x.w ? x.w.rz * (1 + (x.w.dvp - 1) / 2) : 1;
+  c.sort(TDB.sort === 'value' ? (a, b) => (b.edge ?? -9) - (a.edge ?? -9) || b.p - a.p
+    : TDB.sort === 'matchup' ? (a, b) => (b.p >= 0.2) - (a.p >= 0.2) || muF(b) - muF(a) || b.p - a.p : (a, b) => b.p - a.p);
+  // the matchup in plain words: red-zone defense, how they give up TDs, the position matchup, and his scoring looks
+  const mu = x => { const w = x.w; if (!w) return '';
+    const f = w.rz * (1 + (w.dvp - 1) / 2), cls = f >= 1.06 ? 'great' : f <= 0.94 ? 'tough' : 'neutral';
+    const bits = [`<span class="mchip ${cls}">${cls === 'great' ? 'Soft TD matchup' : cls === 'tough' ? 'Tough TD matchup' : 'Average matchup'}</span>`];
+    if (x.rzRk) bits.push(`${esc(x.opp.abbr)} red-zone D ${ord(x.rzRk)}${x.rzRk >= 24 ? ' (leaky)' : x.rzRk <= 8 ? ' (stingy)' : ''}`);
+    const pg = esc(posGroup(x.pl.p));
+    if (x.dvpRk <= 10) bits.push(`allows lots of ${pg} TDs (${ord(x.dvpRk)} most)`); else if (x.dvpRk >= 23) bits.push(`allows few ${pg} TDs (${ord(x.dvpRk)})`);
+    const air = Math.round(w.air * 100); if (air >= 66 || air <= 54) bits.push(`${air >= 66 ? 'pass-first' : 'run-first'} scoring game (${air}% of TDs through the air)`);
+    if (w.gl >= 0.75) bits.push(`${w.gl} goal-line carries/G`);
+    if (w.ez >= 0.5) bits.push(`${w.ez} end-zone targets/G`);
+    return `<div class="mu">${bits.map(b => b.startsWith('<span') ? b : `<span>${b}</span>`).join('')}</div>`; };
   const tdS = x => x.gp != null ? `${x.td} TD in ${x.gp} G this year${x.gPrev ? ` · ${x.tdPrev} in ${x.gPrev} last year` : ''}` : '';
-  box.innerHTML = `<div class="tdb"><div class="tdb-h"><h3>TD parlay builder</h3><span class="note">Our chance each player scores, from his scoring rate (this season and last), red-zone looks, and share of the offense times his team's projected points.</span></div>
+  const nTd = PAR.legs.length;
+  box.innerHTML = `<div class="tdb"><div class="tdb-h"><span class="note">Our chance each player scores: his scoring rate (this season and last), red-zone, end-zone and goal-line looks, and his share of the offense times his team's projected points, adjusted for the defense's red-zone record, whether it gives up TDs through the air or on the ground, its TDs allowed to his position, and game script.</span></div>
     <div class="tdb-bar">
       <select id="tdbGame" aria-label="Game"><option value="all">All upcoming games</option>${games.map(g => `<option value="${g.id}"${TDB.game === g.id ? ' selected' : ''}>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</option>`).join('')}</select>
       ${['all', 'RB', 'WR', 'TE', 'QB'].map(k => `<button class="chip" data-tdpos="${k}" aria-pressed="${TDB.pos === k}">${k === 'all' ? 'All' : k}</button>`).join('')}
-      <select id="tdbSort" aria-label="Sort"><option value="chance"${TDB.sort === 'chance' ? ' selected' : ''}>Most likely</option><option value="value"${TDB.sort === 'value' ? ' selected' : ''}>Best value vs price</option></select>
+      <select id="tdbSort" aria-label="Sort"><option value="chance"${TDB.sort === 'chance' ? ' selected' : ''}>Most likely</option><option value="value"${TDB.sort === 'value' ? ' selected' : ''}>Best value vs price</option><option value="matchup"${TDB.sort === 'matchup' ? ' selected' : ''}>Softest matchup</option></select>
     </div>
     <div class="tdb-quick"><span class="note">Quick build:</span>
       <button class="btn small" data-tdquick="safe2">Safest 2</button><button class="btn small" data-tdquick="safe3">Safest 3</button>
-      <button class="btn small" data-tdquick="spread">Top scorer, 4 games</button><button class="btn small" data-tdquick="value">Best value 3</button></div>
+      <button class="btn small" data-tdquick="spread">Top scorer, 4 games</button><button class="btn small" data-tdquick="value">Best value 3</button>
+      ${nTd ? `<button class="btn small primary" data-tab-go="parlay" style="margin-left:auto">Open parlay (${nTd}) →</button>` : ''}</div>
     ${c.slice(0, TDB.n).map(x => { const on = inPar(x.g.id, x.pl.id);
       return `<div class="tdrow">${logo(x.team.abbr, 26)}
-        <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}${x.rz != null && x.rz >= 0.5 ? ` · ${x.rz.toFixed(1)} red-zone looks/G` : ''}</small></div>
+        <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}</small>${mu(x)}</div>
         <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.price != null ? ` · Kalshi ${fmtOdds(x.price)}` : ''}${x.edge != null && x.edge >= 0.03 ? ' · <span class="val">value</span>' : ''}</small></div>
         <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button></div>`; }).join('')}
     ${c.length > TDB.n ? `<button class="btn small" data-tdmore style="margin-top:8px">Show more (${c.length - TDB.n})</button>` : ''}
@@ -2226,7 +2250,6 @@ document.addEventListener('click', e => {
 });
 
 function renderParlay() {
-  renderTD();
   const box = $('#parlay'); if (!box) return;
   PAR.legs = PAR.legs.map(l => l.kind ? l : null).filter(Boolean);
   if (!PAR.legs.length) { box.innerHTML = `<div class="empty"><b>Your parlay is empty</b>Tap “+ Parlay” on any pick, prop, ladder rung or game, and the legs land here. Then grade it.</div>`; return; }
@@ -2255,7 +2278,7 @@ function renderSlip() {
   let btn = $('#slipBtn');
   if (!btn) { document.body.insertAdjacentHTML('beforeend', '<button class="slipbtn" id="slipBtn" hidden></button>'); btn = $('#slipBtn'); }
   btn.hidden = !PAR.legs.length; btn.innerHTML = `Parlay<b>${PAR.legs.length}</b>`;
-  renderParlay();
+  renderParlay(); renderTD();
 }
 function addLeg(leg) {
   if (!leg) return;
@@ -2989,13 +3012,13 @@ function renderSync() {
 function normProps() {
   for (const rows of Object.values(S.props || {})) for (const pl of rows) for (const pr of pl.props) { const c = propChance(pr, pr.m === 'Anytime TD' ? 0.5 : pr.l); if (c != null) pr.pOver = +c.toFixed(3); }
 }
-function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); }
+function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); }
 
 function setTab(t) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
-  for (const v of ['live', 'picks', 'board', 'lineups', 'props', 'players', 'teams', 'shop', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
+  for (const v of ['live', 'picks', 'board', 'lineups', 'props', 'players', 'teams', 'shop', 'tds', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
   store.set('edge-tab', t);
-  if (t === 'parlay') renderTD();   // props may have loaded since the parlay last drew
+  if (t === 'tds') renderTD();   // props may have loaded since it last drew
 }
 document.querySelector('nav').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { setTab(b.dataset.tab); store.set('edge-tab-chosen', '1'); } });
 setInterval(() => { if (S.live && !S.localLive) renderLive(); }, 60000);
