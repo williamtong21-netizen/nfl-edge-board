@@ -225,11 +225,12 @@ def prop_projections(props, games, an, season):
                 keys = PROP_STATS.get(pr["m"])
                 if not keys: continue
                 vals, wts = [], []
-                for age, r in enumerate(pl["log"]):            # log is newest first
+                full = [r for r in pl["log"] if ((r.get("us") or {}).get("snap") or 1) >= 0.3]
+                for age, r in enumerate(full if len(full) >= 1 else pl["log"]):   # log is newest first; cameo/injury-exit games (<30% of snaps) skipped
                     v = [r["s"].get(k) for k in keys]
                     if all(x is None for x in v): continue
                     vals.append(sum(x or 0 for x in v)); wts.append(0.85 ** age * (1.0 if r["y"] == season else prev_w) * lc_w(r, pr["m"]))
-                if len(vals) < 2: continue
+                if len(vals) < (1 if len(full) < len(pl["log"]) else 2): continue
                 base = sum(v * w for v, w in zip(vals, wts)) / sum(wts)
                 dk = _dvp_key(pr["m"], pos)
                 opp_v = (teams.get(opp["abbr"], {}).get("dvp") or {}).get(dk[0], {}).get(dk[1])

@@ -626,7 +626,18 @@ def main():
     # key players back from injury (or newly out): the team's numbers and teammates' logs were built without (or with) them
     try:
         if team_an:
-            lc = analytics.lineup_changes(season, games, depth_info(games))
+            dep = depth_info(games)
+            # the books know first: if they only post passing props for one QB, he's the starter (beats a stale depth chart)
+            for g in games:
+                if g["state"] != "pre": continue
+                for side in ("home", "away"):
+                    d = dep.get(g[side]["abbr"])
+                    qbs = [pl["n"] for pl in props.get(g["id"], []) if pl.get("side") == side and pl.get("p") == "QB" and any(pr["m"] == "Pass yds" for pr in pl["props"])]
+                    if d is None or len(qbs) != 1: continue
+                    nm = analytics.norm(qbs[0])
+                    if d["qbs"][:1] != [nm]:
+                        d["qbs"] = [nm] + [q for q in d["qbs"] if q != nm]; d["qbname"][nm] = qbs[0]; d["qb_from_books"] = True
+            lc = analytics.lineup_changes(season, games, dep)
             team_an["lineup"] = lc
             for g in games:
                 ch = {s: lc[g[s]["abbr"]] for s in ("home", "away") if g["state"] == "pre" and g[s]["abbr"] in lc}

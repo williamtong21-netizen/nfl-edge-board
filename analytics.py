@@ -329,10 +329,12 @@ def lineup_changes(season, games, depth):
                 epd_team = tq["epa"] / tq["db"]
                 gap = (epd_new - epd_team) * (1 - share_new)
                 pts = round(max(-7.0, min(4.0, QB_SHRINK * gap * tq["db"] / len(weeks))), 2)
+                if ndb < 150 and new != main: pts = min(pts, 0.0)   # a barely-tested backup is never scored as an upgrade
                 outq = [dc["qbname"].get(q, q) for q in qbs[:qbs.index(new)] if isout(q)]
+                if dc.get("qb_from_books") and main != new: outq = outq or [tq["name"].get(main, main)]   # books moved on from him
                 keys.append({"n": dc["qbname"].get(new, new), "nm": new, "pos": "QB", "role": "QB", "k": "qb",
                              "main": tq["name"].get(main, main), "outq": outq, "with": sorted(tq["wk"].get(new, [])), "db": int(ndb),
-                             "share": round(share_new, 2), "epd": round(epd_new, 3), "epdT": round(epd_team, 3),
+                             "share": round(share_new, 2), "books": bool(dc.get("qb_from_books")), "epd": round(epd_new, 3), "epdT": round(epd_team, 3),
                              "eff": round(max(0.8, min(1.1, 1 + 1.2 * gap)), 3), "miss": [], "have": [], "pts": pts})
         # ---- defense: top pass rushers and cover men who are out help the other team's offense
         dkeys = []
