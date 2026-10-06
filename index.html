@@ -2909,7 +2909,13 @@ document.addEventListener('click', e => {
   const tg = e.target.closest('[data-toggle]');
   if (tg) { const id = tg.dataset.toggle; S.open.has(id) ? S.open.delete(id) : S.open.add(id); renderBoard(); if (S.open.has(id)) $('#g' + id)?.scrollIntoView({ block: 'nearest' }); return; }
   const go = e.target.closest('[data-go]');
-  if (go) { S.open.add(go.dataset.go); renderBoard(); $('#g' + go.dataset.go)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); return; }
+  if (go) {   // open the game's card on the Games tab (switching tab and week if needed)
+    const id = go.dataset.go, gm = S.slate?.games.find(x => x.id === id);
+    if (gm) S.week = gm.week;
+    S.open.add(id); setTab('board'); renderBoard();
+    requestAnimationFrame(() => $('#g' + id)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
+    return;
+  }
   const tgo = e.target.closest('[data-tab-go]'); if (tgo) { setTab(tgo.dataset.tabGo); window.scrollTo(0, 0); return; }
   const pg = e.target.closest('[data-props-go]');
   if (pg) { PF.game = pg.dataset.propsGo; setTab('props'); renderProps(); window.scrollTo(0, 0); return; }
