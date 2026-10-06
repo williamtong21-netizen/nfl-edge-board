@@ -500,6 +500,9 @@ details.nerd .usage{border-bottom:0}
 .rc-grid > div{min-width:0;overflow-x:auto}.rc table{width:100%;font-size:12.5px}.rc td.n,.rc th.n{text-align:right;font-variant-numeric:tabular-nums}
 .ic-sit{background:var(--surface2);color:var(--ink)}.ic-coach{background:var(--surface2);color:var(--ink)}
 .tag2.wx{background:var(--surface2);color:var(--muted)}
+.pick .mwarn{display:flex;gap:8px;align-items:flex-start;margin:8px 0;padding:8px 10px;border-radius:10px;font-size:13px;line-height:1.4;
+  background:color-mix(in srgb,var(--gold) 14%,var(--surface));color:var(--ink);border:1px solid color-mix(in srgb,var(--gold) 40%,var(--surface))}
+.pick .mwarn b{color:var(--gold)}.pick .mwarn.hard{background:var(--bad-soft);border-color:color-mix(in srgb,var(--bad) 40%,var(--surface))}.pick .mwarn.hard b{color:var(--bad)}
 </style>
 
 <header>
@@ -1338,6 +1341,19 @@ function propPicks() {
   }
   return out;
 }
+// how far the line has moved against a side since it opened: big moves usually mean news our numbers don't have yet
+const MOVE_WARN = { spread: [2, 3], total: [2, 3.5] };   // [caution, strong] in points
+function marketAgainst(g, kind, side) {
+  const o = g.odds || {};
+  if (kind === 'spread') { if (o.hso == null || o.hs == null) return 0; return side === 'home' ? o.hs - o.hso : o.hso - o.hs; }
+  if (o.to == null || o.t == null) return 0;
+  return side === 'over' ? o.to - o.t : o.t - o.to;
+}
+function warnPick(p, kind, side) {
+  const a = marketAgainst(p.g, kind, side), [soft, hard] = MOVE_WARN[kind];
+  if (a >= soft) { p.against = a; p.hard = a >= hard; p.st = Math.max(1, p.st - (p.hard ? 2 : 1)); p.score -= p.hard ? 1 : 0.4; }
+  return p;
+}
 function gamePicks() {
   const out = [];
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) {
@@ -1345,10 +1361,10 @@ function gamePicks() {
     if (e.spread != null && Math.abs(e.spread) >= SPREAD_EDGE) {
       const home = e.spread > 0, t = home ? g.home : g.away, best = bestOffer(g, 'spread', home ? 'home' : 'away');
       const line = best?.line ?? (home ? g.odds.hs : -g.odds.hs);
-      out.push({ kind: 'spread', g, t, line, best, edge: e.spread, st: Math.min(3, Math.abs(e.spread) >= 7 ? 3 : Math.abs(e.spread) >= 5 ? 2 : 1), score: Math.abs(e.spread) / 10 + (best?.ev || 0) });
+      out.push(warnPick({ kind: 'spread', g, t, line, best, edge: e.spread, st: Math.min(3, Math.abs(e.spread) >= 7 ? 3 : Math.abs(e.spread) >= 5 ? 2 : 1), score: Math.abs(e.spread) / 10 + (best?.ev || 0) }, 'spread', home ? 'home' : 'away'));
     }
     if (e.total != null && Math.abs(e.total) >= TOTAL_EDGE) { const best = bestOffer(g, 'total', e.total > 0 ? 'over' : 'under');
-      out.push({ kind: 'total', g, over: e.total > 0, best, edge: e.total, st: Math.abs(e.total) >= 7 ? 3 : Math.abs(e.total) >= 5 ? 2 : 1, score: Math.abs(e.total) / 10 + (best?.ev || 0) }); }
+      out.push(warnPick({ kind: 'total', g, over: e.total > 0, best, edge: e.total, st: Math.abs(e.total) >= 7 ? 3 : Math.abs(e.total) >= 5 ? 2 : 1, score: Math.abs(e.total) / 10 + (best?.ev || 0) }, 'total', e.total > 0 ? 'over' : 'under')); }
   }
   return out;
 }
@@ -1393,6 +1409,13 @@ function renderPicks() {
     <div id="trapMount"></div>
     ${props.length ? `<h2 style="margin-top:22px">Player props</h2><div class="picks">${props.slice(0, 30).map(pickCard).join('')}</div>` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}`;
 }
+function moveWarn(p) {
+  if (!p.against) return '';
+  const g = p.g, o = g.odds, H = g.home;
+  const from = p.kind === 'spread' ? `${H.abbr} ${fmtLine(o.hso)} → ${fmtLine(o.hs)}` : `${o.to} → ${o.t}`;
+  const n = p.against.toFixed(1).replace(/\.0$/, '');
+  return `<div class="mwarn${p.hard ? ' hard' : ''}"><span>⚠</span><span><b>${p.hard ? 'Market says no.' : 'Line moving against this.'}</b> It has moved ${n} point${n === '1' ? '' : 's'} the other way since it opened (${esc(from)}). ${p.hard ? "Moves this big usually mean news our numbers don't have yet, like an injury or a QB change. We've cut this pick's stars; check the news before betting." : 'Bettors are taking the other side, so we knocked off a star.'}</span></div>`;
+}
 function pickCard(p) {
   const g = p.g, A = g.away, H = g.home, when = kick(g);
   if (p.kind === 'spread') {
@@ -1402,14 +1425,14 @@ function pickCard(p) {
     const tr = trendsFor(p.t.abbr, g.trend?.[p.t === H ? 'home' : 'away']).filter(r => r.k !== 'all' && r.n >= 8).sort((a, b) => atsPct(b.w) - atsPct(a.w))[0];
     return `<article class="pick"><div class="pick-h">${logo(p.t.abbr, 30)}<b>${esc(nick(p.t))} ${fmtLine(p.line)}</b><span class="stars">${stars(p.st)}</span></div>
       <div class="pick-sub">${esc(A.abbr)} @ ${esc(H.abbr)} · ${when} · spread</div>
-      <p>We make this <b>${esc(ourLine(g))}</b>; the book has ${esc(H.abbr)} ${fmtLine(g.odds.hs)}. That's a ${Math.abs(p.edge).toFixed(1)}-point gap toward the ${esc(nick(p.t))}.${qb}</p>
+      <p>We make this <b>${esc(ourLine(g))}</b>; the book has ${esc(H.abbr)} ${fmtLine(g.odds.hs)}. That's a ${Math.abs(p.edge).toFixed(1)}-point gap toward the ${esc(nick(p.t))}.${qb}</p>${moveWarn(p)}
       ${p.best ? `<div class="offer">Best number: ${offerText({ ...p.best, line: fmtLine(p.best.line) }, esc(nick(p.t)))} · ${Math.round(p.best.p * 100)}% to cover${p.best.count > 1 ? ` (best of ${p.best.count} books)` : ''}</div>` : ''}
       <div class="why"><span>Projected score: ${esc(A.abbr)} ${Math.round(g.proj.a)}, ${esc(H.abbr)} ${Math.round(g.proj.h)}</span>${tr ? `<span>${esc(nick(p.t))} are ${recS(tr.w)} ATS ${SPLIT_LABEL[tr.k]} since ${TRW().window.slice(0, 4)}</span>` : ''}</div>
       <div class="acts"><button class="addp" data-addleg="${g.id}|spread|${p.t === H ? 'home' : 'away'}">+ Parlay</button><button class="btn small" data-track="${g.id}">Track</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
   }
   if (p.kind === 'total') return `<article class="pick"><div class="pick-h">${logo(A.abbr, 30)}${logo(H.abbr, 30)}<b>${p.over ? 'Over' : 'Under'} ${g.odds.t}</b><span class="stars">${stars(p.st)}</span></div>
       <div class="pick-sub">${esc(A.abbr)} @ ${esc(H.abbr)} · ${when} · game total</div>
-      <p>We project <b>${g.proj.total.toFixed(1)}</b> points, ${Math.abs(p.edge).toFixed(1)} ${p.over ? 'more' : 'fewer'} than the book's ${g.odds.t}.${g.wx && g.wx.wind >= WIND_MIN ? ' Wind is in the forecast too.' : ''}</p>
+      <p>We project <b>${g.proj.total.toFixed(1)}</b> points, ${Math.abs(p.edge).toFixed(1)} ${p.over ? 'more' : 'fewer'} than the book's ${g.odds.t}.${g.wx && g.wx.wind >= WIND_MIN ? ' Wind is in the forecast too.' : ''}</p>${moveWarn(p)}
       ${p.best ? `<div class="offer">Best number: ${offerText(p.best, p.over ? 'Over' : 'Under')} · ${Math.round(p.best.p * 100)}% to hit${p.best.count > 1 ? ` (best of ${p.best.count} books)` : ''}</div>` : ''}
       <div class="why"><span>Projected score: ${esc(A.abbr)} ${Math.round(g.proj.a)}, ${esc(H.abbr)} ${Math.round(g.proj.h)}</span>${g.odds.to != null && g.odds.to !== g.odds.t ? `<span>Opened at ${g.odds.to}</span>` : ''}</div>
       <div class="acts"><button class="addp" data-addleg="${g.id}|total|${p.over ? 'over' : 'under'}">+ Parlay</button><button class="btn small" data-track="${g.id}">Track</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
