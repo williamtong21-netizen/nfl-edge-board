@@ -25,7 +25,7 @@ TZ = {**{t: 0 for t in ("BUF", "MIA", "NE", "NYJ", "BAL", "CIN", "CLE", "PIT", "
 
 
 def _sched():
-    return rows("schedules/games.csv", 6 * 3600)
+    return rows("schedules/games.csv.gz", 6 * 3600)
 
 
 # Where each first-year head coach last called plays or ran a unit. Head-coach history comes from the schedule file;

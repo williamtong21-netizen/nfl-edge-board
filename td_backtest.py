@@ -47,7 +47,7 @@ def build(week):
     snaps = [s for s in rows(f"snap_counts/snap_counts_{SEASON}.csv", 6 * 3600) if i(s.get("week")) < week]
     try: snaps_prev = rows(f"snap_counts/snap_counts_{SEASON - 1}.csv", 30 * 86400)
     except Exception: snaps_prev = []
-    sched = [g for g in rows("schedules/games.csv", 6 * 3600) if g["season"] == str(SEASON) and g["game_type"] == "REG" and i(g["week"]) == week]
+    sched = [g for g in rows("schedules/games.csv.gz", 6 * 3600) if g["season"] == str(SEASON) and g["game_type"] == "REG" and i(g["week"]) == week]
     before = [w for w in st if i(w["week"]) < week]
     this = {norm(w["player_display_name"]): w for w in st if i(w["week"]) == week}
     co = situational.coaches(SEASON)
@@ -179,7 +179,7 @@ def build(week):
 
 def ready(week):
     """A week can be backtested once every game is final and nflverse has posted that week's player stats."""
-    sched = [g for g in rows("schedules/games.csv", 6 * 3600) if g["season"] == str(SEASON) and g["game_type"] == "REG" and i(g["week"]) == week]
+    sched = [g for g in rows("schedules/games.csv.gz", 6 * 3600) if g["season"] == str(SEASON) and g["game_type"] == "REG" and i(g["week"]) == week]
     if not sched or any(g.get("result") in ("", "NA", None) for g in sched): return False
     st = rows(f"stats_player/stats_player_week_{SEASON}.csv", 6 * 3600)
     return sum(1 for w in st if i(w.get("week")) == week) > 200

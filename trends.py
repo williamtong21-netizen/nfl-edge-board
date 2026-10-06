@@ -9,7 +9,7 @@ SPLITS = ("all", "fav", "dog", "home", "road", "after_loss", "after_win", "prime
 def team_trends(season, slate_games, years=3, coaches=None):
     """ATS and over/under records over the last `years` seasons plus this one, with situational splits,
     the splits that apply to each team's next game, and recent head-to-head meetings (added to slate games as g['trend'])."""
-    sched = rows("schedules/games.csv", 6 * 3600)
+    sched = rows("schedules/games.csv.gz", 6 * 3600)
     done = [g for g in sched if g["game_type"] == "REG" and g["result"] not in ("", "NA") and g["spread_line"] not in ("", "NA")
             and season - years <= int(g["season"]) <= season]
     done.sort(key=lambda g: (g["gameday"], g["gametime"]))
@@ -75,7 +75,7 @@ def player_pages(season, slate_games, years=3):
     """Season game logs, home/road splits (this season + last) and history against this week's opponent
     for every QB/RB/WR/TE on a slate team. Keyed by ESPN id when nflverse knows it."""
     xw = {p["gsis_id"]: p for p in rows("players/players.csv", 7 * 86400) if p.get("gsis_id")}
-    sched = {g["game_id"]: g for g in rows("schedules/games.csv", 6 * 3600)}
+    sched = {g["game_id"]: g for g in rows("schedules/games.csv.gz", 6 * 3600)}
     teams = {g[s]["abbr"] for g in slate_games for s in ("home", "away")}
     nxt = {}
     for g in sorted(slate_games, key=lambda g: g["date"]):
