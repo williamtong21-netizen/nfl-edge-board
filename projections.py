@@ -79,6 +79,8 @@ def team_projections(games, an):
         H, A = g["home"]["abbr"], g["away"]["abbr"]
         if not all(x in off and x in dfn for x in (H, A)): continue
         h, a = pts(off[H], dfn[A]) + HFA / 2, pts(off[A], dfn[H]) - HFA / 2
+        sit = g.get("sit") or {}
+        h += sit.get("home", 0); a += sit.get("away", 0)     # rest, travel, neutral site, division, weather
         # key players back from injury or newly out: the season numbers were built with a different lineup
         lc = an.get("lineup") or {}
         h += (lc.get(H) or {}).get("pts", 0) + (lc.get(A) or {}).get("dpts", 0)   # our injuries, plus the other defense's
@@ -98,6 +100,9 @@ def team_projections(games, an):
     an["league"]["shift"] = round(shift, 2)
     for g in projected:
         h, a = g["proj"]["h"] + shift, g["proj"]["a"] + shift
+        if (g.get("sit") or {}).get("div"):   # rivals keep it closer
+            mid, half = (h + a) / 2, (h - a) / 2 * 0.9
+            h, a = mid + half, mid - half
         g["proj"].update({"h": round(h, 1), "a": round(a, 1), "margin": round(h - a, 1), "total": round(h + a, 1), "pHome": round(phi((h - a) / MARGIN_SD), 3)})
 
 
@@ -172,6 +177,10 @@ def prop_projections(props, games, an, season):
                 mine = g["proj"]["h"] if side == "home" else g["proj"]["a"]
                 env = max(0.85, min(1.15, 1 + 0.3 * (mine / team["stats"]["totalPointsPerGame"] - 1)))
             u = pl.get("u") or {}
+            coach = ((an or {}).get("coaches") or {}).get(team["abbr"]) or {}
+            prev_w = 0.3 if coach.get("yrs") == 1 else 0.6      # new head coach: last season's usage tells us less
+            shrink_p = SHRINK_P - (0.05 if coach.get("yrs") == 1 else 0)
+            wxm = (g.get("sit") or {}).get("wx") or {}
             # lineup changes around this player: reweight his games and shift volume toward or away from him
             lck = [k for k in ((an or {}).get("lineup", {}).get(team["abbr"]) or {}).get("keys", []) if k["n"] != pl["n"] and k["role"] != "OL"]
             me = next((k for k in ((an or {}).get("lineup", {}).get(team["abbr"]) or {}).get("keys", []) if k["n"] == pl["n"]), None)
@@ -219,7 +228,7 @@ def prop_projections(props, games, an, season):
                 for age, r in enumerate(pl["log"]):            # log is newest first
                     v = [r["s"].get(k) for k in keys]
                     if all(x is None for x in v): continue
-                    vals.append(sum(x or 0 for x in v)); wts.append(0.85 ** age * (1.0 if r["y"] == season else 0.6) * lc_w(r, pr["m"]))
+                    vals.append(sum(x or 0 for x in v)); wts.append(0.85 ** age * (1.0 if r["y"] == season else prev_w) * lc_w(r, pr["m"]))
                 if len(vals) < 2: continue
                 base = sum(v * w for v, w in zip(vals, wts)) / sum(wts)
                 dk = _dvp_key(pr["m"], pos)
@@ -250,14 +259,16 @@ def prop_projections(props, games, an, season):
                     tilt = ((g.get("proj") or {}).get("tilt") or {}).get(side, 0)
                     vol = 1 + TILT_TO_VOLUME * tilt if pr["m"] in PASS_MARKETS else 1 - TILT_TO_VOLUME * tilt if pr["m"] in RUSH_MARKETS else 1.0
                     pr["vol"] = round(vol, 3)
-                    lv = lc_vol(pr["m"])
+                    lv = lc_vol(pr["m"]) * (wxm.get("long", 1) if pr["m"] == "Long rec" else wxm.get("pass", 1) if pr["m"] in PASS_MARKETS else wxm.get("rush", 1) if pr["m"] in RUSH_MARKETS else 1)
+                    lv = round(lv, 3)
+                    if wxm and lv != 1 and abs(lv - lc_vol(pr["m"])) > 0.005: pr["wxv"] = round(lv / lc_vol(pr["m"]), 3)
                     if lv != 1.0: pr["lcv"] = lv
                     raw = base * mult * vol * lv * (env if pr["m"] not in ("INT",) else 1.0)
                     proj = pr["l"] + ANCHOR * (raw - pr["l"])
                     pr["proj"], pr["raw"] = round(proj, 1), round(raw, 1)
                     def chance(line):
                         p = p_over(DIST.get(pr["m"], ("lognormal", 0.5)), proj, line)
-                        p = 0.5 + SHRINK_P * (p - 0.5)      # model uncertainty: pull every read part-way back to a coin flip
+                        p = 0.5 + shrink_p * (p - 0.5)      # model uncertainty: pull every read part-way back to a coin flip
                         return round(max(0.03, min(0.97, p)), 3)  # same rule at every line, so alternate lines line up
                     pr["pOver"] = chance(pr["l"])
                     for b in pr.get("books", []): b["p"] = chance(b["l"])   # each book's own line gets its own hit chance

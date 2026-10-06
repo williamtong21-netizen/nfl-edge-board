@@ -6,7 +6,7 @@ from analytics import rows, fix, f, i
 SPLITS = ("all", "fav", "dog", "home", "road", "after_loss", "after_win", "prime", "div", "short", "bye")
 
 
-def team_trends(season, slate_games, years=3):
+def team_trends(season, slate_games, years=3, coaches=None):
     """ATS and over/under records over the last `years` seasons plus this one, with situational splits,
     the splits that apply to each team's next game, and recent head-to-head meetings (added to slate games as g['trend'])."""
     sched = rows("schedules/games.csv", 6 * 3600)
@@ -36,6 +36,9 @@ def team_trends(season, slate_games, years=3):
             ats = margin - spread_team
             ou = (tot - tl) if tot is not None and tl is not None else None
             rest = f(g["home_rest"] if home else g["away_rest"])
+            cur = (coaches or {}).get(t, {}).get("n")
+            if cur and g.get("home_coach" if home else "away_coach") not in (cur, "", None):   # only the current coach's games count
+                last_margin[t], last_season[t] = margin, g["season"]; continue
             for tag in tags(t, home, spread_team, g, rest):
                 for scope in (("w", "s") if int(g["season"]) == season else ("w",)):
                     a = rec[t][scope][tag]
@@ -58,6 +61,7 @@ def team_trends(season, slate_games, years=3):
         meet = [g for g in done if {fix(g["home_team"]), fix(g["away_team"])} == pair][-6:]
         ctx["h2h"] = [{"y": int(g["season"]), "wk": int(g["week"]), "h": fix(g["home_team"]), "a": fix(g["away_team"]),
                        "hs": i(g["home_score"]), "as": i(g["away_score"]), "line": f(g["spread_line"]), "tl": f(g["total_line"])} for g in reversed(meet)]
+        ctx["coach"] = {s: (coaches or {}).get(sg[s]["abbr"]) for s in ("home", "away")}
         sg["trend"] = ctx
     return {"window": f"{season - years}-{season}", "teams": {t: {s: dict(v[s]) for s in ("w", "s")} for t, v in rec.items()}}
 

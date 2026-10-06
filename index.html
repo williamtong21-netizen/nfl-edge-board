@@ -498,6 +498,8 @@ details.nerd .usage{border-bottom:0}
 .rc details{margin-top:10px}.rc summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--accent)}
 .rc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:10px}
 .rc-grid > div{min-width:0;overflow-x:auto}.rc table{width:100%;font-size:12.5px}.rc td.n,.rc th.n{text-align:right;font-variant-numeric:tabular-nums}
+.ic-sit{background:var(--surface2);color:var(--ink)}.ic-coach{background:var(--surface2);color:var(--ink)}
+.tag2.wx{background:var(--surface2);color:var(--muted)}
 </style>
 
 <header>
@@ -880,6 +882,22 @@ function lineupFlags(g) {
   return F;
 }
 
+// ------------------------------------------------------------ situations (rest, travel, neutral site, division) and coaching changes
+function sitFlags(g) {
+  const F = [], st = g.sit;
+  if (!st) return F;
+  for (const n of st.notes || []) {
+    if (n.k === 'wx') continue;   // weather has its own storyline
+    F.push({ k: 'sit', w: n.k === 'div' ? 1 : 1.5 + (n.pts || 0), s: n.s, t: n.pts ? `${n.team ? n.team + ' ' : ''}${n.k === 'neutral' ? '+' : n.k === 'rest' ? '+' : '−'}${n.pts.toFixed(1)} pts in our projection` : 'Projected margin pulled 10% toward even, total −0.4' });
+  }
+  for (const c of st.coach || []) {
+    if (c.yrs !== 1) continue;
+    F.push({ k: 'coach', w: 2, s: `First season for ${c.n} with the ${nick(g[c.side])}${c.prev ? ` (he replaced ${c.prev})` : ''}. Old trends don't carry over, so we only count his games, and last season's player numbers count for less.`,
+      t: `Head coach since ${c.since}` });
+  }
+  return F;
+}
+
 const TM = { view: 'off', sort: null, dir: -1 };
 function renderTeams() {
   if (TM.view === 'tr') return renderTrendTable();
@@ -979,6 +997,7 @@ function flags(g) {
   F.push(...trapFlags(g));
   F.push(...styleFlags(g));
   F.push(...lineupFlags(g));
+  F.push(...sitFlags(g));
   if (g.shop) for (const [side, t] of [['aml', A], ['hml', H]]) {
     const e = g.shop.ev[side];
     if (e != null && e >= EV_MIN) F.push({ k: 'ev', w: e, s: `The best ${nick(t)} moneyline out there (${g.shop.best[side].n}) is priced better than the market's fair odds.`, t: `${fmtOdds(g.shop.best[side][side])} · +${e.toFixed(1)}% expected value` });
@@ -1284,8 +1303,8 @@ function trendBlock(g) {
   const ctx = g.trend;
   if (!ctx || !TRW()) return '<p class="note">Trends appear after the next sync.</p>';
   const tbl = side => {
-    const t = g[side], rows = trendsFor(t.abbr, ctx[side]);
-    return `<table class="tr-table"><tr><th>${esc(t.abbr)} situation</th><th class="n">ATS</th><th class="n">O/U</th><th class="n">This season</th></tr>${rows.map(r => {
+    const t = g[side], rows = trendsFor(t.abbr, ctx[side]), c = ctx.coach?.[side];
+    return `${c && c.yrs <= 3 ? `<p class="note">${esc(t.abbr)} records count only ${esc(c.n)}'s games (since ${c.since}).</p>` : ''}<table class="tr-table"><tr><th>${esc(t.abbr)} situation</th><th class="n">ATS</th><th class="n">O/U</th><th class="n">This season</th></tr>${rows.map(r => {
       const p = atsPct(r.w), cls = r.n >= 8 && p >= 0.65 ? 'tr-strong' : r.n >= 8 && p <= 0.35 ? 'tr-weak' : '';
       return `<tr><td>${esc(SPLIT_LABEL[r.k][0].toUpperCase() + SPLIT_LABEL[r.k].slice(1))}</td><td class="n ${cls}">${recS(r.w)}</td><td class="n">${ouS(r.w)}</td><td class="n">${r.s ? recS(r.s) : '–'}</td></tr>`; }).join('')}</table>`;
   };
@@ -1542,20 +1561,61 @@ function addLeg(leg) {
   if (PAR.legs.some(l => l.id === leg.id)) { toast('Already in your parlay'); return; }
   PAR.legs.push(leg); saveParlay(); renderSlip(); toast(`Added: ${leg.label}`);
 }
+// how pairs of outcomes move together, measured from recent seasons (each player vs his own usual, games vs the line)
+const CORR = () => S.slate?.analytics?.corr;
+const roleCache = {};
+function teamRoles(gid, team) {
+  const key = gid + team; if (roleCache[key]) return roleCache[key];
+  const pls = (S.props?.[gid] || []).filter(p => p.tm === team), out = {};
+  const line = (p, m) => p.props.find(x => x.m === m)?.l ?? -1;
+  for (const [pos, m, n] of [['QB', 'Pass yds', 1], ['RB', 'Rush yds', 2], ['WR', 'Rec yds', 3], ['TE', 'Rec yds', 1]])
+    pls.filter(p => posGroup(p.p) === pos && line(p, m) >= 0).sort((a, b) => line(b, m) - line(a, m)).slice(0, n).forEach((p, i) => out[p.id] = pos + (i + 1));
+  return (roleCache[key] = out);
+}
+const FEAT_M = { QB: { 'Pass yds': 'P', Completions: 'P', 'Pass att': 'P', 'Pass+rush yds': 'P', 'Pass TD': 'PT' },
+  RB: { 'Rush yds': 'R', Carries: 'R', 'Rush+rec yds': 'R', 'Rec yds': 'Y', 'Long rec': 'Y', Receptions: 'C', 'Anytime TD': 'T' },
+  WR: { 'Rec yds': 'Y', 'Long rec': 'Y', 'Rush+rec yds': 'Y', Receptions: 'C', 'Anytime TD': 'T' } };
+FEAT_M.TE = FEAT_M.WR;
+function legFeat(l) {
+  if (l.kind === 'prop') { const r = teamRoles(l.gid, l.team)[l.pid], f = r && FEAT_M[r.slice(0, 2)]?.[l.m]; return f ? { f: `${r}.${f}`, team: l.team, s: l.side === 'under' ? -1 : 1 } : null; }
+  if (l.kind === 'spread') return { f: 'G.S', team: l.team, s: 1 };
+  if (l.kind === 'ml') return { f: 'G.W', team: l.team, s: 1 };
+  if (l.kind === 'tt') return { f: 'G.TT', team: l.team, s: l.side === 'under' ? -1 : 1 };
+  if (l.kind === 'total') return { f: 'G.O', team: null, s: l.side === 'under' ? -1 : 1 };
+  return null;
+}
+function pairCorr(a, b) {
+  if (a.gid !== b.gid || !CORR()) return null;
+  const x = legFeat(a), y = legFeat(b); if (!x || !y) return null;
+  const rel = !x.team || !y.team || x.team === y.team ? 'same' : 'opp';
+  const [p, q] = x.f < y.f ? [x, y] : [y, x], rec = CORR().pairs[`${p.f}|${q.f}|${rel}`];
+  return rec ? { r: rec.r * x.s * y.s, n: rec.n } : { r: 0, n: 0 };
+}
 function parlayWarnings(legs) {
   const W = [], by = {};
+  // measured pairs first; the rules below only speak for pairs we couldn't measure
+  const measured = new Set();
+  for (let i = 0; i < legs.length; i++) for (let j = i + 1; j < legs.length; j++) {
+    const c = pairCorr(legs[i], legs[j]); if (!c || !c.n) continue;
+    measured.add(legs[i].id + '~' + legs[j].id); measured.add(legs[j].id + '~' + legs[i].id);
+    if (Math.abs(c.r) < 0.08) continue;
+    const both = Math.round((0.25 + c.r / 4) * 100);
+    W.push({ t: c.r > 0 ? 'pos' : 'neg', r: c.r, i, j, s: `${legs[i].label} and ${legs[j].label} ${c.r > 0 ? 'tend to hit together' : 'tend to work against each other'}: in ${CORR().years} games, two coin-flip legs like these both hit about ${both}% of the time, vs 25% if unrelated.` });
+  }
+  W.measured = measured;
   for (const l of legs) (by[l.gid] ||= []).push(l);
   for (const ls of Object.values(by)) {
     if (ls.length < 2) continue;
     const pass = ls.filter(l => l.kind === 'prop' && l.side === 'over' && /Pass|Completions/.test(l.m));
     const recv = ls.filter(l => l.kind === 'prop' && l.side === 'over' && /Rec|Receptions/.test(l.m));
-    for (const q of pass) for (const r of recv) if (q.team === r.team) W.push({ t: 'pos', s: `${q.label.split(' o')[0]} passing and ${r.label.split(' o')[0]} receiving tend to hit together.` });
+    const known = (a, b) => measured.has(a.id + '~' + b.id);
+    for (const q of pass) for (const r of recv) if (q.team === r.team && !known(q, r)) W.push({ t: 'pos', s: `${q.label.split(' o')[0]} passing and ${r.label.split(' o')[0]} receiving tend to hit together.` });
     const tot = ls.find(l => l.kind === 'total'), yd = ls.filter(l => l.kind === 'prop' && /yds|Receptions|Completions/.test(l.m));
-    if (tot) for (const p of yd) W.push(tot.side === p.side ? { t: 'pos', s: `${tot.label} and ${p.label} lean on the same game script.` } : { t: 'neg', s: `${tot.label} works against ${p.label}.` });
+    if (tot) for (const p of yd) if (!known(tot, p)) W.push(tot.side === p.side ? { t: 'pos', s: `${tot.label} and ${p.label} lean on the same game script.` } : { t: 'neg', s: `${tot.label} works against ${p.label}.` });
     const sides = ls.filter(l => l.kind === 'spread' || l.kind === 'ml');
-    if (sides.length >= 2) W.push(new Set(sides.map(s => s.team)).size === 1 ? { t: 'pos', s: `Spread and moneyline on the same team are nearly the same bet.` } : { t: 'neg', s: `You have both teams to win or cover; those legs fight each other.` });
+    if (sides.length >= 2 && !known(sides[0], sides[1])) W.push(new Set(sides.map(s => s.team)).size === 1 ? { t: 'pos', s: `Spread and moneyline on the same team are nearly the same bet.` } : { t: 'neg', s: `You have both teams to win or cover; those legs fight each other.` });
     for (const s of sides) for (const p of ls.filter(l => l.kind === 'prop' && l.pos === 'RB' && /Rush|Carries/.test(l.m) && l.side === 'over'))
-      if (p.team === s.team) W.push({ t: 'pos', s: `${s.team} winning and its running back getting carries usually go together.` });
+      if (p.team === s.team && !known(s, p)) W.push({ t: 'pos', s: `${s.team} winning and its running back getting carries usually go together.` });
     const keys = ls.map(l => l.kind === 'prop' ? l.pid + l.m : l.kind + (l.kind === 'total' ? '' : l.team));
     if (new Set(keys).size < keys.length) W.push({ t: 'neg', s: 'Two legs are opposite sides of the same bet.' });
   }
@@ -1626,6 +1686,8 @@ queueMicrotask(renderSlip);  // after the whole script has loaded
 
 ICON.style = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12c3-6 9-6 12-8M10 4h4v4"/></svg>';
 ICON.lineup = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8a5 5 0 0 1 9-3M13 8a5 5 0 0 1-9 3M12 2v3H9M4 14v-3h3"/></svg>';
+ICON.sit = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg>';
+ICON.coach = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="5" r="2.5"/><path d="M3 14c.6-3 2.6-4.5 5-4.5s4.4 1.5 5 4.5"/></svg>';
 ICON.trend = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 14h12M4 11V8m4 3V4m4 7V6"/></svg>';
 function renderTrendTable() {
   const tr = TRW(), box = $('#teams');
@@ -2032,8 +2094,13 @@ function gradeReport(legs) {
   const ps = notes.map(x => x.c?.p).filter(p => p != null);
   if (ps.length !== n) return null;
   let p = ps.reduce((a, b) => a * b, 1);
-  const pos = W.filter(w => w.t === 'pos').length, neg = W.filter(w => w.t === 'neg').length;
-  p = Math.min(Math.min(...ps), p * Math.pow(1.08, pos) * Math.pow(0.8, neg));   // legs that move together hit together
+  const pos = W.filter(w => w.t === 'pos' && w.r == null).length, neg = W.filter(w => w.t === 'neg' && w.r == null).length;
+  let f = 1;   // measured pairs: P(both) = p1*p2 + r*sqrt(p1(1-p1)p2(1-p2)), applied pair by pair
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const c = pairCorr(legs[i], legs[j]); if (!c || !c.n) continue;
+    f *= Math.max(0.2, 1 + c.r * Math.sqrt((1 - ps[i]) * (1 - ps[j]) / (ps[i] * ps[j])));
+  }
+  p = Math.max(p * 0.25, Math.min(Math.min(...ps), p * f * Math.pow(1.08, pos) * Math.pow(0.8, neg)));   // legs that move together hit together
   const d = legs.reduce((x, l) => x * amToDec(+l.odds || -110), 1), ev = p * d - 1, unpriced = legs.filter(l => !l.priced).length;
   const letter = ev >= 0.1 ? 'A' : ev >= 0.02 ? 'B' : ev >= -0.08 ? 'C' : ev >= -0.2 ? 'D' : 'F';
   const plus = notes.flatMap(x => x.plus), minus = notes.flatMap(x => x.minus);
@@ -2614,7 +2681,7 @@ function renderProps() {
           <span class="lean ${has ? (over ? 'o' : 'u') : ''}">${has ? `${td ? (over ? 'Yes' : 'No') : over ? 'O' : 'U'} ${pct}%` : '–'}</span>
           <span class="meta"><span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span>proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
             ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
-            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span>${x.pr.alt.length} alt lines</span>` : ''}</span>
+            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span>${x.pr.alt.length} alt lines</span>` : ''}</span>
         </button>`;
       }).join('')}
       ${pl.lc?.length ? `<div class="lcline"><b>Lineup</b><span>${esc(pl.lc.join(' · '))}</span></div>` : ''}

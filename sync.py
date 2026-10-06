@@ -15,7 +15,7 @@ from datetime import datetime, timezone, timedelta
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 
-import analytics, projections, trends, traps, kalshi, grades
+import analytics, projections, trends, traps, kalshi, grades, situational
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # EDGE_OUT / EDGE_DATA let the GitHub Actions job write into the app repo's own folders
@@ -84,7 +84,7 @@ def parse_game(ev, summ, week):
     side = {x["homeAway"]: x for x in c["competitors"]}
     g = {"id": ev["id"], "date": ev["date"], "week": week, "state": c["status"]["type"]["state"],
          "detail": c["status"]["type"].get("shortDetail"),
-         "venue": c.get("venue", {}).get("fullName"), "indoor": bool(c.get("venue", {}).get("indoor")),
+         "venue": c.get("venue", {}).get("fullName"), "indoor": bool(c.get("venue", {}).get("indoor")), "neutral": bool(c.get("neutralSite")),
          "city": c.get("venue", {}).get("address", {}),
          "tv": ", ".join(n for b in c.get("broadcasts", []) for n in b.get("names", [])),
          "home": parse_team(side["home"]), "away": parse_team(side["away"]), "odds": None, "model": None}
@@ -641,6 +641,17 @@ def main():
         kalshi_n = kalshi.apply(games, props)   # alternate-line ladders with real prices
     except Exception as e:
         kalshi_n = 0; print("kalshi failed", e, file=sys.stderr)
+    # game situations (rest, travel, neutral site, division, weather), coaching tenure, parlay correlations
+    try:
+        co = situational.coaches(season)
+        situational.situations(games, season, co)
+        if team_an is not None:
+            team_an["coaches"] = co
+            cr = situational.correlations(season)
+            team_an["corr"] = {"years": cr["years"], "pairs": cr["pairs"]}
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print("situations failed", e, file=sys.stderr)
     try:
         projections.team_projections(games, team_an)
         projections.prop_projections(props, games, team_an, season)
@@ -660,7 +671,7 @@ def main():
     except Exception as e:
         print("traps failed", e, file=sys.stderr)
     try:
-        if team_an is not None: team_an["trends"] = trends.team_trends(season, games)
+        if team_an is not None: team_an["trends"] = trends.team_trends(season, games, coaches=team_an.get("coaches"))
         pages = trends.player_pages(season, games)
     except Exception as e:
         print("trends/pages failed", e, file=sys.stderr)
