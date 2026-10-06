@@ -523,6 +523,14 @@ details.nerd .usage{border-bottom:0}
 .tdl10 i.sep{width:auto;height:auto;border:0;color:var(--muted);font-weight:500;margin:0 2px}
 .tdl10 b{color:var(--ink);font-family:var(--f-mono);margin-left:4px}
 .mchip.glb{background:var(--accent-soft);color:var(--accent)}
+.tdl10btn{display:inline-flex;align-items:center;gap:6px;margin-top:5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);
+  background:var(--surface2);font:600 12px var(--f-body);color:var(--ink);cursor:pointer}
+.tdl10btn b{font-family:var(--f-mono)}.tdl10btn[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
+.tdlog{grid-column:1/-1;margin:6px 0 4px;padding:10px 12px;border-radius:12px;background:var(--surface2);min-width:0}
+.tdlog svg{display:block;width:100%;height:auto;max-width:640px}
+.tdlog .tbl{overflow-x:auto;margin-top:8px}.tdlog table{width:100%;font-size:12.5px;border-collapse:collapse}
+.tdlog th,.tdlog td{padding:4px 6px;text-align:right;white-space:nowrap;border-top:1px solid var(--line)}
+.tdlog th:first-child,.tdlog td:first-child{text-align:left}.tdlog td.td{font-weight:700;color:var(--good)}
 </style>
 
 <header>
@@ -2177,7 +2185,7 @@ function gradeReport(legs) {
 
 const PAR_VIEW = { graded: false };
 // ------------------------------------------------------------ TD parlay builder: every anytime-TD candidate, our chance vs the price
-const TDB = { game: 'all', pos: 'all', sort: 'chance', n: 25 };
+const TDB = { game: 'all', pos: 'all', sort: 'chance', n: 25, open: new Set() };
 function tdCandidates() {
   const out = [], now = Date.now();
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > now - 3600e3))
@@ -2189,7 +2197,7 @@ function tdCandidates() {
         td: th.cur?.[1] ?? null, gp: th.cur?.[0] ?? null, tdPrev: th.prev?.[1] ?? null, gPrev: th.prev?.[0] ?? null,
         rz: u.g ? ((u.rz_t || 0) + (u.rz_c || 0)) / u.g : null, w: pr.tdw || null,
         rzRk: AN()[opp.abbr]?.def?.rk?.rz, dvpRk: AN()[opp.abbr]?.dvp?.[posGroup(pl.p)]?.rk?.td,
-        last: (S.players?.[pl.id]?.last || []).slice(0, 10).map(r => ({ y: r.y, w: r.w, o: r.o, n: (r.rtd || 0) + (r.td || 0) })) });
+        last: (S.players?.[pl.id]?.last || []).slice(0, 10).map(r => ({ ...r, n: (r.rtd || 0) + (r.td || 0) })) });
     }
   return out;
 }
@@ -2230,11 +2238,28 @@ function renderTD() {
     return `<div class="mu">${bits.map(b => b.startsWith('<span') ? b : `<span>${b}</span>`).join('')}</div>`; };
   // scored / didn't score in each of his last 10 games (newest on the left); a mark where the season changes
   const l10 = x => { if (!x.last.length) return '';
-    const hit = x.last.filter(r => r.n > 0).length;
-    let prevY = x.last[0].y;
-    const dots = x.last.map(r => { const sep = r.y !== prevY ? `<i class="sep">${r.y}|</i>` : ''; prevY = r.y;
-      return `${sep}<i class="${r.n ? 'y' : ''}" title="${r.y} wk ${r.w} vs ${esc(r.o || '')}: ${r.n} TD">${r.n > 1 ? r.n : r.n ? '✓' : ''}</i>`; }).join('');
-    return `<div class="tdl10" aria-label="Scored in ${hit} of his last ${x.last.length} games"><span>Last ${x.last.length}:</span>${dots}<b>${hit}/${x.last.length}</b></div>`; };
+    const hit = x.last.filter(r => r.n > 0).length, open = TDB.open.has(x.pl.id);
+    return `<button class="tdl10btn" data-tdlog="${esc(x.pl.id)}" aria-expanded="${open}">Scored in <b>${hit} of last ${x.last.length}</b> ${open ? '▴' : '▾'}</button>`; };
+  const tdLog = x => {
+    const g = [...x.last].reverse(), max = Math.max(1, ...g.map(r => r.n));   // oldest on the left, newest on the right
+    const W = 360, H = 150, L = 20, B = 32, T = 22, bw = (W - L - 8) / g.length, y = v => T + (H - T - B) * (1 - v / max);
+    const ticks = [...Array(max + 1).keys()];
+    const bars = g.map((r, i) => { const x0 = L + i * bw + bw * 0.18, w = bw * 0.64, h = r.n ? y(0) - y(r.n) : 3;
+      return `<rect x="${x0.toFixed(1)}" y="${(y(0) - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${r.n ? 'var(--good)' : 'var(--line)'}"><title>${r.y} week ${r.w} vs ${esc(r.o || '')}: ${r.n} TD</title></rect>
+        ${r.n ? `<text x="${(x0 + w / 2).toFixed(1)}" y="${(y(r.n) - 4).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">${r.n}</text>` : ''}
+        <text x="${(x0 + w / 2).toFixed(1)}" y="${H - B + 13}" text-anchor="middle" font-size="9" fill="var(--muted)">W${r.w}</text>
+        <text x="${(x0 + w / 2).toFixed(1)}" y="${H - B + 24}" text-anchor="middle" font-size="8.5" fill="var(--muted)">${esc(r.o || '')}</text>`; }).join('');
+    const yr = g.findIndex((r, i) => i && r.y !== g[i - 1].y), split = yr > 0 ? L + yr * bw : null;
+    const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Touchdowns in each of ${esc(x.pl.n)}'s last ${g.length} games">
+      ${ticks.map(t => `<line x1="${L}" x2="${W - 4}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 6}" y="${(y(t) + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${t}</text>`).join('')}
+      ${split ? `<line x1="${split.toFixed(1)}" x2="${split.toFixed(1)}" y1="2" y2="${H - B}" stroke="var(--muted)" stroke-dasharray="3 3"/><text x="${(split + 4).toFixed(1)}" y="10" font-size="10" fill="var(--muted)">${g[yr].y} season →</text>` : ''}
+      ${bars}</svg>`;
+    const rec = x.pl.p !== 'RB' && x.pl.p !== 'QB';
+    const cur = x.last[0]?.y;
+    const rows = x.last.map(r => `<tr><td>W${r.w} ${r.h ? 'vs' : '@'} ${esc(r.o || '')}${r.y !== cur ? ` <span class="note">'${String(r.y).slice(2)}</span>` : ''}</td><td class="${r.n ? 'td' : ''}">${r.n}</td>
+      ${rec ? `<td>${r.tgt ?? 0}</td><td>${r.rec ?? 0}</td><td>${r.yds ?? 0}</td>` : `<td>${r.car ?? 0}</td><td>${r.ryd ?? 0}</td><td>${r.rec ?? 0}</td>`}<td>${r.snap != null ? Math.round(r.snap * 100) + '%' : '–'}</td></tr>`).join('');
+    return `<div class="tdlog">${svg}<div class="tbl"><table><tr><th>Game</th><th>TD</th>${rec ? '<th>Tgt</th><th>Rec</th><th>Yds</th>' : '<th>Car</th><th>Yds</th><th>Rec</th>'}<th>Snap</th></tr>${rows}</table></div>
+      <p class="note" style="margin:6px 0 0">Games where he recorded a stat, newest first in the table.</p></div>`; };
   const tdS = x => x.gp != null ? `${x.td} TD in ${x.gp} G this year${x.gPrev ? ` · ${x.tdPrev} in ${x.gPrev} last year` : ''}` : '';
   const nTd = PAR.legs.length;
   box.innerHTML = `<div class="tdb"><div class="tdb-h"><span class="note">Our chance each player scores: his scoring rate (this season and last), red-zone, end-zone and goal-line looks, and his share of the offense times his team's expected points (mostly the betting market's implied team total), adjusted for the defense's red-zone record, whether it gives up TDs through the air or on the ground, its TDs allowed to his position, and game script.</span></div>
@@ -2251,7 +2276,8 @@ function renderTD() {
       return `<div class="tdrow">${logo(x.team.abbr, 26)}
         <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}</small>${l10(x)}${mu(x)}</div>
         <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.price != null ? ` · Kalshi ${fmtOdds(x.price)}` : ''}${x.edge != null && x.edge >= 0.03 ? ' · <span class="val">value</span>' : ''}</small></div>
-        <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button></div>`; }).join('')}
+        <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>
+        ${TDB.open.has(x.pl.id) && x.last.length ? tdLog(x) : ''}</div>`; }).join('')}
     ${c.length > TDB.n ? `<button class="btn small" data-tdmore style="margin-top:8px">Show more (${c.length - TDB.n})</button>` : ''}
     <p class="note" style="margin-top:8px">"Fair" is the price that would be break-even at our chance. If your book pays more than that, the leg is worth it on its own. Touchdowns are long shots: even a 4-leg ticket of strong scorers usually misses, so size it small.</p></div>`;
 }
@@ -2262,7 +2288,8 @@ document.addEventListener('change', e => {
 document.addEventListener('click', e => {
   const p = e.target.closest('[data-tdpos]'); if (p) { TDB.pos = p.dataset.tdpos; renderTD(); return; }
   const q = e.target.closest('[data-tdquick]'); if (q) { tdQuick(q.dataset.tdquick); return; }
-  if (e.target.closest('[data-tdmore]')) { TDB.n += 25; renderTD(); }
+  if (e.target.closest('[data-tdmore]')) { TDB.n += 25; renderTD(); return; }
+  const lg = e.target.closest('[data-tdlog]'); if (lg) { const id = lg.dataset.tdlog; TDB.open.has(id) ? TDB.open.delete(id) : TDB.open.add(id); renderTD(); }
 });
 
 function renderParlay() {
