@@ -652,6 +652,7 @@ details.moreangles > summary::after{content:" ▾";color:var(--muted)}details.mo
 .sc-share:hover{border-color:var(--good);color:var(--good)}
 /* welcome + easy mode */
 .hdr-btns{display:flex;gap:6px;align-items:center}
+@media (max-width:560px){#syncText{display:none}.hdr-btns{margin-left:6px}}
 .hdr-btn{background:var(--surface2);border:1px solid var(--line);color:var(--ink);border-radius:999px;width:32px;height:32px;font:700 15px var(--f-body);cursor:pointer}
 .welcome{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(3,6,10,.72)}
 .welcome[hidden]{display:none}
@@ -672,6 +673,23 @@ body.easy nav [data-tab="shop"],body.easy nav [data-tab="lineups"],body.easy nav
 .sgpres ul{list-style:none;margin:6px 0;padding:0}.sgpres li{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px}
 .sgpres li:last-child{border-bottom:0}.sgpres li span{margin-left:auto;color:var(--muted);font:700 13px var(--f-display)}
 .sgpres .tot{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;margin:6px 0}.sgpres .tot b{font:800 20px var(--f-display)}
+/* sportsbook odds grid on each game, and the bet sheet it opens */
+.oddsgrid{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,minmax(64px,86px));gap:6px;align-items:center;padding:4px 12px 10px}
+.oddsgrid .oh{font:700 10.5px var(--f-body);letter-spacing:.8px;text-transform:uppercase;color:var(--muted);text-align:center}
+.oddsgrid .tm{display:flex;align-items:center;gap:8px;min-width:0}.oddsgrid .tm b{font:800 17px var(--f-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oddsgrid .tm small{display:block;color:var(--muted);font-size:11.5px}
+.ocell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:48px;padding:4px 2px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);cursor:pointer}
+.ocell:hover{border-color:var(--good)}.ocell b{font:800 15px var(--f-display)}.ocell small{font:700 12px var(--f-display);color:var(--good)}
+.ocell.na{opacity:.4;cursor:default}
+.oddsgrid .short{display:none}
+@media (max-width:560px){.oddsgrid{grid-template-columns:minmax(0,1fr) repeat(3,minmax(60px,74px));gap:5px;padding-inline:10px}
+  .oddsgrid .full{display:none}.oddsgrid .short{display:inline}.oddsgrid .tm{gap:6px}.ocell b{font-size:14px}}
+.betsheet{position:fixed;left:max(0px,calc(50% - 330px));right:max(0px,calc(50% - 330px));bottom:0;z-index:50;max-height:80vh;overflow:auto;background:var(--surface);border-top:1px solid var(--line);
+  border-radius:20px 20px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.5);padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.betsheet[hidden]{display:none}.betsheet .bs-h{display:flex;align-items:center;gap:10px}.betsheet .bs-h b{font:800 22px var(--f-display)}
+.betsheet .bs-h button{margin-left:auto}.betsheet table{width:100%;margin:8px 0;font-size:14px}
+.betsheet td{padding:6px 4px;border-top:1px solid var(--line)}.betsheet td.n{text-align:right;font:700 15px var(--f-display)}
+.betsheet tr.best td{color:var(--good)}.betsheet .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -2978,6 +2996,55 @@ function renderBoard() {
 }
 
 const teamColor = t => '#' + (t.color && t.color !== 'ffffff' && t.color !== '000000' ? t.color : (t.alt || '4a5a52'));
+// ------------------------------------------------------------ sportsbook grid: spread / moneyline / total for both teams, tap to bet
+function allOffers(g, kind, side) {   // every book's line and price for one bet
+  const out = [], o = g.odds || {};
+  for (const b of g.shop?.books || g.books || []) {
+    if (kind === 'spread') { const l = side === 'home' ? b.hs : b.as, pr = side === 'home' ? b.hsp : b.asp; if (l != null && pr != null) out.push({ book: b.n, line: l, price: pr }); }
+    else if (kind === 'ml') { const pr = side === 'home' ? b.hml : b.aml; if (pr != null) out.push({ book: b.n, line: null, price: pr }); }
+    else { const pr = side === 'over' ? b.op : b.up; if (b.t != null && pr != null) out.push({ book: b.n, line: b.t, price: pr }); }
+  }
+  if (!out.length) {   // only the consensus line (ESPN) is known
+    if (kind === 'spread' && o.hs != null) out.push({ book: o.book || 'DraftKings', line: side === 'home' ? o.hs : -o.hs, price: (side === 'home' ? o.hsp : o.asp) ?? -110 });
+    if (kind === 'ml' && (side === 'home' ? o.hml : o.aml) != null) out.push({ book: o.book || 'DraftKings', line: null, price: side === 'home' ? o.hml : o.aml });
+    if (kind === 'total' && o.t != null) out.push({ book: o.book || 'DraftKings', line: o.t, price: (side === 'over' ? o.op : o.up) ?? -110 });
+  }
+  // best for the bettor first: more points (spread), lower total for overs / higher for unders, then the better price
+  return out.sort((a, b) => (kind === 'spread' ? b.line - a.line : kind === 'total' ? (side === 'over' ? a.line - b.line : b.line - a.line) : 0) || b.price - a.price);
+}
+function cellFor(g, kind, side) {
+  const o = g.odds || {}, cons = kind === 'spread' ? (side === 'home' ? o.hs : o.hs != null ? -o.hs : null) : kind === 'total' ? o.t : null;
+  const offers = allOffers(g, kind, side); if (!offers.length) return `<span class="ocell na">–</span>`;
+  const at = cons != null ? offers.filter(x => x.line === cons) : offers, best = (at.length ? at : offers).slice().sort((a, b) => b.price - a.price)[0];
+  const top = kind === 'spread' ? fmtLine(best.line) : kind === 'total' ? (side === 'over' ? 'O ' : 'U ') + best.line : fmtOdds(best.price);
+  return `<button class="ocell" data-betcell="${g.id}|${kind}|${side}" aria-label="${esc(kind)} ${esc(side)} ${esc(top)}"><b>${esc(top)}</b>${kind !== 'ml' ? `<small>${fmtOdds(best.price)}</small>` : ''}</button>`;
+}
+function oddsGrid(g) {
+  const A = g.away, H = g.home, tm = (t, home) => `<div class="tm">${logo(t.abbr, 30)}<div><b><span class="full">${esc(nick(t))}</span><span class="short">${esc(t.abbr)}</span></b><small>${esc(t.rec)}<span class="full">${styleTag(t.abbr) ? ' ' + styleTag(t.abbr) : ''}</span></small></div></div>`;
+  return `<div class="oddsgrid"><span></span><span class="oh">Spread</span><span class="oh">Money</span><span class="oh">Total</span>
+    ${tm(A, false)}${cellFor(g, 'spread', 'away')}${cellFor(g, 'ml', 'away')}${cellFor(g, 'total', 'over')}
+    ${tm(H, true)}${cellFor(g, 'spread', 'home')}${cellFor(g, 'ml', 'home')}${cellFor(g, 'total', 'under')}</div>`;
+}
+function openBetSheet(gid, kind, side) {
+  let sh = $('#betSheet');
+  if (!sh) { document.body.insertAdjacentHTML('beforeend', '<div class="betsheet" id="betSheet" hidden role="dialog" aria-modal="true"></div>'); sh = $('#betSheet'); }
+  const g = S.slate.games.find(x => x.id === gid); if (!g) return;
+  const offers = allOffers(g, kind, side), team = kind === 'total' ? null : g[side];
+  const leg = makeLeg(gid, kind, side, null, null, offers[0]?.line ?? ''), c = leg && legChance(leg);
+  const title = kind === 'total' ? `${side === 'over' ? 'Over' : 'Under'} ${offers[0]?.line ?? g.odds?.t}` : kind === 'ml' ? `${nick(team)} to win` : `${nick(team)} ${fmtLine(offers[0]?.line)}`;
+  sh.innerHTML = `<div class="bs-h">${team ? logo(team.abbr, 34) : logo(g.away.abbr, 26) + logo(g.home.abbr, 26)}<div><b>${esc(title)}</b><br><span class="note">${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</span></div><button class="btn small" data-closesheet>Close</button></div>
+    ${c ? `<p class="note" style="margin:8px 0 0">We give it <b>${Math.round(c.p * 100)}%</b>${c.mkt != null ? ` · the price says ${Math.round(c.mkt * 100)}%` : ''}.</p>` : ''}
+    <table>${offers.map((x, i) => `<tr class="${i === 0 ? 'best' : ''}"><td>${esc(x.book)}${i === 0 ? ' · best' : ''}</td><td class="n">${kind === 'ml' ? '' : kind === 'spread' ? fmtLine(x.line) : x.line}</td><td class="n">${fmtOdds(x.price)}</td></tr>`).join('')}</table>
+    ${leg ? sendButtons([leg], 'ticket') : ''}
+    <div class="acts">${leg ? `<button class="addp" data-addleg="${gid}|${kind}|${side}|||${offers[0]?.line ?? ''}">+ Parlay</button>` : ''}<button class="btn small" data-track="${gid}">Track this bet</button></div>`;
+  sh.hidden = false;
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-betcell]'); if (c) { const [gid, kind, side] = c.dataset.betcell.split('|'); openBetSheet(gid, kind, side); return; }
+  if (e.target.closest('[data-closesheet]') || (e.target.closest('[data-addleg], [data-track], .sendbook') && e.target.closest('#betSheet'))) { const sh = $('#betSheet'); if (sh) sh.hidden = true; }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { const sh = $('#betSheet'); if (sh) sh.hidden = true; } });
+
 function card(g) {
   const o = g.odds, pre = g.state === 'pre', A = g.away, H = g.home, L = liveFor(g.id), live = L?.state === 'in' || g.state === 'in';
   const wx = g.indoor ? 'Indoors' : g.wx ? `<span class="${g.wx.wind >= WIND_MIN || g.wx.pop >= 50 ? 'wx-hit' : ''}">${Math.round(g.wx.temp)}°F · wind ${Math.round(g.wx.wind)} mph${g.wx.pop >= 30 ? ` · rain ${g.wx.pop}%` : ''}</span>` : '';
@@ -3007,8 +3074,8 @@ function card(g) {
   const open = S.open.has(g.id);
   return `<article class="card${open ? ' open' : ''}" id="g${g.id}" style="--ta:${teamColor(A)};--th:${teamColor(H)}">
     <div class="card-top"><span>${live ? `<span class="livedot"></span>${esc(L?.detail || g.detail)}` : pre ? kick(g) : esc(g.detail)}${g.tv ? ' · ' + esc(g.tv) : ''}</span><span>${esc(g.venue || '')}${wx ? ' · ' + wx : ''}</span></div>
-    <div class="lines">${row(A, false)}${row(H, true)}</div>
-    ${totals}${bestRow(g)}${probs}${gameSummary(g)}
+    ${pre && !live && o ? oddsGrid(g) : `<div class="lines">${row(A, false)}${row(H, true)}</div>`}
+    ${pre && !live && o ? '' : totals}${bestRow(g)}${probs}${gameSummary(g)}
     ${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}
     <div class="card-foot">
       <button data-toggle="${g.id}">${open ? 'Less ▴' : 'More ▾'}</button>
