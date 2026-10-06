@@ -618,6 +618,22 @@ table th{font:700 11px var(--f-body);letter-spacing:.8px;text-transform:uppercas
 .kxlink{display:inline-flex;align-items:center;gap:4px;font:700 12px var(--f-body);color:#00d395;text-decoration:none;border:1.5px solid #00d395;border-radius:999px;padding:2px 9px}
 .kxlink:hover{background:#00d395;color:#03140b}
 .kxrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+/* ================= declutter: the best few up front, everything else a tap away ================= */
+details.howto{margin:0 0 12px}
+details.rc > summary{cursor:pointer;list-style:none}details.rc > summary::-webkit-details-marker{display:none}details.howto summary{cursor:pointer;font:600 12.5px var(--f-body);color:var(--muted);list-style:none}
+details.howto summary::-webkit-details-marker{display:none}details.howto summary::before{content:"ⓘ ";color:var(--accent)}
+details.howto[open] summary{margin-bottom:6px}
+.showmore{display:block;width:100%;margin:10px 0 4px;padding:10px;border-radius:12px;border:1px dashed var(--line);background:transparent;color:var(--accent);font:700 13px var(--f-body);cursor:pointer}
+.showmore:hover{background:var(--surface2)}
+.card:not(.open) .bestrow,.card:not(.open) .probs,.card:not(.open) .gsum,.card:not(.open) .badges{display:none}
+.card-foot [data-toggle]{color:var(--good);font-weight:700}
+.pick:not(.why-open) .why{display:none}
+.pick:not(:has(.why)) .whybtn{display:none}
+.pick .whybtn{background:none;border:0;color:var(--muted);font:600 12.5px var(--f-body);cursor:pointer;padding:6px 4px}
+details.moreangles{margin-top:22px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px}
+details.moreangles > summary{cursor:pointer;font:800 18px var(--f-display);letter-spacing:1px;text-transform:uppercase;list-style:none}
+details.moreangles > summary::after{content:" ▾";color:var(--muted)}details.moreangles[open] > summary::after{content:" ▴"}
+.tdlog .mu{margin:0 0 8px}
 </style>
 
 <header>
@@ -651,14 +667,14 @@ table th{font:700 11px var(--f-body);letter-spacing:.8px;text-transform:uppercas
     <div class="toolbar"><h2 style="margin:0">Best bets</h2></div>
     <p class="note">Where our projections disagree most with the books, ranked by the size of the gap and how many other signals agree (recent form, matchup, usage). When we have prices from several books, each pick shows the best number and price, and the chance and EV there blend our projection 50/50 with that book's own fair odds. Our models lean toward the market on purpose and have only a few weeks of data early in the season, so treat these as a second opinion, not a sure thing.</p>
     <div id="picks"></div>
-    <div id="trapWrap">
-    <h2 style="margin-top:26px">Trap watch</h2>
+    <div id="trapWrap"><details class="moreangles"><summary>More angles: trap watch &amp; alternate lines</summary>
+    <h2 style="margin-top:14px">Trap watch</h2>
     <p class="note">Lines that look too good for the side casual bettors love, while the evidence (line moving the other way, key numbers, cheaper prices, the models, and the sharpest book when we have its odds) points the other way. Moves that injury news explains are discounted. It's a lean, not a lock, so the record of fading these is tracked below.</p>
     <div id="traps"></div>
     <h2 style="margin-top:26px">Best alternate lines</h2>
     <p class="note">Rungs of Kalshi's live ladders where our numbers say the price is good after fees. Every alternate line for a player is on his page (tap the prop).</p>
     <div id="altpicks"></div>
-    </div>
+    </details></div>
   </div>
 
   <div id="view-board">
@@ -1506,7 +1522,8 @@ function reportCard() {
   const td = (R.td || []).map(d => `<tr><td>${esc(d.bin)}</td><td class="n">${Math.round(d.ours * 100)}%</td><td class="n">${d.scored}/${d.n} (${Math.round(d.scored / d.n * 100)}%)</td></tr>`);
   const sd = (o, lbl) => Object.entries(o || {}).filter(([k]) => k !== 'all').map(([k, d]) => `<tr><td>${lbl} · edge ${esc(k)}</td><td class="n">${recS2(d)}</td><td class="n">${rcPct(d)}</td></tr>`);
   const miss = (R.misses || []).map(m => `<tr><td>${esc(m.n)} <span class="note">${esc(m.m)} ${esc(m.side)} ${m.l}</span></td><td class="n">${Math.round(m.p * 100)}%</td><td class="n">${m.a}</td></tr>`);
-  return `<div class="rc"><div class="rc-h"><b>Our report card</b><small>${R.games} game${R.games === 1 ? '' : 's'} graded against the reads frozen at kickoff</small></div>
+  const line = [['props', R.props.all], ['spreads', R.sides?.all], ['totals', R.totals?.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
+  return `<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
     <div class="rc-chips">${chip('Prop leans', R.props.all)}${chip('Strong leans (60%+)', strong)}${chip('Spreads', R.sides?.all)}${chip('Totals', R.totals?.all)}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
     <details><summary>Full breakdown</summary><div class="rc-grid">
       <div><h4>Props by confidence</h4>${tbl(['Our chance', 'Record', 'Hit'], conf)}<p class="note">If the reads are honest, higher confidence should hit more often.</p></div>
@@ -1514,9 +1531,14 @@ function reportCard() {
       ${td.length ? `<div><h4>Touchdown calibration</h4>${tbl(['Our chance', 'Avg we gave', 'Scored'], td)}<p class="note">Good TD reads score about as often as we said they would.</p></div>` : ''}
       ${sd(R.sides, 'Spread').length + sd(R.totals, 'Total').length ? `<div><h4>Game reads by edge size</h4>${tbl(['Read', 'Record', 'Hit'], [...sd(R.sides, 'Spread'), ...sd(R.totals, 'Total')])}</div>` : ''}
       ${miss.length ? `<div><h4>Biggest misses</h4>${tbl(['Read', 'Our chance', 'Actual'], miss)}</div>` : ''}
-    </div></details></div>`;
+    </div></details></details>`;
 }
 
+const PK = { allSides: false, allProps: false };
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-pk]'); if (b) { PK[b.dataset.pk] = true; renderPicks(); return; }
+  const w = e.target.closest('[data-why]'); if (w) { const c = w.closest('.pick'); c.classList.toggle('why-open'); w.textContent = c.classList.contains('why-open') ? 'Why ▴' : 'Why ▾'; }
+});
 function renderPicks() {
   const box = $('#picks'); if (!box) return;
   const wrap = $('#trapWrap'); if (wrap) box.after(wrap);
@@ -1527,9 +1549,12 @@ function renderPicks() {
   const per = {}, props = propPicks().sort(rank).filter(p => (per[p.pl.id] = (per[p.pl.id] || 0) + 1) <= 2);
   if (!sides.length && !props.length) { box.innerHTML = `${reportCard()}<div class="empty"><b>No strong picks right now</b>Our numbers and the books agree on everything upcoming. Check back as lines move and props post.</div>`; return; }
   queueMicrotask(() => { const m = $('#trapMount'), w = $('#trapWrap'); if (m && w) m.append(w); });
-  box.innerHTML = `${reportCard()}${sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, 12).map(pickCard).join('')}</div>` : ''}
+  const nS = PK.allSides ? 12 : 4, nP = PK.allProps ? 30 : 6;
+  box.innerHTML = `${reportCard()}${sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, nS).map(pickCard).join('')}</div>
+    ${sides.length > nS ? `<button class="showmore" data-pk="allSides">Show all ${Math.min(12, sides.length)} game picks</button>` : ''}` : ''}
     <div id="trapMount"></div>
-    ${props.length ? `<h2 style="margin-top:22px">Player props</h2><div class="picks">${props.slice(0, 30).map(pickCard).join('')}</div>` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}`;
+    ${props.length ? `<h2 style="margin-top:22px">Player props</h2><div class="picks">${props.slice(0, nP).map(pickCard).join('')}</div>
+      ${props.length > nP ? `<button class="showmore" data-pk="allProps">Show all ${Math.min(30, props.length)} prop picks</button>` : ''}` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}`;
 }
 function moveWarn(p) {
   if (!p.against) return '';
@@ -1551,7 +1576,7 @@ function pickCard(p) {
       ${p.best ? `<div class="offer">Best number: ${offerText({ ...p.best, line: fmtLine(p.best.line) }, esc(nick(p.t)))} · ${Math.round(p.best.p * 100)}% to cover${p.best.count > 1 ? ` (best of ${p.best.count} books)` : ''}</div>` : ''}
       <div class="why"><span>Projected score: ${esc(A.abbr)} ${Math.round(g.proj.a)}, ${esc(H.abbr)} ${Math.round(g.proj.h)}</span>${tr ? `<span>${esc(nick(p.t))} are ${recS(tr.w)} ATS ${SPLIT_LABEL[tr.k]} since ${TRW().window.slice(0, 4)}</span>` : ''}</div>
       ${sendButtons([makeLeg(g.id, 'spread', p.t === H ? 'home' : 'away')].filter(Boolean), true)}
-      <div class="acts"><button class="addp" data-addleg="${g.id}|spread|${p.t === H ? 'home' : 'away'}">+ Parlay</button><button class="btn small" data-track="${g.id}">Track</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
+      <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${g.id}|spread|${p.t === H ? 'home' : 'away'}">+ Parlay</button><button class="btn small" data-track="${g.id}">Track</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
   }
   if (p.kind === 'total') return `<article class="pick" style="--ta:${teamColor(A)};--th:${teamColor(H)}"><div class="pick-h">${logo(A.abbr, 30)}${logo(H.abbr, 30)}<b>${p.over ? 'Over' : 'Under'} ${g.odds.t}</b><span class="stars">${stars(p.st)}</span></div>
       <div class="pick-sub">${esc(A.abbr)} @ ${esc(H.abbr)} · ${when} · game total</div>
@@ -1559,7 +1584,7 @@ function pickCard(p) {
       ${p.best ? `<div class="offer">Best number: ${offerText(p.best, p.over ? 'Over' : 'Under')} · ${Math.round(p.best.p * 100)}% to hit${p.best.count > 1 ? ` (best of ${p.best.count} books)` : ''}</div>` : ''}
       <div class="why"><span>Projected score: ${esc(A.abbr)} ${Math.round(g.proj.a)}, ${esc(H.abbr)} ${Math.round(g.proj.h)}</span>${g.odds.to != null && g.odds.to !== g.odds.t ? `<span>Opened at ${g.odds.to}</span>` : ''}</div>
       ${sendButtons([makeLeg(g.id, 'total', p.over ? 'over' : 'under')].filter(Boolean), true)}
-      <div class="acts"><button class="addp" data-addleg="${g.id}|total|${p.over ? 'over' : 'under'}">+ Parlay</button><button class="btn small" data-track="${g.id}">Track</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
+      <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${g.id}|total|${p.over ? 'over' : 'under'}">+ Parlay</button><button class="btn small" data-track="${g.id}">Track</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
   const { pl, pr, x } = p, team = pl.side === 'home' ? H : A, chance = p.best?.p ?? (p.over ? pr.pOver : 1 - pr.pOver);
   return `<article class="pick"><div class="pick-h">${logo(team.abbr, 30)}<b><button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button> ${p.over ? 'over' : 'under'} ${pr.l} ${esc(pr.m.toLowerCase())}</b><span class="stars">${stars(p.st)}</span></div>
     <div class="pick-sub">${esc(A.abbr)} @ ${esc(H.abbr)} · ${when} · player prop</div>
@@ -1568,7 +1593,7 @@ function pickCard(p) {
     <div class="meter ${p.over ? '' : 'under'}"><i style="width:${chance * 100}%"></i></div>
     <div class="why"><span>${x.over > x.under ? `Over in ${x.over} of his last ${x.n}` : x.under > x.over ? `Under in ${x.under} of his last ${x.n}` : `Split ${x.over}-${x.under} lately`}, averaging ${x.avg.toFixed(1)}</span>
       ${p.r ? `<span>${esc(nick(p.opp))} allow the ${p.r >= 17 ? ord(33 - p.r) + '-fewest' : ord(p.r) + '-most'} to ${posGroup(pl.p)}s</span>` : ''}${p.d ? `<span>${p.dueAgrees ? esc(p.d.label) : `Caution: ${esc(p.d.label.toLowerCase())}`}</span>` : ''}</div>
-    <div class="acts"><button class="addp" data-addleg="${g.id}|prop|${p.over ? 'over' : 'under'}|${esc(pl.id)}|${esc(pr.m)}">+ Parlay</button><button class="btn small" data-prop="${g.id}|${esc(pl.id)}|${esc(pr.m)}">Track</button></div></article>`;
+    <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${g.id}|prop|${p.over ? 'over' : 'under'}|${esc(pl.id)}|${esc(pr.m)}">+ Parlay</button><button class="btn small" data-prop="${g.id}|${esc(pl.id)}|${esc(pr.m)}">Track</button></div></article>`;
 }
 
 // ------------------------------------------------------------ players: search + pages
@@ -1952,7 +1977,7 @@ function trapCard(g, t) {
     <div class="trapsides"><div><span>Looks inviting</span><b>${esc(w.pub)}</b>${t.why_public?.length ? `<small>${esc(t.why_public.join(', '))}</small>` : '<small>the public loves overs</small>'}</div>
       <div><span>Evidence leans</span><b>${esc(w.fade)}</b>${best ? `<small>best ${best.line != null ? (t.k === 'side' ? fmtLine(best.line) : best.line) : ''} ${fmtOdds(best.price)} at ${esc(best.book)}</small>` : ''}</div></div>
     <ul class="trapwhy">${t.reasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul>
-    <div class="acts"><button class="addp" data-addleg="${g.id}|${t.k === 'side' ? 'spread|' + t.fade : 'total|under'}">+ Parlay ${esc(w.fade)}</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
+    <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${g.id}|${t.k === 'side' ? 'spread|' + t.fade : 'total|under'}">+ Parlay ${esc(w.fade)}</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
 }
 function renderTraps() {
   const box = $('#traps'); if (!box) return;
@@ -2105,7 +2130,7 @@ function renderAltPicks() {
     return `<article class="pick"><div class="pick-h">${logo(x.pl.tm, 30)}<b><button class="plink" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}"><b>${esc(x.pl.n)}</b></button> ${esc(label)}</b><span class="stars">${x.ev >= 0.12 ? stars(3) : x.ev >= 0.08 ? stars(2) : stars(1)}</span></div>
       <div class="pick-sub">${esc(x.g.away.abbr)} @ ${esc(x.g.home.abbr)} · ${kick(x.g)} · alternate line</div>
       <div class="offer">Kalshi ${yes ? 'Yes' : 'No'} at <b>${Math.round(x.ask * 100)}¢</b> (${fmtOdds(centsAm(x.ask))}) · our chance <b>${Math.round(x.p * 100)}%</b> · <span class="pos">${evS(x.ev)}</span> after fees</div>
-      <div class="acts"><button class="addp" data-addleg="${x.g.id}|prop|${x.s}|${esc(x.pl.id)}|${esc(x.pr.m)}|${x.r.l}">+ Parlay</button><button class="btn small" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}">See ladder</button></div></article>`; }).join('')}</div>`
+      <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${x.g.id}|prop|${x.s}|${esc(x.pl.id)}|${esc(x.pr.m)}|${x.r.l}">+ Parlay</button><button class="btn small" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}">See ladder</button></div></article>`; }).join('')}</div>`
     : `<div class="empty"><b>No standout alternate lines</b>Kalshi's ladders and our numbers agree right now.</div>`;
 }
 
@@ -2285,7 +2310,7 @@ function gradeReport(legs) {
 
 const PAR_VIEW = { graded: false };
 // ------------------------------------------------------------ TD parlay builder: every anytime-TD candidate, our chance vs the price
-const TDB = { game: 'all', pos: 'all', sort: 'chance', n: 25, open: new Set() };
+const TDB = { game: 'all', pos: 'all', sort: 'chance', n: 10, open: new Set() };
 function tdCandidates() {
   const out = [], now = Date.now();
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > now - 3600e3))
@@ -2327,7 +2352,7 @@ function renderTD() {
   c.sort(TDB.sort === 'value' ? (a, b) => (b.edge ?? -9) - (a.edge ?? -9) || b.p - a.p
     : TDB.sort === 'matchup' ? (a, b) => (b.p >= 0.2) - (a.p >= 0.2) || muF(b) - muF(a) || b.p - a.p : (a, b) => b.p - a.p);
   // the matchup in plain words: red-zone defense, how they give up TDs, the position matchup, and his scoring looks
-  const mu = x => { const w = x.w; if (!w) return '';
+  const mu = (x, full) => { const w = x.w; if (!w) return '';
     const f = w.rz * (1 + (w.dvp - 1) / 2), cls = f >= 1.06 ? 'great' : f <= 0.94 ? 'tough' : 'neutral';
     const bits = [`<span class="mchip ${cls}">${cls === 'great' ? 'Soft TD matchup' : cls === 'tough' ? 'Tough TD matchup' : 'Average matchup'}</span>`];
     if (w.glb) bits.push(`<span class="mchip glb">Goal-line back · ${Math.round(w.gls * 100)}% of team's carries inside the 5</span>`);
@@ -2337,7 +2362,8 @@ function renderTD() {
     const air = Math.round(w.air * 100); if (air >= 66 || air <= 54) bits.push(`${air >= 66 ? 'pass-first' : 'run-first'} scoring game (${air}% of TDs through the air)`);
     if (w.gl >= 0.75 && !w.glb) bits.push(`${w.gl} goal-line carries/G`);
     if (w.ez >= 0.5) bits.push(`${w.ez} end-zone targets/G`);
-    return `<div class="mu">${bits.map(b => b.startsWith('<span') ? b : `<span>${b}</span>`).join('')}</div>`; };
+    // main row: just the verdict chips; the plain-words reasons show in the drop-down
+    return full ? `<div class="mu">${bits.filter(b => !b.startsWith('<span')).map(b => `<span>${b}</span>`).join('')}</div>` : `<div class="mu">${bits.filter(b => b.startsWith('<span')).join('')}</div>`; };
   // scored / didn't score in each of his last 10 games (newest on the left); a mark where the season changes
   const l10 = x => { if (!x.last.length) return '';
     const hit = x.last.filter(r => r.n > 0).length, open = TDB.open.has(x.pl.id);
@@ -2360,11 +2386,11 @@ function renderTD() {
     const cur = x.last[0]?.y;
     const rows = x.last.map(r => `<tr><td>W${r.w} ${r.h ? 'vs' : '@'} ${esc(r.o || '')}${r.y !== cur ? ` <span class="note">'${String(r.y).slice(2)}</span>` : ''}</td><td class="${r.n ? 'td' : ''}">${r.n}</td>
       ${rec ? `<td>${r.tgt ?? 0}</td><td>${r.rec ?? 0}</td><td>${r.yds ?? 0}</td>` : `<td>${r.car ?? 0}</td><td>${r.ryd ?? 0}</td><td>${r.rec ?? 0}</td>`}<td>${r.snap != null ? Math.round(r.snap * 100) + '%' : '–'}</td></tr>`).join('');
-    return `<div class="tdlog">${svg}<div class="tbl"><table><tr><th>Game</th><th>TD</th>${rec ? '<th>Tgt</th><th>Rec</th><th>Yds</th>' : '<th>Car</th><th>Yds</th><th>Rec</th>'}<th>Snap</th></tr>${rows}</table></div>
+    return `<div class="tdlog">${mu(x, true)}${svg}<div class="tbl"><table><tr><th>Game</th><th>TD</th>${rec ? '<th>Tgt</th><th>Rec</th><th>Yds</th>' : '<th>Car</th><th>Yds</th><th>Rec</th>'}<th>Snap</th></tr>${rows}</table></div>
       <p class="note" style="margin:6px 0 0">Games where he recorded a stat, newest first in the table.</p></div>`; };
   const tdS = x => x.gp != null ? `${x.td} TD in ${x.gp} G this year${x.gPrev ? ` · ${x.tdPrev} in ${x.gPrev} last year` : ''}` : '';
   const nTd = PAR.legs.length;
-  box.innerHTML = `<div class="tdb"><div class="tdb-h"><span class="note">Our chance each player scores: his scoring rate (this season and last), red-zone, end-zone and goal-line looks, and his share of the offense times his team's expected points (mostly the betting market's implied team total), adjusted for the defense's red-zone record, whether it gives up TDs through the air or on the ground, its TDs allowed to his position, and game script.</span></div>
+  box.innerHTML = `<div class="tdb"><details class="howto"><summary>How these chances work</summary><span class="note">Our chance each player scores: his scoring rate (this season and last), red-zone, end-zone and goal-line looks, and his share of the offense times his team's expected points (mostly the betting market's implied team total), adjusted for the defense's red-zone record, whether it gives up TDs through the air or on the ground, its TDs allowed to his position, and game script.</span></details>
     <div class="tdb-bar">
       <select id="tdbGame" aria-label="Game"><option value="all">All upcoming games</option>${games.map(g => `<option value="${g.id}"${TDB.game === g.id ? ' selected' : ''}>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</option>`).join('')}</select>
       ${['all', 'RB', 'WR', 'TE', 'QB'].map(k => `<button class="chip" data-tdpos="${k}" aria-pressed="${TDB.pos === k}">${k === 'all' ? 'All' : k}</button>`).join('')}
@@ -2380,7 +2406,7 @@ function renderTD() {
         <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · ${x.pr.kx ? `<a class="kxlink" href="${esc(x.pr.kx)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(x.price)} ↗</a>` : `Kalshi ${fmtOdds(x.price)}`}` : ''}${x.edge != null && x.edge >= 0.03 ? ' · <span class="val">value</span>' : ''}</small></div>
         <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>
         ${TDB.open.has(x.pl.id) && x.last.length ? tdLog(x) : ''}</div>`; }).join('')}
-    ${c.length > TDB.n ? `<button class="btn small" data-tdmore style="margin-top:8px">Show more (${c.length - TDB.n})</button>` : ''}
+    ${c.length > TDB.n ? `<button class="showmore" data-tdmore>Show more players (${c.length - TDB.n} left)</button>` : ''}
     <p class="note" style="margin-top:8px">"Fair" is the price that would be break-even at our chance. If your book pays more than that, the leg is worth it on its own. Touchdowns are long shots: even a 4-leg ticket of strong scorers usually misses, so size it small.</p></div>`;
 }
 document.addEventListener('change', e => {
@@ -2390,7 +2416,7 @@ document.addEventListener('change', e => {
 document.addEventListener('click', e => {
   const p = e.target.closest('[data-tdpos]'); if (p) { TDB.pos = p.dataset.tdpos; renderTD(); return; }
   const q = e.target.closest('[data-tdquick]'); if (q) { tdQuick(q.dataset.tdquick); return; }
-  if (e.target.closest('[data-tdmore]')) { TDB.n += 25; renderTD(); return; }
+  if (e.target.closest('[data-tdmore]')) { TDB.n += 15; renderTD(); return; }
   const lg = e.target.closest('[data-tdlog]'); if (lg) { const id = lg.dataset.tdlog; TDB.open.has(id) ? TDB.open.delete(id) : TDB.open.add(id); renderTD(); }
 });
 
@@ -2603,7 +2629,7 @@ function renderAltPicks() {
     return `<article class="pick"><div class="pick-h">${logo(x.pl.tm, 30)}<b><button class="plink" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}"><b>${esc(x.pl.n)}</b></button> ${esc(label)}</b><span class="stars">${x.ev >= 0.12 ? stars(3) : x.ev >= 0.08 ? stars(2) : stars(1)}</span></div>
       <div class="pick-sub">${esc(x.g.away.abbr)} @ ${esc(x.g.home.abbr)} · ${kick(x.g)} · alternate line</div>
       <div class="offer"><b>${fmtOdds(+x.price)}</b> at ${esc(x.book)}${x.cents != null ? ` (${Math.round(x.cents * 100)}¢)` : ''} · our chance <b>${Math.round(x.p * 100)}%</b> · <span class="pos">${evS(x.ev)}</span></div>
-      <div class="acts"><button class="addp" data-addleg="${x.g.id}|prop|${x.s}|${esc(x.pl.id)}|${esc(x.pr.m)}|${x.r.l}">+ Parlay</button><button class="btn small" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}">See ladder</button></div></article>`; }).join('')}</div>`
+      <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${x.g.id}|prop|${x.s}|${esc(x.pl.id)}|${esc(x.pr.m)}|${x.r.l}">+ Parlay</button><button class="btn small" data-player="${esc(x.pl.id)}" data-openprop="${esc(x.pr.m)}">See ladder</button></div></article>`; }).join('')}</div>`
     : `<div class="empty"><b>No standout alternate lines${ALTB.book === 'best' || ALTB.book === 'all' ? '' : ' at ' + esc(ALTB.book)}</b>The books and our numbers agree right now.</div>`);
 }
 
@@ -2723,11 +2749,12 @@ function renderBoard() {
   const spot = spotGame();
   const flagged = games.map(g => ({ g, fl: g.flags.slice().sort((a, b) => b.w - a.w).slice(g === spot ? SPOT_TOP : 0) }))
     .filter(x => x.fl.length).map(x => ({ ...x, w: x.fl.reduce((s, f) => s + f.w, 0) })).sort((a, b) => b.w - a.w);
-  $('#edges').innerHTML = flagged.length ? flagged.map(({ g, fl }) => `
+  const nStory = S.moreStories ? flagged.length : 4;
+  $('#edges').innerHTML = flagged.length ? flagged.slice(0, nStory).map(({ g, fl }) => ({ g, fl: S.moreStories ? fl : fl.slice(0, 2) })).map(({ g, fl }) => `
     <button class="edge" data-go="${g.id}">
       <div class="story-h">${logo(g.away.abbr, 26)}<b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b>${logo(g.home.abbr, 26)}<span>${g === spot ? 'More on the spotlight game' : kick(g)}</span></div>
       ${fl.map(sayRow).join('')}
-    </button>`).join('')
+    </button>`).join('') + (flagged.length > nStory ? `<button class="showmore" data-morestories>More storylines (${flagged.length - nStory} more games)</button>` : '')
     : `<div class="empty"><b>Quiet week so far</b>Nothing jumps out for the upcoming games in week ${S.week} yet. Storylines appear as lines move and injury news lands.</div>`;
   renderSpot();
   // live games first, then upcoming, then finals; finals newest first
@@ -2772,7 +2799,7 @@ function card(g) {
     ${totals}${bestRow(g)}${probs}${gameSummary(g)}
     ${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}
     <div class="card-foot">
-      <button data-toggle="${g.id}">${open ? 'Hide details' : 'Details'}</button>
+      <button data-toggle="${g.id}">${open ? 'Less ▴' : 'More ▾'}</button>
       ${live ? `<button data-tab-go="live">Follow live</button>` : ''}
       ${S.lineups?.[g.id] ? `<button data-lineup="${g.id}">Lineups</button>` : ''}
       ${S.props?.[g.id]?.length ? `<button data-props-go="${g.id}">Props</button>` : ''}
@@ -2958,7 +2985,7 @@ const PROP_STATS = { 'Pass yds': ['passingYards'], 'Pass TD': ['passingTouchdown
 const PROP_ORDER = Object.keys(PROP_STATS);
 const OPP_STAT = m => /Rush yds|Carries/.test(m) ? ['rushingYardsPerGameAllowed', 'rush yds'] : /\+/.test(m) ? ['yardsPerGameAllowed', 'yds']
   : m === 'Anytime TD' ? ['totalPointsPerGameAllowed', 'pts'] : ['passingYardsPerGameAllowed', 'pass yds'];
-const PF = { game: '', market: '', pos: '', sort: 'trend', all: false, open: new Set() };
+const PF = { game: '', market: '', pos: '', sort: 'trend', all: false, open: new Set(), games: new Set(), players: new Set() };
 // last-10 drop-down for a prop: bars for each game (oldest left), the line drawn across, and a game table
 function propDrop(pl, pr, g, over) {
   const page = S.players?.[pl.id], td = pr.m === 'Anytime TD', L = td ? 0.5 : pr.l;
@@ -2988,7 +3015,7 @@ function propDrop(pl, pr, g, over) {
   return `<div class="tdlog pdrop">
     <p class="note" style="margin:0 0 4px"><b>${td ? (over ? 'Scored' : 'Held out') : over ? 'Over' : 'Under'} ${td ? '' : L + ' '}in ${nHit} of last ${games.length}</b>${pr.proj != null && !td ? ` · we project <b>${pr.proj}</b>` : ''}${pr.alt?.length ? ` · ${pr.alt.length} alt lines on the player page` : ''}</p>
     ${svg}<div class="tbl"><table><tr><th>Game</th><th>${esc(pr.m)}</th><th>Result</th><th>Snap</th></tr>${rows}</table></div>
-    <div class="acts"><button class="addp" data-addleg="${g.id}|prop|over|${esc(pl.id)}|${esc(pr.m)}">+ Parlay ${td ? 'Yes' : 'Over'}</button>${td ? '' : `<button class="addp" data-addleg="${g.id}|prop|under|${esc(pl.id)}|${esc(pr.m)}">+ Parlay Under</button>`}
+    <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${g.id}|prop|over|${esc(pl.id)}|${esc(pr.m)}">+ Parlay ${td ? 'Yes' : 'Over'}</button>${td ? '' : `<button class="addp" data-addleg="${g.id}|prop|under|${esc(pl.id)}|${esc(pr.m)}">+ Parlay Under</button>`}
       <button class="btn small" data-player="${esc(pl.id)}" data-openprop="${esc(pr.m)}">Player page &amp; alt lines →</button></div></div>`;
 }
 
@@ -3055,13 +3082,17 @@ function renderProps() {
   // one short line per prop; the full breakdown (last 10, chart, alternate lines) is a tap away on the player's page
   const short = { bounce: 'Bounce-back', real: 'Hot, steady role', regress: 'Regression risk', role: 'Role shrank', td: 'TD due' };
   let lastGame = null;
-  box.innerHTML = `<div class="pgrid compact">${rows.slice(0, 150).map(({ pl, g, props }) => {
+  const perGame = {}, hiddenN = {}, shown = [];
+  for (const r of rows) { const k = r.g.id, i = perGame[k] = (perGame[k] || 0) + 1;
+    if (i <= 3 || PF.games.has(k) || PF.game) shown.push(r); else hiddenN[k] = (hiddenN[k] || 0) + 1; }
+  const lastOf = {}; shown.forEach((r, i) => { lastOf[r.g.id] = i; });
+  box.innerHTML = `<div class="pgrid compact">${shown.slice(0, 150).map(({ pl, g, props }, idx) => {
     const head = g.id !== lastGame ? `<h3 class="pgame">${logo(g.away.abbr, 22)}${logo(g.home.abbr, 22)}<span>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</span><small>${kick(g)}</small></h3>` : '';
     lastGame = g.id;
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
     const inj = team.inj.find(i => i.n === pl.n), page = S.players?.[pl.id];
     return `${head}<article class="pcard" style="--tc:${teamColor(team)}"><div class="pcard-h">${logo(team.abbr, 24)}<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button><span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
-      ${props.map(x => {
+      ${(PF.players.has(pl.id) ? props : props.slice().sort((a, b) => Math.abs((b.pr.pOver ?? 0.5) - 0.5) - Math.abs((a.pr.pOver ?? 0.5) - 0.5)).slice(0, 3)).map(x => {
         const td = x.pr.m === 'Anytime TD', has = x.pr.pOver != null && x.pr.proj > 0, over = (x.pr.pOver ?? 0.5) >= 0.5, pct = Math.round((over ? x.pr.pOver : 1 - x.pr.pOver) * 100);
         const ten = page?.last?.length && PAGE_STAT[x.pr.m] ? page.last.map(r => PAGE_STAT[x.pr.m].reduce((a, k) => a + (r[k] || 0), 0)) : null;
         const L = td ? 0.5 : x.pr.l;
@@ -3076,11 +3107,14 @@ function renderProps() {
             ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide last 10 ▴' : 'Last 10 ▾'}</span></span>
         </button>${isOpen ? propDrop(pl, x.pr, g, has ? over : true) : ''}`;
       }).join('')}
+      ${props.length > 3 && !PF.players.has(pl.id) ? `<button class="showmore" data-pplayer="${esc(pl.id)}" style="margin:4px 10px 8px;width:auto">+${props.length - 3} more props</button>` : ''}
       ${pl.lc?.length ? `<div class="lcline"><b>Lineup</b><span>${esc(pl.lc.join(' · '))}</span></div>` : ''}
-    </article>`;
+    </article>${lastOf[g.id] === idx && hiddenN[g.id] ? `<button class="showmore" data-pgame="${g.id}" style="grid-column:1/-1">Show ${hiddenN[g.id]} more players in ${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>` : ''}`;
   }).join('')}</div>${rows.length > 150 ? `<p class="note">Showing 150 of ${rows.length} players. Pick a game or position to narrow it.</p>` : ''}`;
 }
 document.addEventListener('click', e => {
+  const pg = e.target.closest('[data-pgame]'); if (pg) { PF.games.add(pg.dataset.pgame); renderProps(); return; }
+  const pp = e.target.closest('[data-pplayer]'); if (pp) { PF.players.add(pp.dataset.pplayer); renderProps(); return; }
   const b = e.target.closest('[data-propdrop]'); if (!b) return;
   const k = b.dataset.propdrop; PF.open.has(k) ? PF.open.delete(k) : PF.open.add(k);
   renderProps();
@@ -3312,6 +3346,15 @@ function renderSync() {
 function normProps() {
   for (const rows of Object.values(S.props || {})) for (const pl of rows) for (const pr of pl.props) { const c = propChance(pr, pr.m === 'Anytime TD' ? 0.5 : pr.l); if (c != null) pr.pOver = +c.toFixed(3); }
 }
+// long explanations at the top of tabs fold into a small "How this works"
+function foldHowTos() {
+  for (const n of document.querySelectorAll('[id^="view-"] > p.note, #trapWrap p.note, #view-picks > p.note')) {
+    if (n.closest('details') || n.textContent.length < 90) continue;
+    const d = document.createElement('details'); d.className = 'howto';
+    d.innerHTML = '<summary>How this works</summary>'; n.replaceWith(d); d.append(n);
+  }
+}
+queueMicrotask(foldHowTos);
 function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); }
 
 function setTab(t) {
@@ -3328,6 +3371,7 @@ $('#betFilter').addEventListener('click', e => {
   for (const c of document.querySelectorAll('#betFilter .chip')) c.setAttribute('aria-pressed', c === b); renderBets();
 });
 document.addEventListener('click', e => {
+  if (e.target.closest('[data-morestories]')) { S.moreStories = true; renderBoard(); return; }
   const wk = e.target.closest('[data-week]'); if (wk) { S.week = +wk.dataset.week; renderBoard(); return; }
   const tg = e.target.closest('[data-toggle]');
   if (tg) { const id = tg.dataset.toggle; S.open.has(id) ? S.open.delete(id) : S.open.add(id); renderBoard(); if (S.open.has(id)) $('#g' + id)?.scrollIntoView({ block: 'nearest' }); return; }
