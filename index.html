@@ -2633,13 +2633,14 @@ function combineLinks(book, links) {   // one bet slip with every selection, whe
   } catch (e) {}
   return null;
 }
-function sendButtons(legs, compact) {
+function sendButtons(legs, compact, prefer) {   // compact: true on pick cards, 'ticket' on My Bets tickets
   const per = legs.map(l => legLinks(l, compact && legs.length === 1)), books = [...new Set(per.flatMap(o => Object.keys(o)))];
-  const pref = [store.get('edge-mybook'), 'FanDuel', 'DraftKings', 'BetMGM', 'Caesars', 'ESPN BET', 'Fanatics', 'theScore Bet', 'BetRivers'];
+  const pref = [prefer, store.get('edge-mybook'), 'FanDuel', 'DraftKings', 'BetMGM', 'Caesars', 'ESPN BET', 'Fanatics', 'theScore Bet', 'BetRivers'];
   const rank = b => { const i = pref.indexOf(b); return i < 0 ? 99 : i; };
   let full = books.filter(b => per.every(o => o[b])).map(b => ({ b, url: combineLinks(b, per.map(o => o[b])) })).filter(x => x.url).sort((a, b) => rank(a.b) - rank(b.b));
   if (compact) full = full.slice(0, 2);   // cards: your book plus one more
   const partial = books.filter(b => !full.some(f => f.b === b));
+  if (!full.length && !partial.length && compact === 'ticket') return `<div class="sendrow"><span class="note">No bet-slip link for this ticket${legs.some(l => l.kind === 'prop') ? ': player props (including TDs) need the props odds feed' : ' yet'}.</span></div>`;
   if (!full.length && !partial.length) return compact ? '' : `<div class="sendrow"><span class="note">No bet-slip links for ${legs.length > 1 ? 'these legs' : 'this bet'} yet. Books share links for game lines${S.props && legs.some(l => l.kind === 'prop') ? '; player props (including TDs) need the paid props feed' : ''}.</span></div>`;
   return `<div class="sendrow">${full.map(f => `<a class="sendbook ${BOOK_CLS[f.b] || ''}" href="${esc(f.url)}" target="_blank" rel="noopener">Bet at ${esc(f.b)} ↗</a>`).join('')}
     ${!compact && partial.length ? `<span class="note">${esc(partial.join(', '))} ${partial.length > 1 ? 'have' : 'has'} links for some legs only.</span>` : ''}
@@ -3134,6 +3135,9 @@ const money = u => { const sz = +S.settings.unitSize; return sz ? ` ($${(u * sz)
 const usd = v => '$' + Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: v >= 100 ? 0 : 2 });
 // dollars risked on a bet: what was entered, else units x unit size; null when we only know units
 const stakeOf = b => b.stake != null ? +b.stake : +S.settings.unitSize ? +b.units * +S.settings.unitSize : null;
+// a saved bet back into parlay-style legs, so tickets can build bet-slip links
+const ticketLegs = b => b.legs?.length ? b.legs.filter(l => l.gid && l.kind)
+  : b.gameId && ['spread', 'ml', 'total'].includes(b.market) ? [{ gid: b.gameId, kind: b.market, side: b.side, line: b.line === '' || b.line == null ? null : +b.line }] : [];
 function slipCard({ b, res, p }) {
   const st = stakeOf(b), win = st != null ? st * (dec(+b.odds) - 1) : null;
   const legs = b.legs?.length ? b.legs : [{ label: pickText(b), team: null }];
@@ -3148,6 +3152,7 @@ function slipCard({ b, res, p }) {
       <div class="win"><small>${res === 'win' ? 'Won' : 'To win'}</small><b>${win != null ? usd(win) : ((+b.units) * (dec(+b.odds) - 1)).toFixed(2) + 'u'}</b></div></div>
     <div class="sc-odds">${fmtOdds(+b.odds)}${legs.length > 1 ? ` · ${legs.length} legs` : ''}</div>
     <ul class="sc-legs">${legs.map(legRow).join('')}</ul>
+    ${res === 'pending' ? `<div style="padding:0 14px">${sendButtons(ticketLegs(b), 'ticket', b.book)}</div>` : ''}
     ${res === 'pending' && S.canWrite ? `<div class="stake-row" style="margin:6px 14px 0"><label>Bet ($)<input class="sc-stake" data-id="${esc(b.id)}" inputmode="decimal" value="${b.stake ?? ''}" placeholder="amount" style="width:90px"></label>
       <label>Odds<input class="sc-oddsin" data-id="${esc(b.id)}" inputmode="numeric" value="${fmtOdds(+b.odds)}" style="width:100px"></label></div>` : ''}
     <div class="sc-foot"><span>${res === 'pending' ? 'Waiting on kickoff' : `<span class="sc-pl ${p > 0 ? 'pos' : p < 0 ? 'neg' : ''}">${plS}</span>`}</span>
