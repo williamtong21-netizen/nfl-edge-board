@@ -1,29 +1,21 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#173326"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Edge Board"><script>window.__DATA_BASE="data/";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script><style>body{margin:0}</style></head><body><title>NFL Edge Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
 <style>
 /* Layout: sticky scoreboard header + tab strip; Board = edge list over a card grid, Line shop = per-game book tables, Bets = tiles, chart, ledger, form */
 :root{
-  --bg:#eef1ee; --surface:#ffffff; --surface2:#f5f7f5; --ink:#17211c; --muted:#5b6a62; --line:#d6ddd8;
-  --accent:#245f8f; --accent-soft:#dbe8f3;
-  --good:#23824f; --good-soft:#dcefe3; --bad:#b83d34; --bad-soft:#f6e0de; --warn:#a8650f; --warn-soft:#f6ead6;
-  --head:#173326; --head-ink:#eaf2ec;
-  --turf:#3c7d4b; --turf2:#367345; --chalk:rgba(255,255,255,.55); --los:#5aa9ff; --fieldtext:#ffffff;
+  --bg:#0a0e13; --surface:#121820; --surface2:#1a222d; --ink:#f3f6f9; --muted:#8e9aa9; --line:#243041;
+  --accent:#3ba7ff; --accent-soft:#11283e;
+  --good:#2edc84; --good-soft:#0f2d20; --bad:#ff6363; --bad-soft:#3a1719; --warn:#ffb648; --warn-soft:#3a2a12;
+  --head:#06090d; --head-ink:#f3f6f9; --turf:#1f4f2c; --turf2:#1c4728; --chalk:rgba(255,255,255,.4); --los:#6fb4ff; --fieldtext:#f2f6f3;
   --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
-  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"Barlow Condensed","Arial Narrow",ui-monospace,sans-serif;
+  --on-good:#03140b; color-scheme:dark;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0e1411; --surface:#161e1a; --surface2:#1c2621; --ink:#e3ebe6; --muted:#90a097; --line:#29352f;
-  --accent:#78afdc; --accent-soft:#1b2c3a;
-  --good:#5cc28a; --good-soft:#163024; --bad:#ef7d72; --bad-soft:#3a1d1a; --warn:#e3a54a; --warn-soft:#352812;
-  --head:#0a1f15; --head-ink:#e3ebe6; --turf:#24512f; --turf2:#214a2b; --chalk:rgba(255,255,255,.4); --los:#6fb4ff; --fieldtext:#f2f6f3; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0e1411; --surface:#161e1a; --surface2:#1c2621; --ink:#e3ebe6; --muted:#90a097; --line:#29352f;
-  --accent:#78afdc; --accent-soft:#1b2c3a;
-  --good:#5cc28a; --good-soft:#163024; --bad:#ef7d72; --bad-soft:#3a1d1a; --warn:#e3a54a; --warn-soft:#352812;
-  --head:#0a1f15; --head-ink:#e3ebe6; --turf:#24512f; --turf2:#214a2b; --chalk:rgba(255,255,255,.4); --los:#6fb4ff; --fieldtext:#f2f6f3; color-scheme:dark}
+
+
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--f-body)}
 .num,td.n,.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
@@ -216,9 +208,9 @@ footer{max-width:1320px;margin:0 auto;padding-inline:16px;padding-block:0 30px;c
 @media (prefers-reduced-motion:no-preference){.edge,.chip,.btn{transition:border-color .15s,background .15s}}
 
 /* ---------- friendly layer: logos, spotlight, storylines, live ---------- */
-:root{--r:14px;--shadow:0 1px 2px rgba(20,40,30,.06),0 4px 14px rgba(20,40,30,.06);--live:#e0342b;--gold:#c98a12}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);--live:#ff5a4f;--gold:#f0b23e}}
-:root[data-theme="dark"]{--shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);--live:#ff5a4f;--gold:#f0b23e}
+:root{--r:16px;--shadow:0 1px 0 rgba(255,255,255,.03) inset,0 10px 28px rgba(0,0,0,.38);--live:#ff4d4d;--gold:#ffc83d}
+
+
 header{background:linear-gradient(135deg,var(--head) 0%,color-mix(in srgb,var(--head) 80%,var(--accent)) 100%)}
 .card,.player,.panel,.edge,.tile{border-radius:var(--r);box-shadow:var(--shadow)}
 .logo{display:inline-block;flex:none;object-fit:contain}
@@ -568,6 +560,54 @@ details.nerd .usage{border-bottom:0}
 .bookpick select{font:600 14px var(--f-body);padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);min-width:200px}
 .bestbook{margin:6px 0 2px;padding:8px 12px;border-radius:10px;background:var(--good-soft, var(--surface2));font-size:13px}
 .bestbook b{color:var(--good)}
+
+/* ================= sportsbook skin ================= */
+body{font-size:15px;letter-spacing:.005em}
+.num,td.n,.mono,.prow2 .lean,.tdrow .pct,.offer b{font-variant-numeric:tabular-nums}
+header{background:linear-gradient(180deg,#0f1822,#06090d);border-bottom:1px solid var(--line)}
+.brand{font:800 28px/1 var(--f-display);letter-spacing:1px}
+.brand::first-letter{color:var(--good)}
+nav{gap:6px;padding-block:6px 10px;scrollbar-width:none}nav::-webkit-scrollbar{display:none}
+nav button{font:700 14px var(--f-display);letter-spacing:1.2px;padding:7px 15px;border-radius:999px;border:1px solid transparent;opacity:.75}
+nav button:hover{opacity:1;background:var(--surface2)}
+nav button[aria-selected="true"]{background:var(--good);color:var(--on-good);border-color:var(--good);opacity:1}
+h2{font:800 22px var(--f-display);letter-spacing:1px}
+h3{font:700 12px var(--f-body);letter-spacing:1.2px}
+.chip{font:600 12.5px var(--f-body);padding:5px 12px;background:var(--surface2);border-color:var(--line)}
+.chip[aria-pressed="true"]{background:var(--good);color:var(--on-good);border-color:var(--good)}
+.btn{border-radius:999px !important;font-weight:700 !important}
+.btn.primary{background:var(--good) !important;color:var(--on-good) !important;border-color:var(--good) !important}
+.addp{border:1.5px solid var(--good) !important;color:var(--good) !important;background:transparent !important;border-radius:999px !important;font:700 13px var(--f-body) !important;padding:6px 14px !important;cursor:pointer}
+.addp:hover{background:var(--good) !important;color:var(--on-good) !important}
+.addp.on,.addp:disabled{background:var(--good-soft) !important;border-style:solid !important;opacity:1}
+select,input{color-scheme:dark}
+/* cards with depth */
+.card,.pick,.pcard,.panel,.tile,.tdb,.rc,.spot,.trapcard,.lcard,.gradecard,.kpi,.shop > *{background:var(--surface);border:1px solid var(--line) !important;border-radius:var(--r) !important;box-shadow:var(--shadow)}
+.card{position:relative;overflow:hidden}
+.card::before,.pick::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,var(--ta,var(--accent)),var(--th,var(--good)))}
+.pick{position:relative;overflow:hidden}
+.pcard{border-left:4px solid var(--tc,var(--line)) !important}
+/* headline numbers: big and bold */
+.pick-h b{font:800 22px/1.1 var(--f-display);letter-spacing:.3px}
+.stars{color:var(--gold)}
+.offer{background:var(--surface2);border-radius:10px;padding:6px 10px}
+.prow2 .m{font:700 15px var(--f-display);letter-spacing:.3px}
+.prow2 .lean{font:800 17px var(--f-display);padding:2px 10px;border-radius:999px;background:var(--surface2)}
+.prow2 .lean.o{background:var(--good-soft);color:var(--good)}.prow2 .lean.u{background:var(--accent-soft);color:var(--accent)}
+.prow2 .meta .sec{display:none}
+.prow2 .meta b{font:700 13px var(--f-display)}
+.tdrow .pct{font:800 24px var(--f-display)}
+.tdrow .who b{font:700 17px var(--f-display);letter-spacing:.3px}
+.tile b,.kpi b{font-family:var(--f-display) !important;font-weight:800 !important}
+.slipbtn{background:var(--good) !important;color:var(--on-good) !important;font:800 15px var(--f-display) !important;box-shadow:0 8px 26px rgba(46,220,132,.35) !important}
+.slipbtn b{display:inline-grid;place-items:center;min-width:22px;height:22px;margin-left:8px;border-radius:999px;background:var(--on-good);color:var(--good);font-size:13px}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r)}
+table th{font:700 11px var(--f-body);letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.mchip.great{background:var(--good-soft);color:var(--good)}.mchip.tough{background:var(--bad-soft);color:var(--bad)}.mchip.neutral{background:var(--surface2);color:var(--muted)}
+.tag2.fire{background:color-mix(in srgb,var(--warn) 22%,var(--surface));color:var(--warn)}
+.livedot{box-shadow:0 0 0 0 rgba(255,77,77,.6);animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,77,77,.55)}70%{box-shadow:0 0 0 8px rgba(255,77,77,0)}100%{box-shadow:0 0 0 0 rgba(255,77,77,0)}}
+@media (prefers-reduced-motion: reduce){.livedot{animation:none}}
 </style>
 
 <header>
@@ -1494,14 +1534,14 @@ function pickCard(p) {
     const qb = (g.proj.qbOut?.length ? ` That includes a ${g.proj.qbOut.map(s => g[s].abbr).join(' and ')} starting-QB downgrade.` : '')
       + (lcs.length ? ` It also adjusts for lineup changes (${lcs.join(', ')} pts).` : '');
     const tr = trendsFor(p.t.abbr, g.trend?.[p.t === H ? 'home' : 'away']).filter(r => r.k !== 'all' && r.n >= 8).sort((a, b) => atsPct(b.w) - atsPct(a.w))[0];
-    return `<article class="pick"><div class="pick-h">${logo(p.t.abbr, 30)}<b>${esc(nick(p.t))} ${fmtLine(p.line)}</b><span class="stars">${stars(p.st)}</span></div>
+    return `<article class="pick" style="--ta:${teamColor(p.t)};--th:${teamColor(p.t)}"><div class="pick-h">${logo(p.t.abbr, 30)}<b>${esc(nick(p.t))} ${fmtLine(p.line)}</b><span class="stars">${stars(p.st)}</span></div>
       <div class="pick-sub">${esc(A.abbr)} @ ${esc(H.abbr)} · ${when} · spread</div>
       <p>We make this <b>${esc(ourLine(g))}</b>; the book has ${esc(H.abbr)} ${fmtLine(g.odds.hs)}. That's a ${Math.abs(p.edge).toFixed(1)}-point gap toward the ${esc(nick(p.t))}.${qb}</p>${moveWarn(p)}
       ${p.best ? `<div class="offer">Best number: ${offerText({ ...p.best, line: fmtLine(p.best.line) }, esc(nick(p.t)))} · ${Math.round(p.best.p * 100)}% to cover${p.best.count > 1 ? ` (best of ${p.best.count} books)` : ''}</div>` : ''}
       <div class="why"><span>Projected score: ${esc(A.abbr)} ${Math.round(g.proj.a)}, ${esc(H.abbr)} ${Math.round(g.proj.h)}</span>${tr ? `<span>${esc(nick(p.t))} are ${recS(tr.w)} ATS ${SPLIT_LABEL[tr.k]} since ${TRW().window.slice(0, 4)}</span>` : ''}</div>
       <div class="acts"><button class="addp" data-addleg="${g.id}|spread|${p.t === H ? 'home' : 'away'}">+ Parlay</button><button class="btn small" data-track="${g.id}">Track</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
   }
-  if (p.kind === 'total') return `<article class="pick"><div class="pick-h">${logo(A.abbr, 30)}${logo(H.abbr, 30)}<b>${p.over ? 'Over' : 'Under'} ${g.odds.t}</b><span class="stars">${stars(p.st)}</span></div>
+  if (p.kind === 'total') return `<article class="pick" style="--ta:${teamColor(A)};--th:${teamColor(H)}"><div class="pick-h">${logo(A.abbr, 30)}${logo(H.abbr, 30)}<b>${p.over ? 'Over' : 'Under'} ${g.odds.t}</b><span class="stars">${stars(p.st)}</span></div>
       <div class="pick-sub">${esc(A.abbr)} @ ${esc(H.abbr)} · ${when} · game total</div>
       <p>We project <b>${g.proj.total.toFixed(1)}</b> points, ${Math.abs(p.edge).toFixed(1)} ${p.over ? 'more' : 'fewer'} than the book's ${g.odds.t}.${g.wx && g.wx.wind >= WIND_MIN ? ' Wind is in the forecast too.' : ''}</p>${moveWarn(p)}
       ${p.best ? `<div class="offer">Best number: ${offerText(p.best, p.over ? 'Over' : 'Under')} · ${Math.round(p.best.p * 100)}% to hit${p.best.count > 1 ? ` (best of ${p.best.count} books)` : ''}</div>` : ''}
@@ -2653,7 +2693,7 @@ function card(g) {
   if (pre && g.edgeH != null && Math.abs(g.edgeH) >= EDGE_MIN) badges.push(`<span class="b g">Model likes ${esc((g.edgeH > 0 ? H : A).abbr)}</span>`);
   if (g.shop) badges.push(`<span class="b">${g.shop.books.length} books compared</span>`);
   const open = S.open.has(g.id);
-  return `<article class="card${open ? ' open' : ''}" id="g${g.id}">
+  return `<article class="card${open ? ' open' : ''}" id="g${g.id}" style="--ta:${teamColor(A)};--th:${teamColor(H)}">
     <div class="card-top"><span>${live ? `<span class="livedot"></span>${esc(L?.detail || g.detail)}` : pre ? kick(g) : esc(g.detail)}${g.tv ? ' · ' + esc(g.tv) : ''}</span><span>${esc(g.venue || '')}${wx ? ' · ' + wx : ''}</span></div>
     <div class="lines">${row(A, false)}${row(H, true)}</div>
     ${totals}${bestRow(g)}${probs}${gameSummary(g)}
@@ -2873,7 +2913,7 @@ function propDrop(pl, pr, g, over) {
   const rows = games.map(r => `<tr><td>W${r.w} ${r.h ? 'vs' : '@'} ${esc(r.o || '')}${r.y !== cur ? ` <span class="note">'${String(r.y).slice(2)}</span>` : ''}</td>
     <td>${fmt(r.v)}</td><td class="${hitOf(r.v) ? 'hit' : 'miss'}">${td ? (r.v > 0 ? 'Scored' : '–') : r.v === L ? 'Push' : (r.v > L ? 'Over' : 'Under')}</td><td>${r.snap != null ? Math.round(r.snap * 100) + '%' : '–'}</td></tr>`).join('');
   return `<div class="tdlog pdrop">
-    <p class="note" style="margin:0 0 4px"><b>${td ? (over ? 'Scored' : 'Held out') : over ? 'Over' : 'Under'} ${td ? '' : L + ' '}in ${nHit} of last ${games.length}</b>${td ? '' : ' · green bars cleared our side of the line'}</p>
+    <p class="note" style="margin:0 0 4px"><b>${td ? (over ? 'Scored' : 'Held out') : over ? 'Over' : 'Under'} ${td ? '' : L + ' '}in ${nHit} of last ${games.length}</b>${pr.proj != null && !td ? ` · we project <b>${pr.proj}</b>` : ''}${pr.alt?.length ? ` · ${pr.alt.length} alt lines on the player page` : ''}</p>
     ${svg}<div class="tbl"><table><tr><th>Game</th><th>${esc(pr.m)}</th><th>Result</th><th>Snap</th></tr>${rows}</table></div>
     <div class="acts"><button class="addp" data-addleg="${g.id}|prop|over|${esc(pl.id)}|${esc(pr.m)}">+ Parlay ${td ? 'Yes' : 'Over'}</button>${td ? '' : `<button class="addp" data-addleg="${g.id}|prop|under|${esc(pl.id)}|${esc(pr.m)}">+ Parlay Under</button>`}
       <button class="btn small" data-player="${esc(pl.id)}" data-openprop="${esc(pr.m)}">Player page &amp; alt lines →</button></div></div>`;
@@ -2947,7 +2987,7 @@ function renderProps() {
     lastGame = g.id;
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
     const inj = team.inj.find(i => i.n === pl.n), page = S.players?.[pl.id];
-    return `${head}<article class="pcard"><div class="pcard-h">${logo(team.abbr, 24)}<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button><span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
+    return `${head}<article class="pcard" style="--tc:${teamColor(team)}"><div class="pcard-h">${logo(team.abbr, 24)}<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button><span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
       ${props.map(x => {
         const td = x.pr.m === 'Anytime TD', has = x.pr.pOver != null && x.pr.proj > 0, over = (x.pr.pOver ?? 0.5) >= 0.5, pct = Math.round((over ? x.pr.pOver : 1 - x.pr.pOver) * 100);
         const ten = page?.last?.length && PAGE_STAT[x.pr.m] ? page.last.map(r => PAGE_STAT[x.pr.m].reduce((a, k) => a + (r[k] || 0), 0)) : null;
@@ -2958,9 +2998,9 @@ function renderProps() {
         return `<button class="prow2" data-propdrop="${esc(dropKey)}" aria-expanded="${isOpen}">
           <span class="m">${esc(x.pr.m)} <span>${td ? '' : x.pr.l}</span>${!td && x.pr.o != null && x.pr.o !== x.pr.l ? ` <i>${x.move > 0 ? '▲' : '▼'}${Math.abs(x.move).toFixed(1).replace(/\.0$/, '')}</i>` : ''}</span>
           <span class="lean ${has ? (over ? 'o' : 'u') : ''}">${has ? `${td ? (over ? 'Yes' : 'No') : over ? 'O' : 'U'} ${pct}%` : '–'}</span>
-          <span class="meta"><span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span>proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
+          <span class="meta"><span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span class="sec">proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
             ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
-            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span>${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide last 10 ▴' : 'Last 10 ▾'}</span></span>
+            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide last 10 ▴' : 'Last 10 ▾'}</span></span>
         </button>${isOpen ? propDrop(pl, x.pr, g, has ? over : true) : ''}`;
       }).join('')}
       ${pl.lc?.length ? `<div class="lcline"><b>Lineup</b><span>${esc(pl.lc.join(' · '))}</span></div>` : ''}
