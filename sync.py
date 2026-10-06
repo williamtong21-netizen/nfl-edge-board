@@ -275,8 +275,8 @@ TD_RESERVE = 80   # credits kept back each month: below this, TD prices refresh 
 
 
 def multibook_tds(games, props, cfg):
-    """Anytime-TD prices and bet-slip links from every book, 1 credit per game per pull, refreshed through the week:
-    every upcoming game (next 6 days) at least every 48 hours, daily while FanDuel or DraftKings hasn't posted it yet,
+    """Anytime-TD prices and bet-slip links from every book, 1 credit per game per pull. Starting the morning of the
+    week's first game (Thursday), every game that week is pulled, then refreshed at least every 48 hours, daily while FanDuel or DraftKings hasn't posted it yet,
     and once more on game day (kickoff within 14 hours). If the month's credits run low (under TD_RESERVE), only
     game-day pulls run. On by default with an Odds API key; config "odds_api_tds": false or env ODDS_API_TDS=0 turns it off.
     Env ODDS_API_TDS_NOW=1 refreshes every upcoming game right away."""
@@ -288,10 +288,15 @@ def multibook_tds(games, props, cfg):
     now = datetime.now(timezone.utc)
     if key and on:
         low = meta.get("remaining") is not None and int(meta["remaining"]) < TD_RESERVE
+        # each week's pulls start the morning of that week's first game (usually Thursday night), for every game that week
+        kicks = lambda g: datetime.fromisoformat(g["date"].replace("Z", "+00:00"))
+        opens = {}
+        for g in games: opens[g["week"]] = min(opens.get(g["week"], kicks(g)), kicks(g))
         due = []
         for g in games:
-            kick = datetime.fromisoformat(g["date"].replace("Z", "+00:00"))
-            if g["state"] != "pre" or g["id"] not in props or kick - now > timedelta(days=6): continue
+            kick = kicks(g)
+            if g["state"] != "pre" or g["id"] not in props: continue
+            if now < opens[g["week"]] - timedelta(hours=14) and not now_all: continue   # that week hasn't started yet
             hit = cache.get(g["id"])
             age = (time.time() - hit["t"]) / 3600 if hit else 1e9
             books = {b.get("key") for b in ((hit or {}).get("data") or {}).get("bookmakers", [])}
