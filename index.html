@@ -665,6 +665,13 @@ details.moreangles > summary::after{content:" ▾";color:var(--muted)}details.mo
 .welcome .easy input{width:20px;height:20px;accent-color:var(--good)}
 .welcome .go{width:100%;margin-top:12px;padding:12px;border:0;border-radius:999px;background:var(--good);color:var(--on-good);font:800 16px var(--f-display);letter-spacing:1px;text-transform:uppercase;cursor:pointer}
 body.easy nav [data-tab="shop"],body.easy nav [data-tab="lineups"],body.easy nav [data-tab="players"],body.easy nav [data-tab="teams"],body.easy .navsep{display:none}
+.sgp{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px;margin:0 0 16px;box-shadow:var(--shadow)}
+.sgp h3{margin:0 0 6px}.sgp .row{gap:8px;margin:6px 0}
+.sgp .modes{display:flex;flex-wrap:wrap;gap:8px}.sgp .modes button{flex:1 1 120px}
+.sgpres{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--surface2)}
+.sgpres ul{list-style:none;margin:6px 0;padding:0}.sgpres li{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px}
+.sgpres li:last-child{border-bottom:0}.sgpres li span{margin-left:auto;color:var(--muted);font:700 13px var(--f-display)}
+.sgpres .tot{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;margin:6px 0}.sgpres .tot b{font:800 20px var(--f-display)}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -805,6 +812,7 @@ body.easy nav [data-tab="shop"],body.easy nav [data-tab="lineups"],body.easy nav
   <div id="view-parlay" hidden>
     <div class="toolbar"><h2 style="margin:0">Parlay builder</h2></div>
     <p class="note">Add legs from anywhere (picks, props, the TDs tab, alternate-line ladders, game details), switch any leg to an alternate line, enter your app's odds if they differ, then grade it.</p>
+    <div id="sgpBox"></div>
     <div id="parlay"></div>
   </div>
 
@@ -2424,6 +2432,77 @@ function gradeReport(legs) {
 }
 
 const PAR_VIEW = { graded: false };
+// ------------------------------------------------------------ same-game parlay builder: our strongest legs in one game, combined with
+// the measured correlations, so the legs help each other instead of fighting
+const SGP = { game: '', mode: null, res: null };
+function sgpCandidates(g) {
+  const C = [], add = l => { if (!l) return; const c = legChance(l); if (c?.p != null) C.push({ l, p: c.p }); };
+  for (const side of ['home', 'away']) add(makeLeg(g.id, 'spread', side));
+  for (const side of ['over', 'under']) add(makeLeg(g.id, 'total', side));
+  const props = [];
+  for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) {
+    if (pr.pOver == null) continue;
+    if (pr.m === 'Anytime TD') { if (pr.pOver >= 0.3) props.push(makeLeg(g.id, 'prop', 'over', pl.id, pr.m)); continue; }
+    if (Math.abs(pr.pOver - 0.5) >= 0.06) props.push(makeLeg(g.id, 'prop', pr.pOver >= 0.5 ? 'over' : 'under', pl.id, pr.m));
+  }
+  props.forEach(add);
+  // our side of each bet only, strongest first, at most 14 so the search stays quick
+  const best = C.filter(x => x.p >= 0.5 || x.l.m === 'Anytime TD').sort((a, b) => b.p - a.p);
+  const seen = new Set(), out = [];
+  for (const x of best) { const k = x.l.kind === 'prop' ? x.l.pid + x.l.m : x.l.kind; if (seen.has(k)) continue; seen.add(k); out.push(x); if (out.length >= 14) break; }
+  return out;
+}
+function sgpJoint(xs) {   // joint chance with every measured pairwise correlation applied
+  let p = xs.reduce((a, x) => a * x.p, 1), f = 1;
+  for (let i = 0; i < xs.length; i++) for (let j = i + 1; j < xs.length; j++) {
+    const c = pairCorr(xs[i].l, xs[j].l); if (!c || !c.n) continue;
+    f *= Math.max(0.2, 1 + c.r * Math.sqrt((1 - xs[i].p) * (1 - xs[j].p) / (xs[i].p * xs[j].p)));
+  }
+  return Math.max(p * 0.25, Math.min(Math.min(...xs.map(x => x.p)), p * f));
+}
+function sgpBuild(g, mode) {
+  const C = sgpCandidates(g); if (C.length < 3) return null;
+  const sizes = mode === 'long' ? [4] : [3], combos = [];
+  const pick = (start, cur, n) => {
+    if (cur.length === n) {
+      const players = cur.filter(x => x.l.kind === 'prop').map(x => x.l.pid);
+      if (new Set(players).size < players.length) return;           // one leg per player keeps it readable
+      const p = sgpJoint(cur), d = cur.reduce((a, x) => a * amToDec(+x.l.odds || -110), 1);
+      combos.push({ xs: [...cur], p, d, ev: p * d - 1 }); return;
+    }
+    for (let i = start; i < C.length; i++) { cur.push(C[i]); pick(i + 1, cur, n); cur.pop(); }
+  };
+  sizes.forEach(n => pick(0, [], n));
+  if (!combos.length) return null;
+  const score = mode === 'safe' ? c => c.p : mode === 'value' ? c => (c.p >= 0.15 ? c.ev : -9) : c => (c.p >= 0.05 && c.d >= 8 ? c.ev : -9);
+  return combos.sort((a, b) => score(b) - score(a))[0];
+}
+function renderSGP() {
+  const box = $('#sgpBox'); if (!box) return;
+  const games = (S.slate?.games || []).filter(g => g.state === 'pre' && S.props?.[g.id]?.length).sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (!games.length) { box.innerHTML = ''; return; }
+  if (!games.some(g => g.id === SGP.game)) SGP.game = games[0].id;
+  const g = games.find(x => x.id === SGP.game), r = SGP.res;
+  box.innerHTML = `<div class="sgp"><h3>Build me a same-game parlay</h3>
+    <div class="row"><select id="sgpGame" aria-label="Game">${games.map(x => `<option value="${x.id}"${x.id === SGP.game ? ' selected' : ''}>${esc(x.away.abbr)} @ ${esc(x.home.abbr)} · ${kick(x)}</option>`).join('')}</select></div>
+    <div class="modes"><button class="btn${SGP.mode === 'safe' ? ' primary' : ''}" data-sgp="safe">Safest 3</button><button class="btn${SGP.mode === 'value' ? ' primary' : ''}" data-sgp="value">Best value 3</button><button class="btn${SGP.mode === 'long' ? ' primary' : ''}" data-sgp="long">Long shot 4</button></div>
+    ${r ? r.none ? `<div class="sgpres"><span class="note">Not enough strong reads in this game yet. Try another game, or check back when more props post.</span></div>` : `<div class="sgpres">
+      <ul>${r.xs.map(x => `<li>${x.l.team ? logo(x.l.team, 20) : ''}<b>${esc(x.l.label)}</b><span>${Math.round(x.p * 100)}%</span></li>`).join('')}</ul>
+      <div class="tot"><span>Hits <b>${Math.round(r.p * 100)}%</b></span><span>Pays about <b>${fmtOdds(Math.round(decToAm(r.d)))}</b></span><span class="note">Legs that tend to win together were favored. Books reprice same-game parlays, so check your app's price.</span></div>
+      <button class="btn primary" data-sgpload>Load into my parlay</button></div>` : '<p class="note" style="margin:8px 0 0">Pick a game and a style. We try every 3- or 4-leg mix of our strongest reads in that game and pick the best one.</p>'}</div>`;
+}
+document.addEventListener('click', e => {
+  const m = e.target.closest('[data-sgp]');
+  if (m) { const g = S.slate.games.find(x => x.id === SGP.game); SGP.mode = m.dataset.sgp; const r = g && sgpBuild(g, SGP.mode); SGP.res = r || { none: true }; renderSGP(); return; }
+  if (e.target.closest('[data-sgpload]') && SGP.res?.xs) {
+    if (PAR.legs.length) store.set('edge-parlay-backup', JSON.stringify(PAR.legs));
+    PAR.legs = SGP.res.xs.map(x => x.l); saveParlay(); renderSlip(); toast(`Loaded a ${PAR.legs.length}-leg same-game parlay`); return;
+  }
+  const gb = e.target.closest('[data-sgpgame]');
+  if (gb) { SGP.game = gb.dataset.sgpgame; SGP.mode = null; SGP.res = null; setTab('parlay'); renderSGP(); $('#sgpBox')?.scrollIntoView({ block: 'start' }); }
+});
+document.addEventListener('change', e => { if (e.target.id === 'sgpGame') { SGP.game = e.target.value; SGP.mode = null; SGP.res = null; renderSGP(); } });
+
 // ------------------------------------------------------------ TD parlay builder: every anytime-TD candidate, our chance vs the price
 // a TD price counts as value only when our chance beats it by this much: sportsbooks take a bigger cut than Kalshi's fee
 const TD_EDGE_BOOK = 0.05, TD_EDGE_KALSHI = 0.03;
@@ -2933,6 +3012,7 @@ function card(g) {
       ${live ? `<button data-tab-go="live">Follow live</button>` : ''}
       ${S.lineups?.[g.id] ? `<button data-lineup="${g.id}">Lineups</button>` : ''}
       ${S.props?.[g.id]?.length ? `<button data-props-go="${g.id}">Props</button>` : ''}
+      ${pre && S.props?.[g.id]?.length ? `<button data-sgpgame="${g.id}">Build SGP</button>` : ''}
       ${pre ? `<button data-track="${g.id}">Track a bet</button>` : ''}
     </div>
     <div class="detail">${open ? detail(g) : ''}</div>
@@ -3574,13 +3654,14 @@ function loadSharedSlip() {
   } catch (e) { toast('Could not read that shared link'); }
 }
 
-function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
+function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
 
 function setTab(t) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
   for (const v of ['live', 'picks', 'board', 'lineups', 'props', 'players', 'teams', 'shop', 'tds', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
   store.set('edge-tab', t);
   if (t === 'tds') renderTD();   // props may have loaded since it last drew
+  if (t === 'parlay') renderSGP();
 }
 document.querySelector('nav').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { setTab(b.dataset.tab); store.set('edge-tab-chosen', '1'); } });
 setInterval(() => { if (S.live && !S.localLive) renderLive(); }, 60000);
