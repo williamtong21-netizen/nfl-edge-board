@@ -1602,7 +1602,10 @@ function reportCard() {
 
 const PK = { allSides: false, allProps: false };
 document.addEventListener('click', e => {
-  const b = e.target.closest('[data-pk]'); if (b) { PK[b.dataset.pk] = true; renderPicks(); return; }
+  const b = e.target.closest('[data-pk]');
+  if (b) { const k = b.dataset.pk, wasOpen = PK[k]; PK[k] = !PK[k]; renderPicks();
+    if (wasOpen) $(k === 'allProps' ? '#picks h2:last-of-type' : '#picks h2')?.scrollIntoView({ block: 'start' });   // collapsing: jump back to the section
+    return; }
   const w = e.target.closest('[data-why]'); if (w) { const c = w.closest('.pick'); c.classList.toggle('why-open'); w.textContent = c.classList.contains('why-open') ? 'Why ▴' : 'Why ▾'; }
 });
 function renderPicks() {
@@ -1617,10 +1620,10 @@ function renderPicks() {
   queueMicrotask(() => { const m = $('#trapMount'), w = $('#trapWrap'); if (m && w) m.append(w); });
   const nS = PK.allSides ? 12 : 4, nP = PK.allProps ? 30 : 6;
   box.innerHTML = `${reportCard()}${sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, nS).map(pickCard).join('')}</div>
-    ${sides.length > nS ? `<button class="showmore" data-pk="allSides">Show all ${Math.min(12, sides.length)} game picks</button>` : ''}` : ''}
+    ${PK.allSides ? `<button class="showmore" data-pk="allSides">Show fewer game picks</button>` : sides.length > nS ? `<button class="showmore" data-pk="allSides">Show all ${Math.min(12, sides.length)} game picks</button>` : ''}` : ''}
     <div id="trapMount"></div>
     ${props.length ? `<h2 style="margin-top:22px">Player props</h2><div class="picks">${props.slice(0, nP).map(pickCard).join('')}</div>
-      ${props.length > nP ? `<button class="showmore" data-pk="allProps">Show all ${Math.min(30, props.length)} prop picks</button>` : ''}` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}`;
+      ${PK.allProps ? `<button class="showmore" data-pk="allProps">Show fewer prop picks</button>` : props.length > nP ? `<button class="showmore" data-pk="allProps">Show all ${Math.min(30, props.length)} prop picks</button>` : ''}` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}`;
 }
 function moveWarn(p) {
   if (!p.against) return '';
