@@ -241,6 +241,11 @@ def multibook_props(games, props, cfg):
             except Exception as e:
                 print("odds api props failed", g["id"], e, file=sys.stderr)
         save(os.path.join(DATA, "odds_props_cache.json"), cache)
+    attach_prop_books(props, cache)
+
+
+def attach_prop_books(props, cache, only=None):
+    """Adds each book's line, prices and bet-slip links to our props: pr['books'] = [{n, l, o, u, lo, lu}]."""
     for gid, rows in props.items():
         data = (cache.get(gid) or {}).get("data")
         if not data: continue
@@ -248,7 +253,7 @@ def multibook_props(games, props, cfg):
         for b in data.get("bookmakers", []):
             for m in b.get("markets", []):
                 ours = PROP_API_MARKETS.get(m["key"])
-                if not ours: continue
+                if not ours or (only and ours != only): continue
                 lines = {}
                 for oc in m.get("outcomes", []):
                     pl = by_player.get(norm_name(oc.get("description")))
@@ -263,7 +268,45 @@ def multibook_props(games, props, cfg):
                 for name, row in lines.items():
                     pl = by_player[norm_name(name)]
                     pr = next((p for p in pl["props"] if p["m"] == ours), None)
-                    if pr is not None: pr.setdefault("books", []).append(row)
+                    if pr is not None and not any(x["n"] == row["n"] for x in pr.get("books", [])): pr.setdefault("books", []).append(row)
+
+
+def multibook_tds(games, props, cfg):
+    """Anytime-TD prices and bet-slip links from every book, 1 credit per game: each game is pulled once on game day
+    (kickoff within 14 hours). On by default with an Odds API key; config "odds_api_tds": false or env ODDS_API_TDS=0
+    turns it off. Env ODDS_API_TDS_NOW=1 pulls every upcoming game this week right away."""
+    key = (cfg.get("odds_api_key") or os.environ.get("ODDS_API_KEY") or "").strip()
+    on = cfg.get("odds_api_tds", os.environ.get("ODDS_API_TDS", "1") != "0")
+    now_all = os.environ.get("ODDS_API_TDS_NOW") == "1"
+    cache = load("odds_td_cache.json", {})
+    now = datetime.now(timezone.utc)
+    if key and on:
+        due = []
+        for g in games:
+            kick = datetime.fromisoformat(g["date"].replace("Z", "+00:00"))
+            if g["state"] != "pre" or g["id"] not in props: continue
+            if not (now_all and kick - now < timedelta(days=8)) and not (kick - now < timedelta(hours=14)): continue
+            hit = cache.get(g["id"])
+            if hit and time.time() - hit["t"] < (6 if now_all else 20) * 3600: continue
+            due.append(g)
+        if due:
+            try: events = get("https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events?" + urlencode({"apiKey": key}))  # free call
+            except Exception as e: print("odds api events failed", e, file=sys.stderr); events = []
+            for g in due:
+                ev = next((e for e in events if e["home_team"] == g["home"]["full"] and e["away_team"] == g["away"]["full"]), None)
+                if not ev: continue
+                try:
+                    data = get(f"https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/{ev['id']}/odds?" + urlencode(
+                        {"apiKey": key, "regions": "us", "markets": "player_anytime_td", "oddsFormat": "american", "bookmakers": BOOKS, "includeLinks": "true"}))
+                    cache[g["id"]] = {"t": time.time(), "data": data}
+                except Exception as e:
+                    print("odds api tds failed", g["id"], e, file=sys.stderr)
+            save(os.path.join(DATA, "odds_td_cache.json"), cache)
+        # drop finished games so the cache stays small
+        live_ids = {g["id"] for g in games if g["state"] != "post"}
+        for gid in [k for k in cache if k not in live_ids]: cache.pop(gid, None)
+    attach_prop_books(props, cache, only="Anytime TD")
+    return sum(1 for g in games if g["id"] in cache)
 
 
 ALT_MARKETS = {"player_pass_yds_alternate": "Pass yds", "player_rush_yds_alternate": "Rush yds", "player_reception_yds_alternate": "Rec yds",
@@ -657,6 +700,7 @@ def main():
     # our own projections, betting trends and player pages
     pages = {}
     multibook_props(games, props, cfg)
+    multibook_tds(games, props, cfg)    # anytime-TD prices + bet-slip links, 1 credit per game on game day
     multibook_alts(games, props, cfg)   # every book's alternate ladders (paid-plan volume; off by default)
     try:
         kalshi_n = kalshi.apply(games, props)   # alternate-line ladders with real prices

@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#173326"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Edge Board"><script>window.__DATA_BASE="data/";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script><style>body{margin:0}</style></head><body><title>NFL Edge Board</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#06090d"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Edge Board"><script>window.__DATA_BASE="data/";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script><style>body{margin:0}</style></head><body><title>NFL Edge Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
@@ -2289,7 +2289,9 @@ function tdCandidates() {
       const pr = pl.props.find(x => x.m === 'Anytime TD'); if (!pr || pr.pOver == null) continue;
       const k = (pr.alt || []).find(a => a.l === 0.5), cost = k?.ya ? kCost(k.ya) : null;
       const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home, u = pl.u || {}, th = u.tdh || {};
-      out.push({ g, pl, pr, p: pr.pOver, team, opp, price: cost ? centsAm(cost) : null, edge: cost ? pr.pOver - cost : null,
+      const bk = (pr.books || []).filter(b => b.o != null).sort((a, b) => b.o - a.o)[0];   // best sportsbook price, when the TD feed has it
+      out.push({ g, pl, pr, p: pr.pOver, team, opp, price: cost ? centsAm(cost) : null, book: bk ? { n: bk.n, o: bk.o } : null,
+        edge: bk ? pr.pOver - impl(bk.o) : cost ? pr.pOver - cost : null,
         td: th.cur?.[1] ?? null, gp: th.cur?.[0] ?? null, tdPrev: th.prev?.[1] ?? null, gPrev: th.prev?.[0] ?? null,
         rz: u.g ? ((u.rz_t || 0) + (u.rz_c || 0)) / u.g : null, w: pr.tdw || null,
         rzRk: AN()[opp.abbr]?.def?.rk?.rz, dvpRk: AN()[opp.abbr]?.dvp?.[posGroup(pl.p)]?.rk?.td,
@@ -2371,7 +2373,7 @@ function renderTD() {
     ${c.slice(0, TDB.n).map(x => { const on = inPar(x.g.id, x.pl.id);
       return `<div class="tdrow">${logo(x.team.abbr, 26)}
         <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}</small>${l10(x)}${mu(x)}</div>
-        <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.price != null ? ` · Kalshi ${fmtOdds(x.price)}` : ''}${x.edge != null && x.edge >= 0.03 ? ' · <span class="val">value</span>' : ''}</small></div>
+        <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · Kalshi ${fmtOdds(x.price)}` : ''}${x.edge != null && x.edge >= 0.03 ? ' · <span class="val">value</span>' : ''}</small></div>
         <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>
         ${TDB.open.has(x.pl.id) && x.last.length ? tdLog(x) : ''}</div>`; }).join('')}
     ${c.length > TDB.n ? `<button class="btn small" data-tdmore style="margin-top:8px">Show more (${c.length - TDB.n})</button>` : ''}
@@ -2628,7 +2630,7 @@ function combineLinks(book, links) {   // one bet slip with every selection, whe
       const q = links.map((u, i) => { const p = new URL(u).searchParams; return `marketId[${i}]=${encodeURIComponent(p.get('marketId'))}&selectionId[${i}]=${encodeURIComponent(p.get('selectionId'))}`; });
       return 'https://sportsbook.fanduel.com/addToBetslip?' + q.join('&');
     }
-    if (book === 'DraftKings') return 'https://sportsbook.draftkings.com/?outcomes=' + links.map(u => new URL(u).searchParams.get('outcomes')).join('+');
+    if (book === 'DraftKings') return 'https://sportsbook.draftkings.com/?outcomes=' + links.map(u => encodeURIComponent(new URL(u).searchParams.get('outcomes'))).join('+');   // ids can contain '#'
     if (book === 'BetMGM') { const opts = links.map(u => new URL(u.replace('{state}', 'x')).searchParams.get('options')); return `https://sports.${MGM_STATE()}.betmgm.com/en/sports?options=${opts.join(',')}&type=Combo`; }
   } catch (e) {}
   return null;

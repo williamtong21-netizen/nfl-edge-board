@@ -4,8 +4,8 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#eef1ee",
-  "theme_color": "#173326",
+  "background_color": "#0a0e13",
+  "theme_color": "#06090d",
   "description": "Lines, props, injuries, lineups and live tracking for NFL games.",
   "icons": [
     {
@@ -17,7 +17,13 @@
       "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
