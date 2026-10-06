@@ -634,6 +634,9 @@ details.moreangles{margin-top:22px;border:1px solid var(--line);border-radius:va
 details.moreangles > summary{cursor:pointer;font:800 18px var(--f-display);letter-spacing:1px;text-transform:uppercase;list-style:none}
 details.moreangles > summary::after{content:" ▾";color:var(--muted)}details.moreangles[open] > summary::after{content:" ▴"}
 .tdlog .mu{margin:0 0 8px}
+.partbook{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:12px;background:var(--surface2);flex-basis:100%}
+.partbook .sendbook{align-self:flex-start}.partbook .on{color:var(--good)}.partbook .off{color:var(--muted)}
+.partbook small{font-size:12px;line-height:1.45}
 </style>
 
 <header>
@@ -2679,12 +2682,22 @@ function sendButtons(legs, compact, prefer) {   // compact: true on pick cards, 
   let full = books.filter(b => per.every(o => o[b])).map(b => ({ b, url: combineLinks(b, per.map(o => o[b])) })).filter(x => x.url).sort((a, b) => rank(a.b) - rank(b.b));
   if (compact) full = full.slice(0, 2);   // cards: your book plus one more
   const partial = books.filter(b => !full.some(f => f.b === b));
+  const legName = l => esc((l.label || '').replace(/ anytime TD$/, ' TD'));
+  const partHtml = compact === true || legs.length < 2 ? '' : partial.map(b => {
+    const on = legs.map((l, i) => per[i][b] ? i : -1).filter(i => i >= 0), off = legs.map((l, i) => i).filter(i => !per[i][b]);
+    const url = on.length ? combineLinks(b, on.map(i => per[i][b])) : null;
+    return url ? { b, on, off, url } : null;
+  }).filter(Boolean).sort((a, b) => b.on.length - a.on.length || rank(a.b) - rank(b.b)).map(x => `<div class="partbook">
+      <a class="sendbook ${BOOK_CLS[x.b] || ''}" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.b)} · ${x.on.length} of ${legs.length} legs ↗</a>
+      <small><span class="on">✓ Goes in the slip:</span> ${x.on.map(i => legName(legs[i])).join(', ')}</small>
+      <small><span class="off">✗ Not on ${esc(x.b)}:</span> ${x.off.map(i => legName(legs[i])).join(', ')}. Add ${x.off.length > 1 ? 'those' : 'that one'} at another book or leave ${x.off.length > 1 ? 'them' : 'it'} out. The payout will differ from your ticket.</small>
+    </div>`).join('');
   if (!full.length && !partial.length && !legs.some(kalshiUrl) && compact === 'ticket') return `<div class="sendrow"><span class="note">No bet-slip link for this ticket${legs.some(l => l.kind === 'prop') ? ': player props (including TDs) need the props odds feed' : ' yet'}.</span></div>`;
   if (!full.length && !partial.length && !legs.some(kalshiUrl)) return compact ? '' : `<div class="sendrow"><span class="note">No bet-slip links for ${legs.length > 1 ? 'these legs' : 'this bet'} yet. Books share links for game lines${S.props && legs.some(l => l.kind === 'prop') ? '; player props (including TDs) need the paid props feed' : ''}.</span></div>`;
   const kx = legs.map(kalshiUrl), kxHtml = !kx.some(Boolean) ? '' : legs.length === 1 ? `<a class="sendbook kx" href="${esc(kx[0])}" target="_blank" rel="noopener">Open on Kalshi ↗</a>`
     : compact === true ? '' : `<span class="kxrow"><span class="note">Kalshi (one market at a time):</span>${legs.map((l, i) => kx[i] ? kxLink(kx[i], (l.label || '').replace(/ anytime TD$/, ' TD')) : '').join('')}</span>`;
   return `<div class="sendrow">${full.map(f => `<a class="sendbook ${BOOK_CLS[f.b] || ''}" href="${esc(f.url)}" target="_blank" rel="noopener">Bet at ${esc(f.b)} ↗</a>`).join('')}${kxHtml}
-    ${!compact && partial.length ? `<span class="note">${esc(partial.join(', '))} ${partial.length > 1 ? 'have' : 'has'} links for some legs only.</span>` : ''}
+    ${partHtml}
     ${!compact ? `<span class="note">Opens the book with ${legs.length > 1 ? 'your legs' : 'the bet'} in the slip. Check the line and price there, then place it yourself.${full.some(f => f.b === 'BetMGM') ? ` BetMGM state: <select id="mgmState">${['az','co','dc','ia','il','in','ks','ky','la','ma','md','mi','nc','nj','ny','oh','pa','tn','va','wv','wy'].map(x => `<option${x === MGM_STATE() ? ' selected' : ''}>${x}</option>`).join('')}</select>` : ''}</span>` : ''}</div>`;
 }
 
