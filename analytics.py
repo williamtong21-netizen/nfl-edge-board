@@ -138,6 +138,8 @@ def player_usage(season, espn_ids):
     gsis = {p["gsis_id"]: e for e, p in by_espn.items() if p.get("gsis_id")}
     pfr = {p["pfr_id"]: e for e, p in by_espn.items() if p.get("pfr_id")}
     weekly = defaultdict(dict)  # espn id -> {(season, week): {...}}
+    tdh = defaultdict(lambda: defaultdict(lambda: [0, 0]))   # espn id -> season -> [games, rush+rec TDs]; "team" -> season -> team
+    for _e in espn_ids: tdh[_e]["team"] = {}
     for yr, age in ((season, 6 * 3600), (season - 1, 30 * 86400)):
         try:
             snaps = rows(f"snap_counts/snap_counts_{yr}.csv", age)
@@ -153,6 +155,9 @@ def player_usage(season, espn_ids):
             e = gsis.get(w.get("player_id"))
             if not e: continue
             car = f(w.get("carries")) or 0
+            if w.get("season_type", "REG") == "REG":
+                tdh[e]["team"][yr] = fix(w.get("team") or "")
+                t_ = tdh[e][yr]; t_[0] += 1; t_[1] += int((f(w.get("rushing_tds")) or 0) + (f(w.get("receiving_tds")) or 0))
             weekly[e].setdefault((yr, i(w["week"])), {}).update({
                 "tgt": i(w.get("targets")), "ts": r2(f(w.get("target_share")), 2), "car": int(car),
                 "rs": r2(car / team_car[(w.get("team"), w.get("week"))], 2) if team_car[(w.get("team"), w.get("week"))] else None})
@@ -203,6 +208,10 @@ def player_usage(season, espn_ids):
             u.update({"dbpg": r2(a["db"] / g, 1), "epd": r2(a["qepa"] / a["db"]), "cpoe": r2(a["cpoe"] / a["cpoe_n"], 1) if a["cpoe_n"] else None,
                       "qadot": r2(a["qair"] / a["att"], 1) if a["att"] else None, "skr": r2(a["sk"] / a["db"])})
         season_out[e] = u
+    for e, by in tdh.items():
+        tm = by.get("team") or {}
+        season_out.setdefault(e, {})["tdh"] = {"cur": by.get(season, [0, 0]), "prev": by.get(season - 1, [0, 0])}
+        if tm.get(season - 1) and tm.get(season) and tm[season - 1] != tm[season]: season_out[e]["moved"] = tm[season - 1]
     for e, wk in weekly.items():
         snaps = [v["snap"] for (y, _), v in wk.items() if y == season and v.get("snap") is not None]
         if snaps: season_out.setdefault(e, {})["snap"] = r2(mean(snaps), 2)

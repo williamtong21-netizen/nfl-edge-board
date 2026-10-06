@@ -503,6 +503,16 @@ details.nerd .usage{border-bottom:0}
 .pick .mwarn{display:flex;gap:8px;align-items:flex-start;margin:8px 0;padding:8px 10px;border-radius:10px;font-size:13px;line-height:1.4;
   background:color-mix(in srgb,var(--gold) 14%,var(--surface));color:var(--ink);border:1px solid color-mix(in srgb,var(--gold) 40%,var(--surface))}
 .pick .mwarn b{color:var(--gold)}.pick .mwarn.hard{background:var(--bad-soft);border-color:color-mix(in srgb,var(--bad) 40%,var(--surface))}.pick .mwarn.hard b{color:var(--bad)}
+.tdb{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px 14px;margin:6px 0 18px}
+.tdb-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.tdb-h h3{margin:0}
+.tdb-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.tdb-quick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tdrow{display:grid;grid-template-columns:28px minmax(0,1fr) auto auto;gap:4px 10px;align-items:center;padding:8px 2px;border-top:1px solid var(--line)}
+.tdrow .who{min-width:0}.tdrow .who b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tdrow .who small{color:var(--muted);font-size:11.5px}
+.tdrow .pct{font:700 15px var(--f-mono);text-align:right}.tdrow .pct small{display:block;font:500 11px var(--f-body);color:var(--muted)}
+.tdrow .val{color:var(--good);font-weight:600}.tdrow .addp.on{background:var(--accent-soft);border-style:solid}
+@media (max-width:520px){.tdrow{grid-template-columns:24px minmax(0,1fr) auto}.tdrow .addp{grid-column:2/-1;justify-self:start}}
 </style>
 
 <header>
@@ -627,6 +637,7 @@ details.nerd .usage{border-bottom:0}
   <div id="view-parlay" hidden>
     <div class="toolbar"><h2 style="margin:0">Parlay builder</h2></div>
     <p class="note">Add legs from anywhere (picks, props, alternate-line ladders, game details), switch any leg to an alternate line, enter your app's odds if they differ, then grade it.</p>
+    <div id="tdBuilder"></div>
     <div id="parlay"></div>
   </div>
 
@@ -2030,7 +2041,7 @@ function marketChance(leg, g) {
   if (leg.kind === 'prop') { const { pr } = findProp(leg.gid, leg.pid, leg.m); if (!pr) return null;
     const pts = ladderCurve(pr); let c;
     if (pts.length >= 3) c = curveAt(pts, leg.line);
-    else if (pr.m === 'Anytime TD') c = null;
+    else if (pr.m === 'Anytime TD') c = pr.pOver ?? null;   // no market ladder: our own chance stands in
     else { const d = DISTJS[pr.m] || ['ln', .5], mu = d[0] === 'ln' ? pr.l * Math.sqrt(1 + d[1] ** 2) : d[0] === 'po' ? pr.l + 1 / 3 : pr.l;
       c = propChance({ ...pr, alt: null, proj: mu }, leg.line); }
     return c == null ? null : leg.side === 'over' ? c : 1 - c; }
@@ -2063,7 +2074,7 @@ function refreshLeg(leg) {
   leg.priced = !!pr || leg.manual;
   if (!leg.manual) {
     if (pr) { leg.odds = pr.odds; leg.book = pr.book; leg.est = false; }
-    else { const m = marketChance(leg, g); leg.odds = m != null ? fairAm(Math.min(0.97, m * 1.045)) : -110; leg.book = null; leg.est = true; }
+    else { const m = marketChance(leg, g); leg.odds = m != null ? fairAm(Math.min(0.97, m * (leg.m === 'Anytime TD' ? 1.1 : 1.045))) : -110; /* books take a bigger cut on TD props */ leg.book = null; leg.est = true; }
   }
   leg.id = [leg.gid, leg.kind, leg.side, leg.pid || leg.team || '', leg.m || '', leg.line ?? ''].join('|');
   leg.label = legLabel(leg, g); leg.sub = `${g.away.abbr} @ ${g.home.abbr}${leg.book ? ' · ' + leg.book : leg.priced ? '' : ' · estimated price, enter yours'}`;
@@ -2150,7 +2161,72 @@ function gradeReport(legs) {
 }
 
 const PAR_VIEW = { graded: false };
+// ------------------------------------------------------------ TD parlay builder: every anytime-TD candidate, our chance vs the price
+const TDB = { game: 'all', pos: 'all', sort: 'chance', n: 25 };
+function tdCandidates() {
+  const out = [], now = Date.now();
+  for (const g of (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > now - 3600e3))
+    for (const pl of S.props?.[g.id] || []) {
+      const pr = pl.props.find(x => x.m === 'Anytime TD'); if (!pr || pr.pOver == null) continue;
+      const k = (pr.alt || []).find(a => a.l === 0.5), cost = k?.ya ? kCost(k.ya) : null;
+      const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home, u = pl.u || {}, th = u.tdh || {};
+      out.push({ g, pl, pr, p: pr.pOver, team, opp, price: cost ? centsAm(cost) : null, edge: cost ? pr.pOver - cost : null,
+        td: th.cur?.[1] ?? null, gp: th.cur?.[0] ?? null, tdPrev: th.prev?.[1] ?? null, gPrev: th.prev?.[0] ?? null,
+        rz: u.g ? ((u.rz_t || 0) + (u.rz_c || 0)) / u.g : null });
+    }
+  return out;
+}
+const inPar = (gid, pid) => PAR.legs.some(l => l.kind === 'prop' && l.gid === gid && l.pid === pid && l.m === 'Anytime TD');
+function tdQuick(kind) {
+  let c = tdCandidates().filter(x => x.p >= 0.2);
+  const pick = [];
+  const take = (list, n, perGame) => { for (const x of list) { if (pick.length >= n) break; if (perGame && pick.some(y => y.g.id === x.g.id)) continue; if (!pick.some(y => y.pl.id === x.pl.id)) pick.push(x); } };
+  if (kind === 'safe2') take(c.sort((a, b) => b.p - a.p), 2);
+  if (kind === 'safe3') take(c.sort((a, b) => b.p - a.p), 3);
+  if (kind === 'value') take(c.filter(x => x.edge != null && x.edge > 0).sort((a, b) => b.edge - a.edge), 3);
+  if (kind === 'spread') take(c.sort((a, b) => b.p - a.p), 4, true);
+  if (!pick.length) { toast(kind === 'value' ? 'No priced TD props beat their price right now' : 'Not enough TD candidates yet'); return; }
+  let n = 0; for (const x of pick) if (!inPar(x.g.id, x.pl.id)) { const l = makeLeg(x.g.id, 'prop', 'over', x.pl.id, 'Anytime TD'); if (l) { PAR.legs.push(l); n++; } }
+  saveParlay(); renderSlip(); toast(n ? `Added ${n} TD leg${n > 1 ? 's' : ''}` : 'Those are already in your parlay');
+}
+function renderTD() {
+  const box = $('#tdBuilder'); if (!box) return;
+  let c = tdCandidates();
+  if (!c.length) { box.innerHTML = `<div class="tdb"><div class="tdb-h"><h3>TD parlay builder</h3><span class="note">Anytime touchdown props show up here once books post them.</span></div></div>`; return; }
+  const games = [...new Map(c.map(x => [x.g.id, x.g])).values()].sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (TDB.game !== 'all') c = c.filter(x => x.g.id === TDB.game);
+  if (TDB.pos !== 'all') c = c.filter(x => posGroup(x.pl.p) === TDB.pos);
+  c.sort(TDB.sort === 'value' ? (a, b) => (b.edge ?? -9) - (a.edge ?? -9) || b.p - a.p : (a, b) => b.p - a.p);
+  const tdS = x => x.gp != null ? `${x.td} TD in ${x.gp} G this year${x.gPrev ? ` · ${x.tdPrev} in ${x.gPrev} last year` : ''}` : '';
+  box.innerHTML = `<div class="tdb"><div class="tdb-h"><h3>TD parlay builder</h3><span class="note">Our chance each player scores, from his scoring rate (this season and last), red-zone looks, and share of the offense times his team's projected points.</span></div>
+    <div class="tdb-bar">
+      <select id="tdbGame" aria-label="Game"><option value="all">All upcoming games</option>${games.map(g => `<option value="${g.id}"${TDB.game === g.id ? ' selected' : ''}>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</option>`).join('')}</select>
+      ${['all', 'RB', 'WR', 'TE', 'QB'].map(k => `<button class="chip" data-tdpos="${k}" aria-pressed="${TDB.pos === k}">${k === 'all' ? 'All' : k}</button>`).join('')}
+      <select id="tdbSort" aria-label="Sort"><option value="chance"${TDB.sort === 'chance' ? ' selected' : ''}>Most likely</option><option value="value"${TDB.sort === 'value' ? ' selected' : ''}>Best value vs price</option></select>
+    </div>
+    <div class="tdb-quick"><span class="note">Quick build:</span>
+      <button class="btn small" data-tdquick="safe2">Safest 2</button><button class="btn small" data-tdquick="safe3">Safest 3</button>
+      <button class="btn small" data-tdquick="spread">Top scorer, 4 games</button><button class="btn small" data-tdquick="value">Best value 3</button></div>
+    ${c.slice(0, TDB.n).map(x => { const on = inPar(x.g.id, x.pl.id);
+      return `<div class="tdrow">${logo(x.team.abbr, 26)}
+        <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}${x.rz != null && x.rz >= 0.5 ? ` · ${x.rz.toFixed(1)} red-zone looks/G` : ''}</small></div>
+        <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.price != null ? ` · Kalshi ${fmtOdds(x.price)}` : ''}${x.edge != null && x.edge >= 0.03 ? ' · <span class="val">value</span>' : ''}</small></div>
+        <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button></div>`; }).join('')}
+    ${c.length > TDB.n ? `<button class="btn small" data-tdmore style="margin-top:8px">Show more (${c.length - TDB.n})</button>` : ''}
+    <p class="note" style="margin-top:8px">"Fair" is the price that would be break-even at our chance. If your book pays more than that, the leg is worth it on its own. Touchdowns are long shots: even a 4-leg ticket of strong scorers usually misses, so size it small.</p></div>`;
+}
+document.addEventListener('change', e => {
+  if (e.target.id === 'tdbGame') { TDB.game = e.target.value; renderTD(); }
+  if (e.target.id === 'tdbSort') { TDB.sort = e.target.value; renderTD(); }
+});
+document.addEventListener('click', e => {
+  const p = e.target.closest('[data-tdpos]'); if (p) { TDB.pos = p.dataset.tdpos; renderTD(); return; }
+  const q = e.target.closest('[data-tdquick]'); if (q) { tdQuick(q.dataset.tdquick); return; }
+  if (e.target.closest('[data-tdmore]')) { TDB.n += 25; renderTD(); }
+});
+
 function renderParlay() {
+  renderTD();
   const box = $('#parlay'); if (!box) return;
   PAR.legs = PAR.legs.map(l => l.kind ? l : null).filter(Boolean);
   if (!PAR.legs.length) { box.innerHTML = `<div class="empty"><b>Your parlay is empty</b>Tap “+ Parlay” on any pick, prop, ladder rung or game, and the legs land here. Then grade it.</div>`; return; }
@@ -2919,6 +2995,7 @@ function setTab(t) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
   for (const v of ['live', 'picks', 'board', 'lineups', 'props', 'players', 'teams', 'shop', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
   store.set('edge-tab', t);
+  if (t === 'parlay') renderTD();   // props may have loaded since the parlay last drew
 }
 document.querySelector('nav').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { setTab(b.dataset.tab); store.set('edge-tab-chosen', '1'); } });
 setInterval(() => { if (S.live && !S.localLive) renderLive(); }, 60000);

@@ -18,7 +18,9 @@ ANCHOR = 0.6         # props: how far we move from the book's line toward our ra
 LC_BACK_W = 0.4      # props: weight on a teammate's games played while a now-returning key player was out (his volume was inflated)
 LC_OUT_W = 0.6       # props: weight on a teammate's games played alongside a key player who is out this week
 TD_PER_PT = 0.105    # offensive touchdowns per projected point (about 2.4 TDs in a 23-point game)
-TD_FLOOR = {"RB": 0.07, "WR": 0.05, "TE": 0.05, "QB": 0.03}   # lowest TD rate (per game) we'll give a player with a prop line
+TD_FLOOR = {"RB": 0.07, "WR": 0.05, "TE": 0.05, "QB": 0.06}   # lowest TD rate (per game) we'll give a player with a prop line
+RZ_T_TD, RZ_C_TD = 0.25, 0.13   # touchdowns per red-zone target / red-zone carry (league-wide)
+QB_TD_PER_CARRY = 0.035  # QB rushing TDs per carry, sneaks and scrambles included
 TD_PASS = 0.6        # share of offensive touchdowns that come through the air
 LC_SHARE = 0.5       # props: share of an out player's targets/carries we hand to a teammate in proportion to his own share
 
@@ -125,13 +127,16 @@ TILT_TO_VOLUME = 0.6   # how much of that pass-rate tilt shows up in a player's 
 
 
 def team_styles(an):
+    co = (an or {}).get("coaches") or {}
     """Offense: pass-heavy / run-heavy / balanced. Defense: pass funnel (teams throw on it) / run funnel / neutral.
     Early-season samples are shrunk toward average before labeling."""
     for t, v in (an or {}).get("teams", {}).items():
         o, d = v.get("off"), v.get("def")
         if not o or not d: continue
         w = o["g"] / (o["g"] + 3)
-        op, dp = w * (o.get("proe") or 0), w * (d.get("proe") or 0)
+        sysd = (co.get(t) or {}).get("sys") or {}
+        op = w * (o.get("proe") or 0) + (1 - w) * (sysd.get("op") or 0)    # new coach: his old system fills in early
+        dp = w * (d.get("proe") or 0) + (1 - w) * (sysd.get("dp") or 0)
         v["style"] = {"off": "pass-heavy" if op >= STYLE_CUT else "run-heavy" if op <= -STYLE_CUT else "balanced",
                       "def": "pass funnel" if dp >= STYLE_CUT else "run funnel" if dp <= -STYLE_CUT else "neutral",
                       "op": round(op, 3), "dp": round(dp, 3)}
@@ -178,7 +183,7 @@ def prop_projections(props, games, an, season):
                 env = max(0.85, min(1.15, 1 + 0.3 * (mine / team["stats"]["totalPointsPerGame"] - 1)))
             u = pl.get("u") or {}
             coach = ((an or {}).get("coaches") or {}).get(team["abbr"]) or {}
-            prev_w = 0.3 if coach.get("yrs") == 1 else 0.6      # new head coach: last season's usage tells us less
+            prev_w = 0.3 if coach.get("yrs") == 1 or (pl.get("u") or {}).get("moved") else 0.6   # new head coach or new team: last season tells us less
             shrink_p = SHRINK_P - (0.05 if coach.get("yrs") == 1 else 0)
             wxm = (g.get("sit") or {}).get("wx") or {}
             # lineup changes around this player: reweight his games and shift volume toward or away from him
@@ -240,18 +245,26 @@ def prop_projections(props, games, an, season):
                 if opp_v is not None and lg.get(dk):
                     mult = max(0.85, min(1.15, 1 + 0.5 * (opp_v / lg[dk] - 1)))
                 if pr["m"] == "Anytime TD":
-                    # three reads blended: his recent TDs, his red-zone looks, and his share of the offense times the
-                    # touchdowns his team should score tonight (so a regular with no TDs yet isn't rated near zero)
-                    hist = base * mult * env
-                    looks = ((u.get("rz_t") or 0) + (u.get("rz_c") or 0)) / u["g"] if u.get("g") else None
+                    # three reads blended: his scoring rate over this season and all of last (last year counts less, so a
+                    # proven scorer in a dry spell isn't written off), his red-zone looks, and his share of the offense times
+                    # the touchdowns his team should score tonight (so a regular with no TDs yet isn't rated near zero)
+                    th = u.get("tdh") or {}
+                    c, pv = th.get("cur") or [0, 0], th.get("prev") or [0, 0]
+                    g_all = c[0] + prev_w * pv[0]
+                    hist = ((c[1] + prev_w * pv[1]) / g_all if g_all >= 3 else base) * mult * env
+                    looks = (RZ_T_TD * (u.get("rz_t") or 0) + RZ_C_TD * (u.get("rz_c") or 0)) / u["g"] if u.get("g") else None
                     usage = None
                     if g.get("proj"):
                         mine = g["proj"]["h"] if side == "home" else g["proj"]["a"]
                         us = [r.get("us") or {} for r in pl["log"] if r["y"] == season]
                         ts = u.get("ts") if u.get("ts") is not None else (sum(x.get("ts") or 0 for x in us) / len(us) if us else 0)
                         rs = u.get("rsh") if u.get("rsh") is not None else (sum(x.get("rs") or 0 for x in us) / len(us) if us else 0)
-                        if ts or rs: usage = TD_PER_PT * mine * (TD_PASS * (ts or 0) + (1 - TD_PASS) * (rs or 0)) * mult
-                    parts = [(0.35, hist)] + ([(0.25, 0.17 * looks * env)] if looks is not None else []) + ([(0.4, usage)] if usage is not None else [])
+                        if pos == "QB":   # QBs only score this prop running: expected carries x a QB's TD rate per carry, scaled by scoring
+                            car = next((x["l"] for x in pl["props"] if x["m"] == "Carries"), None) or u.get("cpg")
+                            if car: usage = QB_TD_PER_CARRY * car * env * mult
+                        elif ts or rs: usage = TD_PER_PT * mine * (TD_PASS * (ts or 0) + (1 - TD_PASS) * (rs or 0)) * mult
+                    thin = g_all < 3 and usage is not None      # too few games to trust his own TD rate: lean on usage
+                    parts = ([] if thin else [(0.35, hist)]) + ([(0.25, looks * env)] if looks is not None else []) + ([(0.4, usage)] if usage is not None else [])
                     lam = min(sum(w * v for w, v in parts) / sum(w for w, _ in parts), 1.2)
                     lam = max(lam, TD_FLOOR.get(pos, 0.04))   # anyone getting a prop line plays; nobody is a true zero
                     pr["proj"] = round(lam, 2)

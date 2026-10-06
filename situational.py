@@ -28,6 +28,33 @@ def _sched():
     return rows("schedules/games.csv", 6 * 3600)
 
 
+# Where each first-year head coach last called plays or ran a unit. Head-coach history comes from the schedule file;
+# coordinator jobs aren't in any free data feed, so they're listed here (update each offseason).
+COACH_SYSTEM = {
+    "Todd Monken": ("off", "BAL", 2025, "offensive coordinator"),
+    "Klint Kubiak": ("off", "SEA", 2025, "offensive coordinator"),
+    "Mike McCarthy": ("off", "DAL", 2024, "head coach and play-caller"),
+    "Jesse Minter": ("def", "LAC", 2025, "defensive coordinator"),
+    "Jeff Hafley": ("def", "GB", 2025, "defensive coordinator"),
+    "Robert Saleh": ("def", "SF", 2025, "defensive coordinator"),
+    "John Harbaugh": ("both", "BAL", 2025, "head coach"),
+}
+SYSTEM_TRUST = 0.7   # how much of his old unit's lean we expect him to bring along
+
+
+def _pass_rates(season):
+    """Each team's dropback rate on offense and allowed on defense that season, minus the league rate (from weekly stats)."""
+    try: ws = [w for w in rows(f"stats_player/stats_player_week_{season}.csv", 60 * 86400) if w.get("season_type") == "REG"]
+    except Exception: return {}
+    o, d = defaultdict(lambda: [0.0, 0.0]), defaultdict(lambda: [0.0, 0.0])
+    for w in ws:
+        db = (f(w.get("attempts")) or 0) + (f(w.get("sacks_suffered")) or 0); car = f(w.get("carries")) or 0
+        for tbl, t in ((o, fix(w["team"])), (d, fix(w.get("opponent_team") or ""))):
+            tbl[t][0] += db; tbl[t][1] += db + car
+    lg = sum(v[0] for v in o.values()) / max(1, sum(v[1] for v in o.values()))
+    return {t: {"op": o[t][0] / o[t][1] - lg if o[t][1] else 0, "dp": d[t][0] / d[t][1] - lg if d[t][1] else 0} for t in o}
+
+
 def coaches(season):
     seen = defaultdict(dict)
     for g in _sched():
@@ -41,6 +68,17 @@ def coaches(season):
         yrs, y = 0, season
         while by.get(y) == cur: yrs += 1; y -= 1
         out[t] = {"n": cur, "yrs": yrs, "since": season - yrs + 1, "prev": by.get(season - yrs)}
+    cache = {}
+    for t, c in out.items():
+        sysd = COACH_SYSTEM.get(c["n"]) if c["yrs"] == 1 else None
+        if not sysd: continue
+        side, team, yr, role = sysd
+        if yr not in cache: cache[yr] = _pass_rates(yr)
+        r = cache[yr].get(team)
+        if not r: continue
+        c["sys"] = {"side": side, "team": team, "yr": yr, "role": role,
+                    "op": round(r["op"] * SYSTEM_TRUST, 3) if side in ("off", "both") else None,
+                    "dp": round(r["dp"] * SYSTEM_TRUST, 3) if side in ("def", "both") else None}
     return out
 
 
