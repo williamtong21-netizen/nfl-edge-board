@@ -170,6 +170,7 @@ def player_usage(season, espn_ids):
     # season-level efficiency from this season's play-by-play
     pbp = [p for p in rows(f"pbp/play_by_play_{season}.csv.gz", 6 * 3600) if p.get("season_type") == "REG"]
     team_tgt, team_air, team_car = defaultdict(float), defaultdict(float), defaultdict(float)
+    team_gl = defaultdict(float)   # carries inside the 5, per team-game
     acc = defaultdict(lambda: defaultdict(float))
     games = defaultdict(set)
     for p in pbp:
@@ -179,7 +180,9 @@ def player_usage(season, espn_ids):
         tg = (team, p["game_id"])   # team totals per game, so shares only count games the player actually played
         if p.get("pass") == "1" and p.get("receiver_player_id"):
             team_tgt[tg] += 1; team_air[tg] += air or 0
-        if p.get("rush") == "1" and p.get("rusher_player_id"): team_car[tg] += 1
+        if p.get("rush") == "1" and p.get("rusher_player_id"):
+            team_car[tg] += 1
+            if yl is not None and yl <= 5: team_gl[tg] += 1
         if rid:
             a = acc[rid]; a["tgt"] += 1; a["air"] += air or 0; a["team"] = team; games[rid].add(p["game_id"])
             a["rec"] += 1 if p.get("complete_pass") == "1" else 0; a["yac"] += f(p.get("yards_after_catch")) or 0
@@ -200,6 +203,7 @@ def player_usage(season, espn_ids):
     for e, a in acc.items():
         t, g = a["team"], max(1, len(games[e]))
         tt = sum(team_tgt[(t, gid)] for gid in games[e]); ta = sum(team_air[(t, gid)] for gid in games[e]); tc = sum(team_car[(t, gid)] for gid in games[e])
+        tgl = sum(team_gl[(t, gid)] for gid in games[e])
         u = {"g": g}
         if a["tgt"]:
             ts, ash = a["tgt"] / tt if tt else None, a["air"] / ta if ta else None
@@ -208,7 +212,8 @@ def player_usage(season, espn_ids):
                       "ept": r2(a["repa"] / a["tgt"]), "rz_t": int(a["rz_t"]), "ez_t": int(a["ez_t"])})
         if a["car"]:
             u.update({"cpg": r2(a["car"] / g, 1), "rsh": r2(a["car"] / tc) if tc else None, "ypc": r2(a["ryd"] / a["car"], 1),
-                      "epr": r2(a["uepa"] / a["car"]), "rsr": r2(a["usr"] / a["car"]), "rz_c": int(a["rz_c"]), "gl_c": int(a["gl_c"])})
+                      "epr": r2(a["uepa"] / a["car"]), "rsr": r2(a["usr"] / a["car"]), "rz_c": int(a["rz_c"]), "gl_c": int(a["gl_c"]),
+                      "gls": r2(a["gl_c"] / tgl, 2) if tgl >= 2 else None})   # his share of the team's goal-line carries
         if a["db"]:
             u.update({"dbpg": r2(a["db"] / g, 1), "epd": r2(a["qepa"] / a["db"]), "cpoe": r2(a["cpoe"] / a["cpoe_n"], 1) if a["cpoe_n"] else None,
                       "qadot": r2(a["qair"] / a["att"], 1) if a["att"] else None, "skr": r2(a["sk"] / a["db"])})
@@ -219,6 +224,9 @@ def player_usage(season, espn_ids):
         if tm.get(season - 1) and tm.get(season) and tm[season - 1] != tm[season]: season_out[e]["moved"] = tm[season - 1]
     for e, wk in weekly.items():
         snaps = [v["snap"] for (y, _), v in wk.items() if y == season and v.get("snap") is not None]
+        prev = [v["snap"] for (y, _), v in wk.items() if y == season - 1 and v.get("snap") is not None]
+        if snaps: season_out.setdefault(e, {})["gp"] = sum(1 for x in snaps if x > 0)
+        if prev: season_out.setdefault(e, {})["snap_prev"] = r2(mean(prev), 2)
         if snaps: season_out.setdefault(e, {})["snap"] = r2(mean(snaps), 2)
     return {"season": season_out, "weekly": {e: {f"{y}-{w}": v for (y, w), v in wk.items()} for e, wk in weekly.items()}}
 

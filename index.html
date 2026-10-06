@@ -516,6 +516,13 @@ details.nerd .usage{border-bottom:0}
 .tdrow .mu{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:3px;font-size:11.5px;color:var(--muted)}
 .tdrow .mu .mchip{padding:0 6px;border-radius:999px;font-weight:600}
 .tdb-sort-note{font-size:11.5px;color:var(--muted)}
+.tdl10{display:flex;align-items:center;gap:3px;margin-top:4px;font-size:11.5px;color:var(--muted)}
+.tdl10 i{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;font:700 9.5px var(--f-mono);font-style:normal;
+  border:1.5px solid var(--line);color:transparent}
+.tdl10 i.y{background:var(--good);border-color:var(--good);color:var(--surface)}
+.tdl10 i.sep{width:auto;height:auto;border:0;color:var(--muted);font-weight:500;margin:0 2px}
+.tdl10 b{color:var(--ink);font-family:var(--f-mono);margin-left:4px}
+.mchip.glb{background:var(--accent-soft);color:var(--accent)}
 </style>
 
 <header>
@@ -2181,7 +2188,8 @@ function tdCandidates() {
       out.push({ g, pl, pr, p: pr.pOver, team, opp, price: cost ? centsAm(cost) : null, edge: cost ? pr.pOver - cost : null,
         td: th.cur?.[1] ?? null, gp: th.cur?.[0] ?? null, tdPrev: th.prev?.[1] ?? null, gPrev: th.prev?.[0] ?? null,
         rz: u.g ? ((u.rz_t || 0) + (u.rz_c || 0)) / u.g : null, w: pr.tdw || null,
-        rzRk: AN()[opp.abbr]?.def?.rk?.rz, dvpRk: AN()[opp.abbr]?.dvp?.[posGroup(pl.p)]?.rk?.td });
+        rzRk: AN()[opp.abbr]?.def?.rk?.rz, dvpRk: AN()[opp.abbr]?.dvp?.[posGroup(pl.p)]?.rk?.td,
+        last: (S.players?.[pl.id]?.last || []).slice(0, 10).map(r => ({ y: r.y, w: r.w, o: r.o, n: (r.rtd || 0) + (r.td || 0) })) });
     }
   return out;
 }
@@ -2212,16 +2220,24 @@ function renderTD() {
   const mu = x => { const w = x.w; if (!w) return '';
     const f = w.rz * (1 + (w.dvp - 1) / 2), cls = f >= 1.06 ? 'great' : f <= 0.94 ? 'tough' : 'neutral';
     const bits = [`<span class="mchip ${cls}">${cls === 'great' ? 'Soft TD matchup' : cls === 'tough' ? 'Tough TD matchup' : 'Average matchup'}</span>`];
+    if (w.glb) bits.push(`<span class="mchip glb">Goal-line back · ${Math.round(w.gls * 100)}% of team's carries inside the 5</span>`);
     if (x.rzRk) bits.push(`${esc(x.opp.abbr)} red-zone D ${ord(x.rzRk)}${x.rzRk >= 24 ? ' (leaky)' : x.rzRk <= 8 ? ' (stingy)' : ''}`);
     const pg = esc(posGroup(x.pl.p));
     if (x.dvpRk <= 10) bits.push(`allows lots of ${pg} TDs (${ord(x.dvpRk)} most)`); else if (x.dvpRk >= 23) bits.push(`allows few ${pg} TDs (${ord(x.dvpRk)})`);
     const air = Math.round(w.air * 100); if (air >= 66 || air <= 54) bits.push(`${air >= 66 ? 'pass-first' : 'run-first'} scoring game (${air}% of TDs through the air)`);
-    if (w.gl >= 0.75) bits.push(`${w.gl} goal-line carries/G`);
+    if (w.gl >= 0.75 && !w.glb) bits.push(`${w.gl} goal-line carries/G`);
     if (w.ez >= 0.5) bits.push(`${w.ez} end-zone targets/G`);
     return `<div class="mu">${bits.map(b => b.startsWith('<span') ? b : `<span>${b}</span>`).join('')}</div>`; };
+  // scored / didn't score in each of his last 10 games (newest on the left); a mark where the season changes
+  const l10 = x => { if (!x.last.length) return '';
+    const hit = x.last.filter(r => r.n > 0).length;
+    let prevY = x.last[0].y;
+    const dots = x.last.map(r => { const sep = r.y !== prevY ? `<i class="sep">${r.y}|</i>` : ''; prevY = r.y;
+      return `${sep}<i class="${r.n ? 'y' : ''}" title="${r.y} wk ${r.w} vs ${esc(r.o || '')}: ${r.n} TD">${r.n > 1 ? r.n : r.n ? '✓' : ''}</i>`; }).join('');
+    return `<div class="tdl10" aria-label="Scored in ${hit} of his last ${x.last.length} games"><span>Last ${x.last.length}:</span>${dots}<b>${hit}/${x.last.length}</b></div>`; };
   const tdS = x => x.gp != null ? `${x.td} TD in ${x.gp} G this year${x.gPrev ? ` · ${x.tdPrev} in ${x.gPrev} last year` : ''}` : '';
   const nTd = PAR.legs.length;
-  box.innerHTML = `<div class="tdb"><div class="tdb-h"><span class="note">Our chance each player scores: his scoring rate (this season and last), red-zone, end-zone and goal-line looks, and his share of the offense times his team's projected points, adjusted for the defense's red-zone record, whether it gives up TDs through the air or on the ground, its TDs allowed to his position, and game script.</span></div>
+  box.innerHTML = `<div class="tdb"><div class="tdb-h"><span class="note">Our chance each player scores: his scoring rate (this season and last), red-zone, end-zone and goal-line looks, and his share of the offense times his team's expected points (mostly the betting market's implied team total), adjusted for the defense's red-zone record, whether it gives up TDs through the air or on the ground, its TDs allowed to his position, and game script.</span></div>
     <div class="tdb-bar">
       <select id="tdbGame" aria-label="Game"><option value="all">All upcoming games</option>${games.map(g => `<option value="${g.id}"${TDB.game === g.id ? ' selected' : ''}>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</option>`).join('')}</select>
       ${['all', 'RB', 'WR', 'TE', 'QB'].map(k => `<button class="chip" data-tdpos="${k}" aria-pressed="${TDB.pos === k}">${k === 'all' ? 'All' : k}</button>`).join('')}
@@ -2233,7 +2249,7 @@ function renderTD() {
       ${nTd ? `<button class="btn small primary" data-tab-go="parlay" style="margin-left:auto">Open parlay (${nTd}) →</button>` : ''}</div>
     ${c.slice(0, TDB.n).map(x => { const on = inPar(x.g.id, x.pl.id);
       return `<div class="tdrow">${logo(x.team.abbr, 26)}
-        <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}</small>${mu(x)}</div>
+        <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}</small>${l10(x)}${mu(x)}</div>
         <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.price != null ? ` · Kalshi ${fmtOdds(x.price)}` : ''}${x.edge != null && x.edge >= 0.03 ? ' · <span class="val">value</span>' : ''}</small></div>
         <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button></div>`; }).join('')}
     ${c.length > TDB.n ? `<button class="btn small" data-tdmore style="margin-top:8px">Show more (${c.length - TDB.n})</button>` : ''}
