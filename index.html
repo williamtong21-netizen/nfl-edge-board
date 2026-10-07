@@ -710,6 +710,7 @@ details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[o
 /* college mode: tabs that need NFL-only data (player props, depth charts, nflverse analytics) are hidden */
 body.cfb nav [data-tab="props"],body.cfb nav [data-tab="tds"],body.cfb nav [data-tab="lineups"],body.cfb nav [data-tab="players"],body.cfb nav [data-tab="teams"]{display:none}
 body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec + .vgrid,body.cfb #picks .tdsec + p{display:none}
+.cfbours{display:flex;flex-direction:column;gap:3px;padding:2px 12px 10px}.cfbours small{color:var(--muted);font-size:11.5px}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1276,7 +1277,7 @@ function renderSpot() {
   box.innerHTML = `<div class="spot">
       <div class="spot-top"><span class="${isLive ? 'live' : ''}">${isLive ? '<span class="livedot"></span>Live now' : 'Up next'}</span><span>${esc(g.venue || '')}${g.indoor ? ' · Indoors' : g.wx ? ` · ${Math.round(g.wx.temp)}°F, wind ${Math.round(g.wx.wind)} mph` : ''}</span></div>
       <div class="spot-main">${side(A, 'away')}${mid}${side(H, 'home')}</div>
-      ${o ? `<div class="pills">${fav ? `<span class="pill"><i>Favorite</i>${esc(fav)}</span>` : ''}${o.t != null ? `<span class="pill"><i>Total</i>${o.t} pts</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected score</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}${g.proj ? `<span class="pill"><i>Our line</i>${esc(ourLine(g))} · ${g.proj.total.toFixed(1)}</span>` : ''}</div>` : ''}
+      ${o ? `<div class="pills">${fav ? `<span class="pill"><i>Favorite</i>${esc(fav)}</span>` : ''}${o.t != null ? `<span class="pill"><i>Total</i>${o.t} pts</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected score</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}${g.proj ? `<span class="pill"><i>Our line</i>${esc(ourLine(g))} · ${g.proj.total.toFixed(1)}</span>` : ''}${CFB && g.ours ? `<span class="pill" title="Info only: matched Vegas in 2023–25 tests but didn't beat it"><i>Our number</i>${Math.abs(g.ours.m) < 0.5 ? 'Pick ’em' : `${esc((g.ours.m >= 0 ? H : A).abbr)} by ${(Math.round(Math.abs(g.ours.m) * 2) / 2).toFixed(1)}`} · ${(Math.round(g.ours.t * 2) / 2).toFixed(1)}</span>` : ''}</div>` : ''}
       ${wp != null ? `<div class="wplab"><span>${esc(A.abbr)} ${Math.round((1 - wp) * 100)}%</span><span>${wpLabel}</span><span>${esc(H.abbr)} ${Math.round(wp * 100)}%</span></div>
         <div class="wpbar"><i style="width:${(1 - wp) * 100}%;background:${esc(teamColor(A))}"></i><i style="flex:1;background:${esc(teamColor(H))}"></i></div>` : ''}
       ${isLive && L?.last ? `<div class="lastplay"><b>Last play</b>${esc(L.last)}</div>` : ''}
@@ -3160,6 +3161,10 @@ function card(g) {
     return `<div class="gteam">${logo(t.abbr, 36)}<div class="nm"><b>${esc(nick(t))}</b><small>${esc(t.rec)} · ${home ? 'home ' + esc(t.homeRec) : 'road ' + esc(t.roadRec)} ${styleTag(t.abbr)}</small></div>${right}</div>`;
   };
   const totals = o && pre ? `<div class="row" style="padding:0 12px 10px;gap:6px">${o.t != null ? `<span class="pill"><i>Total</i>${o.t}${mv(o.to, o.t)}</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}${g.proj ? `<span class="ourline">Our line ${esc(ourLine(g))} · total ${g.proj.total.toFixed(1)}</span>` : ''}</div>` : '';
+  // college: our own number, shown as info only (backtested even with the closing line, so it never makes picks)
+  const cfbOurs = CFB && pre && g.ours ? (() => { const m = g.ours.m, fav = m >= 0 ? H : A, half = x => (Math.round(x * 2) / 2).toFixed(1);
+    const book = o?.hs != null ? ` · book ${esc((o.hs <= 0 ? H : A).abbr)} ${fmtLine(-Math.abs(o.hs))}${o.t != null ? ', ' + o.t : ''}` : '';
+    return `<div class="cfbours"><span class="ourline">Our number ${Math.abs(m) < 0.5 ? 'Pick ’em' : `${esc(fav.abbr)} -${half(Math.abs(m))}`} · total ${half(g.ours.t)}${book}</span><small>Info only: in 2023–25 tests our number matched Vegas but didn't beat it.</small></div>`; })() : '';
   const probs = o?.hFair && pre ? `<div class="probs">
       <div class="pl"><span>${esc(A.abbr)} ${Math.round(o.aFair * 100)}%</span><span>Win chance · betting market</span><span>${esc(H.abbr)} ${Math.round(o.hFair * 100)}%</span></div>
       <div class="pbar"><i style="width:${o.aFair * 100}%;background:${esc(teamColor(A))}"></i><i style="flex:1;background:${esc(teamColor(H))}"></i></div>
@@ -3177,6 +3182,7 @@ function card(g) {
   return `<article class="card${open ? ' open' : ''}" id="g${g.id}" style="--ta:${teamColor(A)};--th:${teamColor(H)}">
     <div class="card-top"><span>${live ? `<span class="livedot"></span>${esc(L?.detail || g.detail)}` : pre ? kick(g) : esc(g.detail)}${g.tv ? ' · ' + esc(g.tv) : ''}</span><span>${esc(g.venue || '')}${wx ? ' · ' + wx : ''}</span></div>
     ${pre && !live && o ? oddsGrid(g) : `<div class="lines">${row(A, false)}${row(H, true)}</div>`}
+    ${cfbOurs}
     ${pre && !live && o ? '' : totals}${bestRow(g)}${probs}${gameSummary(g)}
     ${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}
     <div class="card-foot">

@@ -26,6 +26,22 @@ def keep(ev):
     return any((x.get("curatedRank") or {}).get("current", 99) <= 25 or str(x["team"].get("conferenceId")) in POWER4 for x in cs)
 
 
+def ours(games, season):
+    """Our own spread and total (cfb_model), shown as info: backtested even with the closing line, so not used for picks."""
+    try:
+        import cfb_model
+        L = cfb_model.live_ratings(season)
+    except Exception as e:
+        print("cfb model skipped:", e, file=sys.stderr); return None
+    R, ids = L["R"], L["ids"]
+    for g in games:
+        h, a = ids.get(str(g["home"]["id"])), ids.get(str(g["away"]["id"]))
+        if h in R["mov"] and a in R["mov"]:
+            m, t = cfb_model.predict(R, h, a, g.get("neutral"))
+            g["ours"] = {"m": round(m, 1), "t": round(t, 1)}
+    return {"games": L["games"], "at": L["at"]}
+
+
 def main():
     try:
         with open(os.path.join(ROOT, "config.json"), encoding="utf-8") as f: cfg = json.load(f)
@@ -49,12 +65,13 @@ def main():
             t["logo"] = x["team"].get("logo")
             t["conf"] = POWER4.get(str(x["team"].get("conferenceId")))
         games.append(g)
+    model_note = ours(games, season)
     sync.weather(games)
     odds_meta = sync.multibook(games, cfg)
     for g in games: g.pop("city", None)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     slate = {"updatedAt": now, "sport": "cfb", "propParts": 0, "analytics": None, "season": season, "week": week,
-             "seasonType": sb["season"].get("type", 2), "odds": odds_meta, "report": None, "games": games}
+             "seasonType": sb["season"].get("type", 2), "odds": odds_meta, "report": None, "cfbModel": model_note, "games": games}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
     sync.save(os.path.join(sync.OUT, "history.json"), {"season": season, "snaps": []})
     sync.save(os.path.join(sync.OUT, "results.json"), {"season": season, "games": {}})
