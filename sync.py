@@ -777,6 +777,17 @@ def main():
             if report is not None: report["tdbt"] = bt
         except Exception as e:
             print("td backtest failed", e, file=sys.stderr)
+        # yardage / receptions backtest: same idea vs Kalshi's yardage ladders (slower, so one week per run)
+        try:
+            import td_backtest, prop_backtest
+            pb = load("prop_backtest.json", {})
+            todo = [w for w in range(1, (week or 1) + 1) if str(w) not in pb and td_backtest.ready(w)][:1]
+            for w in todo:
+                pb[str(w)] = td_backtest.summarize(prop_backtest.build(w), projections.MKT_PROP_W)
+            if todo: save(os.path.join(DATA, "prop_backtest.json"), pb)
+            if report is not None: report["pbt"] = pb
+        except Exception as e:
+            print("prop backtest failed", e, file=sys.stderr)
         if graded: print("graded", graded, "games", file=sys.stderr)
     except Exception as e:
         import traceback; traceback.print_exc()

@@ -690,6 +690,16 @@ body.easy nav [data-tab="shop"],body.easy nav [data-tab="lineups"],body.easy nav
 .betsheet .bs-h button{margin-left:auto}.betsheet table{width:100%;margin:8px 0;font-size:14px}
 .betsheet td{padding:6px 4px;border-top:1px solid var(--line)}.betsheet td.n{text-align:right;font:700 15px var(--f-display)}
 .betsheet tr.best td{color:var(--good)}.betsheet .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.vpick{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:10px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.vpick b{font:800 17px var(--f-display);letter-spacing:.3px}.vpick small{color:var(--muted);font-size:12px}
+.vpick .big{font:800 20px var(--f-display);text-align:right}.vpick .big small{display:block;font:600 11px var(--f-body);color:var(--muted)}
+.vpick .acts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.vpick .acts .sendrow{margin:0}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+details.leans{margin-top:22px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px}
+details.leans > summary{cursor:pointer;font:800 18px var(--f-display);letter-spacing:1px;text-transform:uppercase;list-style:none}
+details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[open] > summary::after{content:" ▴"}
+.honest{margin:4px 0 12px;padding:8px 12px;border-radius:10px;background:var(--warn-soft);color:var(--ink);font-size:13px}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -735,6 +745,7 @@ body.easy nav [data-tab="shop"],body.easy nav [data-tab="lineups"],body.easy nav
 
   <div id="view-picks" hidden>
     <div class="toolbar"><h2 style="margin:0">Best bets</h2></div>
+    <p class="note">What we can back up with results: touchdown spots where our numbers and the market disagree, and the best price for every bet across the books. Our other model reads are further down, labeled honestly.</p>
     <p class="note">Where our projections disagree most with the books, ranked by the size of the gap and how many other signals agree (recent form, matchup, usage). When we have prices from several books, each pick shows the best number and price, and the chance and EV there blend our projection 50/50 with that book's own fair odds. Our models lean toward the market on purpose and have only a few weeks of data early in the season, so treat these as a second opinion, not a sure thing.</p>
     <div id="picks"></div>
     <div id="trapWrap"><details class="moreangles"><summary>More angles: trap watch &amp; alternate lines</summary>
@@ -1580,8 +1591,8 @@ function gamePicks() {
 // ------------------------------------------------------------ report card: how every kind of read has done once graded
 const recS2 = d => d ? `${d.w}–${d.l}${d.push ? `–${d.push}` : ''}` : '–';
 const rcPct = d => d?.pct != null ? `${Math.round(d.pct * 100)}%` : '';
-function tdBacktest(R) {   // weekly TD backtest totals for the report card
-  const W = Object.entries(R?.tdbt || {}).sort((a, b) => +a[0] - +b[0]);
+function tdBacktest(R, key = 'tdbt') {   // weekly backtest totals (touchdowns or yardage props) for the report card
+  const W = Object.entries(R?.[key] || {}).sort((a, b) => +a[0] - +b[0]);
   if (!W.length) return { rows: [], chip: null };
   const sum = k => W.reduce((s, [, v]) => s + (k(v) || 0), 0), n = sum(v => v.n);
   const br = key => sum(v => v[key]?.sse) / n, best = v => { const b = { 'our model': v.p.sse, Kalshi: v.mid.sse, blend: v.blend.sse }; return Object.entries(b).sort((x, y) => x[1] - y[1])[0][0]; };
@@ -1603,7 +1614,7 @@ function reportCard() {
   const td = (R.td || []).map(d => `<tr><td>${esc(d.bin)}</td><td class="n">${Math.round(d.ours * 100)}%</td><td class="n">${d.scored}/${d.n} (${Math.round(d.scored / d.n * 100)}%)</td></tr>`);
   const sd = (o, lbl) => Object.entries(o || {}).filter(([k]) => k !== 'all').map(([k, d]) => `<tr><td>${lbl} · edge ${esc(k)}</td><td class="n">${recS2(d)}</td><td class="n">${rcPct(d)}</td></tr>`);
   const miss = (R.misses || []).map(m => `<tr><td>${esc(m.n)} <span class="note">${esc(m.m)} ${esc(m.side)} ${m.l}</span></td><td class="n">${Math.round(m.p * 100)}%</td><td class="n">${m.a}</td></tr>`);
-  const tdbt = tdBacktest(R);
+  const tdbt = tdBacktest(R), pbt = tdBacktest(R, 'pbt');
   const line = [['props', R.props.all], ['spreads', R.sides?.all], ['totals', R.totals?.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
   return `<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
     <div class="rc-chips">${chip('Prop leans', R.props.all)}${chip('Strong leans (60%+)', strong)}${chip('Spreads', R.sides?.all)}${chip('Totals', R.totals?.all)}${tdbt.chip ? `<div class="rc-chip"><span>TD value bets</span><b class="${tdbt.chip.pl > 0 ? 'pos' : 'neg'}">${tdbt.chip.pl > 0 ? '+' : '−'}$${Math.abs(tdbt.chip.pl).toFixed(0)}</b><span>${tdbt.chip.w}–${tdbt.chip.l}, $10 each</span></div>` : ''}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
@@ -1615,17 +1626,54 @@ function reportCard() {
       ${miss.length ? `<div><h4>Biggest misses</h4>${tbl(['Read', 'Our chance', 'Actual'], miss)}</div>` : ''}
       ${tdbt.rows.length ? `<div><h4>TD reads vs Kalshi, week by week</h4>${tbl(['Week', 'Scored', 'Most accurate', 'Value bets', 'P/L ($10 each)'], tdbt.rows)}
         <p class="note">Every anytime-TD market Kalshi listed, graded after the games. Accuracy compares our model, Kalshi's price before kickoff, and the blend the app shows (${Math.round((tdbt.wt || 0.6) * 100)}% market). Value bets: $10 whenever the blend beat Kalshi's price by 3+ points after fees.</p></div>` : ''}
+      ${pbt.rows.length ? `<div><h4>Yardage &amp; reception props vs Kalshi</h4>${tbl(['Week', 'Overs hit', 'Most accurate', 'Value bets', 'P/L ($10 each)'], pbt.rows)}
+        <p class="note">Passing, rushing and receiving yards and receptions, at the Kalshi line priced closest to 50/50 before kickoff. Blend: ${Math.round((pbt.wt || 0.6) * 100)}% market.</p></div>` : ''}
     </div></details></details>`;
 }
 
-const PK = { allSides: false, allProps: false };
+const PK = { allSides: false, allProps: false, allTD: false, allPx: false, leans: false };
+document.addEventListener('toggle', e => { if (e.target.matches?.('details.leans')) PK.leans = e.target.open; }, true);
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-pk]');
-  if (b) { const k = b.dataset.pk, wasOpen = PK[k]; PK[k] = !PK[k]; renderPicks();
-    if (wasOpen) $(k === 'allProps' ? '#picks h2:last-of-type' : '#picks h2')?.scrollIntoView({ block: 'start' });   // collapsing: jump back to the section
+  if (b) { const k = b.dataset.pk, wasOpen = PK[k]; PK[k] = !PK[k]; if (k === 'allSides' || k === 'allProps') PK.leans = true; renderPicks();
+    if (wasOpen) b.closest('#picks') && $('#picks')?.scrollIntoView({ block: 'start' });   // collapsing: jump back up
     return; }
   const w = e.target.closest('[data-why]'); if (w) { const c = w.closest('.pick'); c.classList.toggle('why-open'); w.textContent = c.classList.contains('why-open') ? 'Why ▴' : 'Why ▾'; }
 });
+// line shopping: the same bet at a better price than most books is real value, whatever anyone's model says
+function priceEdges() {
+  const out = [];
+  for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) {
+    const o = g.odds || {};
+    for (const [kind, side] of [['spread', 'away'], ['spread', 'home'], ['ml', 'away'], ['ml', 'home'], ['total', 'over'], ['total', 'under']]) {
+      const cons = kind === 'spread' ? (side === 'home' ? o.hs : o.hs != null ? -o.hs : null) : kind === 'total' ? o.t : null;
+      const at = allOffers(g, kind, side).filter(x => kind === 'ml' || x.line === cons);
+      if (at.length < 3) continue;
+      const prices = at.map(x => impl(x.price)).sort((a, b) => a - b), med = prices[Math.floor(prices.length / 2)];
+      const best = usable(at).sort((a, b) => b.price - a.price)[0]; if (!best) continue;
+      const gain = med - impl(best.price);
+      if (gain >= 0.012) out.push({ g, kind, side, line: cons, best, gain, med, n: at.length });
+    }
+  }
+  return out.sort((a, b) => b.gain - a.gain);
+}
+function valueTDs() { return tdCandidates().filter(x => x.edge != null && x.edge >= x.edgeMin).sort((a, b) => b.edge - a.edge); }
+function vTdCard(x) {
+  const leg = makeLeg(x.g.id, 'prop', 'over', x.pl.id, 'Anytime TD');
+  const px = x.book ? `${x.book.n} ${fmtOdds(x.book.o)}` : `Kalshi ${fmtOdds(x.price)}`, theirs = x.book ? impl(x.book.o) : x.price != null ? impl(x.price) : null;
+  return `<article class="vpick">${logo(x.team.abbr, 28)}<div><b>${esc(x.pl.n)} TD</b><br><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}</small></div>
+    <div class="big">${esc(px)}<small>we say ${Math.round(x.p * 100)}%${theirs != null ? ` · price says ${Math.round(theirs * 100)}%` : ''}</small></div>
+    <div class="acts"><button class="addp" data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD">+ Parlay</button>${leg ? sendButtons([leg], true) : ''}</div></article>`;
+}
+function vPriceCard(v) {
+  const g = v.g, t = v.kind === 'total' ? null : g[v.side];
+  const what = v.kind === 'total' ? `${v.side === 'over' ? 'Over' : 'Under'} ${v.line}` : v.kind === 'ml' ? `${nick(t)} ML` : `${nick(t)} ${fmtLine(v.line)}`;
+  const leg = makeLeg(g.id, v.kind, v.side, null, null, v.line ?? '');
+  return `<article class="vpick">${t ? logo(t.abbr, 28) : logo(g.home.abbr, 28)}<div><b>${esc(what)}</b><br><small>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</small></div>
+    <div class="big">${esc(v.best.book)} ${fmtOdds(v.best.price)}<small>most of ${v.n} books: ${fmtOdds(Math.round(fairAm(v.med)))}</small></div>
+    <div class="acts"><button class="addp" data-addleg="${g.id}|${v.kind}|${v.side}|||${v.line ?? ''}">+ Parlay</button>${leg ? sendButtons([leg], true, v.best.book) : ''}</div></article>`;
+}
+
 function renderPicks() {
   const box = $('#picks'); if (!box) return;
   const wrap = $('#trapWrap'); if (wrap) box.after(wrap);
@@ -1634,14 +1682,27 @@ function renderPicks() {
   const sides = gamePicks().sort(rank);
   // at most two props per player, so one player can't crowd out the board
   const per = {}, props = propPicks().sort(rank).filter(p => (per[p.pl.id] = (per[p.pl.id] || 0) + 1) <= 2);
-  if (!sides.length && !props.length) { box.innerHTML = `${reportCard()}<div class="empty"><b>No strong picks right now</b>Our numbers and the books agree on everything upcoming. Check back as lines move and props post.</div>`; return; }
+  const tdv = valueTDs(), pe = priceEdges();
   queueMicrotask(() => { const m = $('#trapMount'), w = $('#trapWrap'); if (m && w) m.append(w); });
   const nS = PK.allSides ? 12 : 4, nP = PK.allProps ? 30 : 6;
-  box.innerHTML = `${reportCard()}${sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, nS).map(pickCard).join('')}</div>
+  box.innerHTML = `${reportCard()}
+    <h2 style="margin-top:6px">Touchdown value</h2>
+    ${tdv.length ? `<div class="vgrid">${tdv.slice(0, PK.allTD ? 20 : 6).map(vTdCard).join('')}</div>${tdv.length > 6 ? `<button class="showmore" data-pk="allTD">${PK.allTD ? 'Show fewer' : `Show all ${Math.min(20, tdv.length)}`} TD spots</button>` : ''}`
+      : `<p class="note">No touchdown prices beat our numbers by enough right now. New prices land Thursday morning and refresh through the week.</p>`}
+    <p class="note" style="margin-top:6px">Tested on weeks 1–4: betting these spots would have returned about +38%, mostly from long shots, so expect big swings week to week.</p>
+    <h2 style="margin-top:22px">Best prices right now</h2>
+    ${pe.length ? `<div class="vgrid">${pe.slice(0, PK.allPx ? 16 : 6).map(vPriceCard).join('')}</div>${pe.length > 6 ? `<button class="showmore" data-pk="allPx">${PK.allPx ? 'Show fewer' : `Show all ${Math.min(16, pe.length)}`} best prices</button>` : ''}`
+      : `<p class="note">Every book is priced about the same on the game lines right now.</p>`}
+    <p class="note" style="margin-top:6px">Same bet, better payout than most books. You don't need a prediction for this to be worth it.</p>
+    <div id="trapMount"></div>
+    <details class="leans"${PK.leans ? ' open' : ''}><summary>Our model's leans</summary>
+    <p class="honest">Backtests on 2024–26 games and this season's props found these leans hit about 50% against the closing lines, so treat them as information, not edges.</p>
+    ${sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, nS).map(pickCard).join('')}</div>
     ${PK.allSides ? `<button class="showmore" data-pk="allSides">Show fewer game picks</button>` : sides.length > nS ? `<button class="showmore" data-pk="allSides">Show all ${Math.min(12, sides.length)} game picks</button>` : ''}` : ''}
     <div id="trapMount"></div>
     ${props.length ? `<h2 style="margin-top:22px">Player props</h2><div class="picks">${props.slice(0, nP).map(pickCard).join('')}</div>
-      ${PK.allProps ? `<button class="showmore" data-pk="allProps">Show fewer prop picks</button>` : props.length > nP ? `<button class="showmore" data-pk="allProps">Show all ${Math.min(30, props.length)} prop picks</button>` : ''}` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}`;
+      ${PK.allProps ? `<button class="showmore" data-pk="allProps">Show fewer prop picks</button>` : props.length > nP ? `<button class="showmore" data-pk="allProps">Show all ${Math.min(30, props.length)} prop picks</button>` : ''}` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}
+    </details>`;
 }
 function moveWarn(p) {
   if (!p.against) return '';
@@ -2163,6 +2224,8 @@ function curveMedian(pts) {
 function ourMedian(pr) { const d = DISTJS[pr.m] || ['ln', .5]; return d[0] === 'ln' ? pr.proj / Math.sqrt(1 + d[1] ** 2) : d[0] === 'po' ? Math.max(0, pr.proj - 1 / 3) : pr.proj; }
 function propChance(pr, L) {
   if (pr.proj == null) return null;
+  // at the main line, use the sync's number: our model blended with the market (don't recompute it from the raw model)
+  if (pr.pModel != null && pr.pOver != null && (pr.m === 'Anytime TD' ? L <= 0.5 : L === pr.l)) return pr.pOver;
   if (pr.m === 'Anytime TD') { const k = Math.max(1, Math.ceil(L)); return Math.min(k === 1 ? 0.75 : 0.97, poissonAtLeast(pr.proj, k)); }
   const pts = ladderCurve(pr), M = pts.length >= 3 ? curveMedian(pts) : null;
   if (M != null) return Math.max(0.02, Math.min(0.98, curveAt(pts, L - 0.5 * (ourMedian(pr) - M))));
@@ -2997,6 +3060,9 @@ function renderBoard() {
 
 const teamColor = t => '#' + (t.color && t.color !== 'ffffff' && t.color !== '000000' ? t.color : (t.alt || '4a5a52'));
 // ------------------------------------------------------------ sportsbook grid: spread / moneyline / total for both teams, tap to bet
+// offshore books still count toward "what most books charge", but we never point you to them
+const OFFSHORE = new Set(['Pinnacle', 'Bovada', 'BetOnline.ag', 'MyBookie.ag', 'LowVig.ag', 'BetUS']);
+const usable = offers => offers.filter(x => !OFFSHORE.has(x.book));
 function allOffers(g, kind, side) {   // every book's line and price for one bet
   const out = [], o = g.odds || {};
   for (const b of g.shop?.books || g.books || []) {
@@ -3015,7 +3081,7 @@ function allOffers(g, kind, side) {   // every book's line and price for one bet
 function cellFor(g, kind, side) {
   const o = g.odds || {}, cons = kind === 'spread' ? (side === 'home' ? o.hs : o.hs != null ? -o.hs : null) : kind === 'total' ? o.t : null;
   const offers = allOffers(g, kind, side); if (!offers.length) return `<span class="ocell na">–</span>`;
-  const at = cons != null ? offers.filter(x => x.line === cons) : offers, best = (at.length ? at : offers).slice().sort((a, b) => b.price - a.price)[0];
+  const pool = usable(offers).length ? usable(offers) : offers, at = cons != null ? pool.filter(x => x.line === cons) : pool, best = (at.length ? at : pool).slice().sort((a, b) => b.price - a.price)[0];
   const top = kind === 'spread' ? fmtLine(best.line) : kind === 'total' ? (side === 'over' ? 'O ' : 'U ') + best.line : fmtOdds(best.price);
   return `<button class="ocell" data-betcell="${g.id}|${kind}|${side}" aria-label="${esc(kind)} ${esc(side)} ${esc(top)}"><b>${esc(top)}</b>${kind !== 'ml' ? `<small>${fmtOdds(best.price)}</small>` : ''}</button>`;
 }
@@ -3029,12 +3095,12 @@ function openBetSheet(gid, kind, side) {
   let sh = $('#betSheet');
   if (!sh) { document.body.insertAdjacentHTML('beforeend', '<div class="betsheet" id="betSheet" hidden role="dialog" aria-modal="true"></div>'); sh = $('#betSheet'); }
   const g = S.slate.games.find(x => x.id === gid); if (!g) return;
-  const offers = allOffers(g, kind, side), team = kind === 'total' ? null : g[side];
+  const all = allOffers(g, kind, side), offers = [...usable(all), ...all.filter(x => OFFSHORE.has(x.book))], team = kind === 'total' ? null : g[side];
   const leg = makeLeg(gid, kind, side, null, null, offers[0]?.line ?? ''), c = leg && legChance(leg);
   const title = kind === 'total' ? `${side === 'over' ? 'Over' : 'Under'} ${offers[0]?.line ?? g.odds?.t}` : kind === 'ml' ? `${nick(team)} to win` : `${nick(team)} ${fmtLine(offers[0]?.line)}`;
   sh.innerHTML = `<div class="bs-h">${team ? logo(team.abbr, 34) : logo(g.away.abbr, 26) + logo(g.home.abbr, 26)}<div><b>${esc(title)}</b><br><span class="note">${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</span></div><button class="btn small" data-closesheet>Close</button></div>
     ${c ? `<p class="note" style="margin:8px 0 0">We give it <b>${Math.round(c.p * 100)}%</b>${c.mkt != null ? ` · the price says ${Math.round(c.mkt * 100)}%` : ''}.</p>` : ''}
-    <table>${offers.map((x, i) => `<tr class="${i === 0 ? 'best' : ''}"><td>${esc(x.book)}${i === 0 ? ' · best' : ''}</td><td class="n">${kind === 'ml' ? '' : kind === 'spread' ? fmtLine(x.line) : x.line}</td><td class="n">${fmtOdds(x.price)}</td></tr>`).join('')}</table>
+    <table>${offers.map((x, i) => `<tr class="${i === 0 ? 'best' : ''}"><td>${esc(x.book)}${i === 0 ? ' · best' : OFFSHORE.has(x.book) ? ' <span class="note">(offshore)</span>' : ''}</td><td class="n">${kind === 'ml' ? '' : kind === 'spread' ? fmtLine(x.line) : x.line}</td><td class="n">${fmtOdds(x.price)}</td></tr>`).join('')}</table>
     ${leg ? sendButtons([leg], 'ticket') : ''}
     <div class="acts">${leg ? `<button class="addp" data-addleg="${gid}|${kind}|${side}|||${offers[0]?.line ?? ''}">+ Parlay</button>` : ''}<button class="btn small" data-track="${gid}">Track this bet</button></div>`;
   sh.hidden = false;

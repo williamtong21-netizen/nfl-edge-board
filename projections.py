@@ -161,6 +161,7 @@ def game_tilt(g, an):
     return out
 
 
+MKT_PROP_W = 0.6  # yardage / reception props: weight on the market's chance (our model alone hit ~50% on weeks 1-4)
 MKT_TD_W = 0.6    # TD chance: weight on the market's own chance; 0.6 tested best on weeks 1-4 of 2026 (td_backtest.py)
 TD_VIG = 1.07     # books' typical margin on a Yes-only anytime-TD price
 MKT_PTS_W = 0.7   # TD model: weight on the market's implied team total (spread + total) vs our own projected points
@@ -346,6 +347,17 @@ def prop_projections(props, games, an, season):
                         p = p_over(DIST.get(pr["m"], ("lognormal", 0.5)), proj, line)
                         p = 0.5 + shrink_p * (p - 0.5)      # model uncertainty: pull every read part-way back to a coin flip
                         return round(max(0.03, min(0.97, p)), 3)  # same rule at every line, so alternate lines line up
-                    pr["pOver"] = chance(pr["l"])
-                    for b in pr.get("books", []): b["p"] = chance(b["l"])   # each book's own line gets its own hit chance
+                    # blend with the market (the backtest showed it is sharper than us on yardage props): a book line is
+                    # set near 50/50, so the market's chance at it is its de-vigged price when we have one, else 50%
+                    def mkt_at(line, over_px=None, under_px=None):
+                        if over_px is not None and under_px is not None:
+                            io, iu = (100 / (over_px + 100) if over_px > 0 else -over_px / (-over_px + 100)), (100 / (under_px + 100) if under_px > 0 else -under_px / (-under_px + 100))
+                            return io / (io + iu)
+                        k = next((r for r in pr.get("alt") or [] if r.get("l") == line and r.get("ya") and r.get("yb")), None)
+                        return (k["ya"] + k["yb"]) / 2 if k else 0.5
+                    blend_m = lambda ours, m: round(max(0.03, min(0.97, (1 - MKT_PROP_W) * ours + MKT_PROP_W * m)), 3)
+                    ours_l = chance(pr["l"])
+                    pr["pModel"] = ours_l
+                    pr["pOver"] = blend_m(ours_l, mkt_at(pr["l"]))
+                    for b in pr.get("books", []): b["p"] = blend_m(chance(b["l"]), mkt_at(b["l"], b.get("o"), b.get("u")))   # each book's own line
                 pr["mx"] = round(mult, 2)
