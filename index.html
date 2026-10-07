@@ -756,10 +756,11 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 <div class="welcome" id="fbSheet" hidden role="dialog" aria-modal="true" aria-labelledby="fbTitle"><div class="box">
   <h2 id="fbTitle">Something off?</h2>
   <p class="sub">Bug, bad read, confusing screen, idea: say it like you'd text it. We attach what you were looking at.</p>
+  <p class="note" style="margin:-6px 0 10px">"Text it" opens your phone's share menu with the note filled in: send it to the group chat or straight to whoever runs the app.</p>
   <div class="fbkinds" role="group" aria-label="Kind"><button data-fbk="Bug">Bug</button><button data-fbk="Bad read">Bad read</button><button data-fbk="Confusing">Confusing</button><button data-fbk="Idea">Idea</button></div>
   <textarea id="fbText" rows="5" placeholder="e.g. TD parlay grade never goes above a D"></textarea>
   <details class="fbctx"><summary>What gets attached</summary><pre id="fbCtx"></pre></details>
-  <div class="fbbtns"><button class="btn primary" id="fbSend">Send to the group chat</button><button class="btn" id="fbCopy">Copy</button><a class="btn" id="fbIssue" href="https://github.com/williamtong21-netizen/nfl-edge-board/issues/new" target="_blank" rel="noopener">GitHub issue</a></div>
+  <div class="fbbtns"><button class="btn primary" id="fbSend">Text it</button><button class="btn" id="fbCopy">Copy</button><a class="btn" id="fbIssue" href="https://github.com/williamtong21-netizen/nfl-edge-board/issues/new" target="_blank" rel="noopener">GitHub issue</a></div>
   <p class="note" id="fbMsg" aria-live="polite"></p>
   <button class="btn" id="fbClose" style="margin-top:4px">Close</button>
 </div></div>
@@ -3930,7 +3931,7 @@ queueMicrotask(() => {
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#fbSheet').hidden) showFeedback(false); });
   for (const b of document.querySelectorAll('[data-fbk]')) b.onclick = () => { FB.kind = b.dataset.fbk; showFeedback(true); };
   const need = () => { if ($('#fbText').value.trim()) return false; $('#fbMsg').textContent = 'Type a quick note first.'; $('#fbText').focus(); return true; };
-  const copy = async () => { try { await navigator.clipboard.writeText(fbBody()); $('#fbMsg').textContent = 'Copied. Paste it in the group chat.'; } catch { $('#fbMsg').textContent = 'Could not copy on this device. Long-press the note to copy it.'; } };
+  const copy = async () => { try { await navigator.clipboard.writeText(fbBody()); $('#fbMsg').textContent = 'Copied. Paste it in a text.'; } catch { $('#fbMsg').textContent = 'Could not copy on this device. Long-press the note to copy it.'; } };
   $('#fbCopy').onclick = () => { if (!need()) copy(); };
   $('#fbSend').onclick = async () => {
     if (need()) return;
