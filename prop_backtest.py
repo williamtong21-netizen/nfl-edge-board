@@ -11,7 +11,7 @@ import json, math, os, sys, time
 from collections import defaultdict
 import analytics, situational
 from analytics import rows, fix, f, i, mean, norm
-from td_backtest import kget, kickoff_utc, MON, K_CODE, SEASON, fee
+from td_backtest import kget, kickoff_utc, MON, K_CODE, SEASON, fee, k_markets, k_candles, k_name
 
 SERIES = {"KXNFLPASSYDS": ("Pass yds", "passing_yards", "QB", "pyd"), "KXNFLRSHYDS": ("Rush yds", "rushing_yards", None, "ryd"),
           "KXNFLRECYDS": ("Rec yds", "receiving_yards", None, "yds"), "KXNFLREC": ("Receptions", "receptions", None, "rec")}
@@ -80,11 +80,11 @@ def build(week, markets=None):
         d = g["gameday"]; tag = f"{d[2:4]}{MON[int(d[5:7]) - 1]}{d[8:10]}{K_CODE.get(A, A)}{K_CODE.get(H, H)}"
         for series_t, (mkt, col, only_pos, _) in (markets or SERIES).items():
             series = series_t
-            try: ms = kget(f"/markets?event_ticker={series}-{tag}&limit=400").get("markets", [])
+            try: ms = k_markets(f"{series}-{tag}")
             except Exception as e: print("kalshi", series, tag, e, file=sys.stderr); continue
             ladders = defaultdict(list)
             for m in ms:
-                if ":" in m["title"] and m.get("floor_strike") is not None: ladders[norm(m["title"].split(":")[0])].append(m)
+                if (":" in m["title"] or " records " in m["title"]) and m.get("floor_strike") is not None: ladders[norm(k_name(m["title"]))].append(m)
             for nm, rungs in ladders.items():
                 w4 = this.get(nm)
                 if not w4: continue
@@ -122,11 +122,10 @@ def build(week, markets=None):
                 near = sorted(rungs, key=lambda m: abs(m["floor_strike"] - raw))[:3]
                 priced = []
                 for m in near:
-                    try: cs = kget(f"/series/{series}/markets/{m['ticker']}/candlesticks?start_ts={end - 36 * 3600}&end_ts={end}&period_interval=60").get("candlesticks", [])
+                    try: cs = k_candles(series, m["ticker"], end - 36 * 3600, end)
                     except Exception: cs = []
-                    cs = [c for c in cs if (c.get("yes_bid") or {}).get("close_dollars") and (c.get("yes_ask") or {}).get("close_dollars")]
                     if cs:
-                        b_, a_ = float(cs[-1]["yes_bid"]["close_dollars"]), float(cs[-1]["yes_ask"]["close_dollars"])
+                        b_, a_ = cs[-1]
                         if 0 < b_ and a_ < 0.99: priced.append((m, b_, a_))
                     time.sleep(0.1)
                 if not priced: continue

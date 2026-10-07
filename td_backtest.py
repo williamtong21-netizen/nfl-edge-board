@@ -15,7 +15,8 @@ from urllib.error import HTTPError
 import analytics, situational
 from analytics import rows, fix, f, i, mean, norm
 
-SEASON = 2026
+SEASON = int(os.environ.get("EDGE_BT_SEASON") or 2026)   # set EDGE_BT_SEASON=2025 to replay last season
+TD_SERIES = "KXNFLTD" if SEASON >= 2026 else "KXNFLANYTD"   # Kalshi renamed the anytime-TD market for 2026
 K_API = "https://api.elections.kalshi.com/trade-api/v2"
 K_CODE = {"JAX": "JAC", "LAR": "LA", "WSH": "WAS"}          # ESPN-style -> Kalshi team codes
 MON = "JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC".split()
@@ -33,6 +34,36 @@ def kget(path, tries=6):
             if e.code == 429: time.sleep(1.5 * (n + 1)); continue
             raise
     raise RuntimeError("kalshi rate limit")
+
+
+def k_markets(event):
+    """A game's markets: live/recent ones, or Kalshi's archive for older seasons."""
+    ms = kget(f"/markets?event_ticker={event}&limit=300").get("markets", [])
+    return ms or kget(f"/historical/markets?event_ticker={event}&limit=300").get("markets", [])
+
+
+def k_candles(series, ticker, start, end):
+    """Hourly candles, from the series endpoint or (older seasons) the archive; each as (bid, ask) closes in dollars."""
+    q = f"start_ts={start}&end_ts={end}&period_interval=60"
+    try: cs = kget(f"/series/{series}/markets/{ticker}/candlesticks?{q}").get("candlesticks", [])
+    except HTTPError: cs = []
+    if not cs:
+        try: cs = kget(f"/historical/markets/{ticker}/candlesticks?{q}").get("candlesticks", [])
+        except HTTPError: cs = []
+    out = []
+    for c in cs:
+        b, a = c.get("yes_bid") or {}, c.get("yes_ask") or {}
+        bv, av = b.get("close_dollars") or b.get("close"), a.get("close_dollars") or a.get("close")
+        if bv and av: out.append((float(bv), float(av)))
+    return out
+
+
+def k_name(title):
+    """Player name from a market title: "Zay Flowers: 1+ touchdowns", "Baltimore at Buffalo: Anytime Touchdown Scorer:
+    Zay Flowers", or "Zach Ertz records 60+ receiving yards"."""
+    if " records " in title: return title.split(" records ")[0].strip()
+    parts = [x.strip() for x in title.split(":")]
+    return parts[-1] if len(parts) >= 3 else parts[0]
 
 
 def kickoff_utc(g):
@@ -154,21 +185,20 @@ def build(week):
     out = []
     for (H, A), gm in games.items():
         d = gm["g"]["gameday"]; y, mth, dd = d[2:4], MON[int(d[5:7]) - 1], d[8:10]
-        ev = f"KXNFLTD-{y}{mth}{dd}{K_CODE.get(A, A)}{K_CODE.get(H, H)}"
-        try: ms = kget(f"/markets?event_ticker={ev}&limit=300").get("markets", [])
+        ev = f"{TD_SERIES}-{y}{mth}{dd}{K_CODE.get(A, A)}{K_CODE.get(H, H)}"
+        try: ms = k_markets(ev)
         except Exception as e: print("kalshi", ev, e, file=sys.stderr); continue
         end = int(gm["kick"].timestamp())
         for m in ms:
-            if not m["ticker"].endswith("-1") or ":" not in m["title"] or "D/ST" in m["title"]: continue
-            nm = norm(m["title"].split(":")[0]); w4 = this.get(nm)
+            if (TD_SERIES == "KXNFLTD" and not m["ticker"].endswith("-1")) or ":" not in m["title"] or "D/ST" in m["title"]: continue
+            nm = norm(k_name(m["title"])); w4 = this.get(nm)
             if not w4: continue                                   # didn't play: the market would be void
             ours = model(nm, w4)
             if not ours: continue
-            try: cs = kget(f"/series/KXNFLTD/markets/{m['ticker']}/candlesticks?start_ts={end - 36 * 3600}&end_ts={end}&period_interval=60").get("candlesticks", [])
-            except Exception as e: cs = []
-            cs = [c for c in cs if (c.get("yes_bid") or {}).get("close_dollars") and (c.get("yes_ask") or {}).get("close_dollars")]
+            try: cs = k_candles(TD_SERIES, m["ticker"], end - 36 * 3600, end)
+            except Exception: cs = []
             if not cs: continue
-            bid, ask = float(cs[-1]["yes_bid"]["close_dollars"]), float(cs[-1]["yes_ask"]["close_dollars"])
+            bid, ask = cs[-1]
             if ask >= 0.99 or bid <= 0: continue
             scored = ((f(w4.get("rushing_tds")) or 0) + (f(w4.get("receiving_tds")) or 0)) > 0
             out.append({"n": w4["player_display_name"], **{k: ours[k] for k in ("team", "opp", "pos", "p")}, "game": f"{A} @ {H}",

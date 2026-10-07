@@ -5,11 +5,13 @@ The sync calls run() at the end of every pass. Bets live on each phone, so alert
   - a starting QB is ruled out
   - anytime-TD prices post at more books for a game
   - a finished week gets graded on the report card
+  - TD value: an anytime TD 7+ points above the best US book's price, or a first TD well above Kalshi's (2 a day at most)
 Each alert goes out once (state in alerts_state.json). At most MAX_PER_RUN per pass, so a big sync never floods phones,
 and nothing between midnight and 8 AM Eastern.
 Channel: config.json "ntfy_topic" or env NTFY_TOPIC. No channel = no alerts.
 """
 import json, os, sys
+from datetime import datetime, timezone
 from urllib.request import Request, urlopen
 
 APP_URL = "https://williamtong21-netizen.github.io/nfl-edge-board/"
@@ -32,8 +34,47 @@ def crossed(a, b):
     return any((abs(a) < k) != (abs(b) < k) for k in KEY_NUMS)
 
 
+OFFSHORE = {"Pinnacle", "Bovada", "BetOnline.ag", "MyBookie.ag", "LowVig.ag", "BetUS", "Unibet"}   # never recommended
+VALUE_PER_DAY = 2                 # value alerts: the strongest picks only
+TD_EDGE, FTD_EDGE, FTD_RATIO = 0.07, 0.015, 1.25
+
+
+def am(o): return 100 / (o + 100) if o > 0 else -o / (-o + 100)
+def fmt(o): return f"+{o}" if o > 0 else str(o)
+def fair_am(p): return round(100 * (1 - p) / p) if p < 0.5 else round(-100 * p / (1 - p))
+def kcost(ya): return ya + 0.07 * ya * (1 - ya)
+
+
+def value_picks(games, props, now):
+    """TD value worth a ping: anytime TDs well above the best US book's price, first TDs well above Kalshi's."""
+    out = []
+    for g in games:
+        try: kick = datetime.fromisoformat(g["date"].replace("Z", "+00:00"))
+        except Exception: continue
+        if g.get("state") != "pre" or not (0 < (kick - now).total_seconds() < 36 * 3600): continue
+        name = f'{g["away"]["abbr"]} @ {g["home"]["abbr"]}'
+        for pl in (props or {}).get(g["id"], []):
+            pr = next((x for x in pl.get("props", []) if x.get("m") == "Anytime TD" and x.get("pOver")), None)
+            if pr:
+                bks = [b for b in pr.get("books", []) if b.get("o") is not None and b["n"] not in OFFSHORE]
+                if bks:
+                    b = max(bks, key=lambda b: b["o"]); e = pr["pOver"] - am(b["o"])
+                    if e >= TD_EDGE:
+                        out.append((e, f'val:{g["id"]}:{pl["id"]}:any', f'TD value: {pl["n"]} anytime TD',
+                                    f'{b["n"]} {fmt(b["o"])}, our fair price {fmt(fair_am(pr["pOver"]))} ({round(pr["pOver"] * 100)}%). {name}.'))
+            ft, k = pl.get("ft"), pl.get("ftk") or {}
+            if ft and k.get("ya"):
+                c = kcost(k["ya"])
+                if ft - c >= FTD_EDGE and ft / c >= FTD_RATIO:
+                    out.append((ft - c, f'val:{g["id"]}:{pl["id"]}:first', f'First TD value: {pl["n"]}',
+                                f'Kalshi {fmt(fair_am(c))}, our fair price {fmt(fair_am(ft))} ({ft * 100:.1f}%). {name}. Long shot: bet small.'))
+    return sorted(out, reverse=True)
+
+
 def candidates(games, props, report, st, label="NFL"):
     out = []
+    for e, key, title, body in value_picks(games, props, datetime.now(timezone.utc)):
+        out.append((6, key, title, body, "moneybag", None))
     base = st.setdefault("lines", {})
     for g in games:
         if g.get("state") != "pre": continue
@@ -75,16 +116,21 @@ def run(games, props, report, cfg, state_path, label="NFL"):
         with open(state_path, encoding="utf-8") as f: st = json.load(f)
     except (FileNotFoundError, ValueError): st = {}
     try:   # quiet hours: midnight to 8 AM Eastern, nothing is sent (held alerts go out on the next pass after)
-        from datetime import datetime
         from zoneinfo import ZoneInfo
         quiet = datetime.now(ZoneInfo("America/New_York")).hour < 8
     except Exception: quiet = False
     first = "sent" not in st          # first run: remember everything as already sent, so a new channel isn't spammed with old news
     sent = set(st.get("sent", []))
     n = 0
+    try: day = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    except Exception: day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    vday = st.setdefault("valday", {})
     for pri, key, title, body, tags, after in sorted(candidates(games, props, report, st, label), key=lambda x: x[0]):
         if key in sent: continue
         if not first and quiet: continue
+        if key.startswith("val:") and not first:
+            if vday.get(day, 0) >= VALUE_PER_DAY: continue
+            vday[day] = vday.get(day, 0) + 1
         if not first and n < MAX_PER_RUN:
             try: send(top, title, body, tags); n += 1
             except Exception as e: print("alert failed", e, file=sys.stderr); continue

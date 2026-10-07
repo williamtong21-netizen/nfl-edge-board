@@ -47,11 +47,11 @@ def attach(games, props):
 def backtest(weeks):
     import analytics
     from analytics import rows, fix, f, i, norm
-    from td_backtest import kget, kickoff_utc, MON, K_CODE, SEASON, fee
+    from td_backtest import kget, kickoff_utc, MON, K_CODE, SEASON, fee, k_markets, k_candles, k_name
     sched = [g for g in rows("schedules/games.csv.gz", 6 * 3600) if g["season"] == str(SEASON) and g["game_type"] == "REG"]
     out = []
     for w in weeks:
-        td = json.load(open(os.path.join(analytics.CACHE, f"td_backtest_w{w}.json")))
+        td = json.load(open(os.path.join(analytics.CACHE, f"td_backtest_w{w}.json" if SEASON >= 2026 else f"td_backtest_{SEASON}_w{w}.json")))
         by_game = defaultdict(list)
         for r in td: by_game[r["game"]].append(r)
         for g in [g for g in sched if i(g["week"]) == w]:
@@ -63,20 +63,19 @@ def backtest(weeks):
             ours = fair([(norm(r["n"]), r["team"], r["blend"]) for r in rs], imp)           # what the app would show
             mkt = fair([(norm(r["n"]), r["team"], r["mid"]) for r in rs], imp)              # same recipe from Kalshi's anytime prices
             d = g["gameday"]; ev = f"KXNFLFIRSTTD-{d[2:4]}{MON[int(d[5:7]) - 1]}{d[8:10]}{K_CODE.get(A, A)}{K_CODE.get(H, H)}"
-            try: ms = kget(f"/markets?event_ticker={ev}&limit=300").get("markets", [])
+            try: ms = k_markets(ev)
             except Exception as e: print("kalshi", ev, e, file=sys.stderr); continue
             end = int(kickoff_utc(g).timestamp())
             for m in ms:
                 if ":" not in m["title"] or m.get("result") not in ("yes", "no"): continue
-                nm = norm(m["title"].split(":")[0])
+                nm = norm(k_name(m["title"]))
                 if nm not in ours: continue
-                try: cs = kget(f"/series/KXNFLFIRSTTD/markets/{m['ticker']}/candlesticks?start_ts={end - 36 * 3600}&end_ts={end}&period_interval=60").get("candlesticks", [])
+                try: cs = k_candles("KXNFLFIRSTTD", m["ticker"], end - 36 * 3600, end)
                 except Exception: cs = []
-                cs = [c for c in cs if (c.get("yes_bid") or {}).get("close_dollars") and (c.get("yes_ask") or {}).get("close_dollars")]
                 if not cs: continue
-                bid, ask = float(cs[-1]["yes_bid"]["close_dollars"]), float(cs[-1]["yes_ask"]["close_dollars"])
+                bid, ask = cs[-1]
                 if ask >= 0.99 or bid <= 0: continue
-                out.append({"n": m["title"].split(":")[0], "game": key, "wk": w, "p": ours[nm], "pm": mkt[nm], "bid": bid, "ask": ask,
+                out.append({"n": k_name(m["title"]), "game": key, "wk": w, "p": ours[nm], "pm": mkt[nm], "bid": bid, "ask": ask,
                             "mid": (bid + ask) / 2, "scored": m["result"] == "yes"})
                 time.sleep(0.1)
         print(f"week {w}: {sum(1 for r in out if r['wk'] == w)} players", file=sys.stderr, flush=True)
