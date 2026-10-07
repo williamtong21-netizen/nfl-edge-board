@@ -38,6 +38,7 @@ jobs:
           EDGE_OUT: data/cfb
           EDGE_DATA: state/cfb
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
           ODDS_API_MIN_HOURS: "12"
         run: python cfb_sync.py
       - name: Publish the new data

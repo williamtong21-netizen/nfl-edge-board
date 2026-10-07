@@ -2501,6 +2501,8 @@ function legNotes(leg) {
   }
   return { plus, minus, c, ev };
 }
+// the book's usual cut on one leg: about 4.5% on standard -110 lines and yardage props, about 8% on anytime TDs (shopping the best US book)
+const legHold = l => l.m === 'Anytime TD' ? 0.08 : l.kind === 'prop' ? 0.05 : l.kind === 'ml' ? 0.04 : 0.045;
 // grade the whole ticket
 function gradeReport(legs) {
   const n = legs.length, notes = legs.map(legNotes), W = parlayWarnings(legs);
@@ -2515,7 +2517,16 @@ function gradeReport(legs) {
   }
   p = Math.max(p * 0.25, Math.min(Math.min(...ps), p * f * Math.pow(1.08, pos) * Math.pow(0.8, neg)));   // legs that move together hit together
   const d = legs.reduce((x, l) => x * amToDec(+l.odds || -110), 1), ev = p * d - 1, unpriced = legs.filter(l => !l.priced).length;
-  const letter = ev >= 0.1 ? 'A' : ev >= 0.02 ? 'B' : ev >= -0.08 ? 'C' : ev >= -0.2 ? 'D' : 'F';
+  // graded against an average ticket of the same shape, not against breaking even: every parlay pays the book's cut on each
+  // leg (TD props a much bigger cut), so an absolute scale would call every TD parlay a D. 'vs' = how much better this
+  // ticket's payout-for-risk is than a typical one with the same legs and the usual margin.
+  // judged per leg (geometric average), so an 8-leg ticket of sharp legs can still be an A
+  // each leg's value is capped (+15% / -25%) so one +5000 long shot can't carry a ticket; correlation counts on top
+  const typical = legs.reduce((x, l) => x * (1 - legHold(l)), 1), vs = (1 + ev) / typical - 1;
+  const legVal = legs.map((l, i) => Math.max(0.75, Math.min(1.15, ps[i] * amToDec(+l.odds || -110) / (1 - legHold(l)))));
+  const corr = p / ps.reduce((a, b) => a * b, 1);
+  const perLeg = Math.pow(legVal.reduce((a, b) => a * b, 1) * corr, 1 / n) - 1;
+  const letter = perLeg >= 0.08 ? 'A' : perLeg >= 0.045 ? 'B' : perLeg >= -0.025 ? 'C' : perLeg >= -0.07 ? 'D' : 'F';
   const plus = notes.flatMap(x => x.plus), minus = notes.flatMap(x => x.minus);
   W.forEach(w => (w.t === 'pos' ? plus : minus).push(w.t === 'pos' ? `Correlated: ${w.s} That raises your real odds, though some apps reprice same-game combos.` : `Conflict: ${w.s}`));
   if (n >= 5) minus.push(`${n} legs: every extra leg stacks another helping of the book's margin, so long parlays rarely pay off over time.`);
@@ -2535,8 +2546,9 @@ function gradeReport(legs) {
     const pick = value || safer;
     if (pick) tips.push({ t: `Swap ${l.label} to ${pick.t.label} at ${fmtOdds(+pick.t.odds)}${pick.t.book ? ' (' + pick.t.book + ')' : ''}: ${Math.round(base * 100)}% → ${Math.round(pick.c.p * 100)}% to hit${value ? ', and better value' : ''}.`, act: `swap|${i}|${pick.L}` });
   });
-  const summary = `${letter === 'A' ? 'Strong ticket.' : letter === 'B' ? 'Good ticket.' : letter === 'C' ? 'Fair ticket, roughly what you pay for.' : letter === 'D' ? 'Weak ticket.' : 'Poor ticket.'} We think it hits ${Math.round(p * 100)}% of the time (about 1 in ${Math.max(1, Math.round(1 / p))}); it pays ${fmtOdds(decToAm(d))} and fair would be ${fmtOdds(decToAm(1 / p))}.`;
-  return { letter, p, d, ev, plus, minus, tips: tips.slice(0, 4), summary, unpriced, notes };
+  const kind = legs.every(l => l.m === 'Anytime TD') ? 'TD parlay' : n === 1 ? 'bet' : `${n}-leg parlay`;
+  const summary = `${letter === 'A' ? `One of the better ${kind}s you can build.` : letter === 'B' ? `Better than the average ${kind}.` : letter === 'C' ? `About average for a ${kind}.` : letter === 'D' ? `Worse than the average ${kind}.` : `One of the worse ${kind}s you could build.`} We think it hits ${p < 0.01 ? 'under 1' : Math.round(p * 100)}% of the time (about 1 in ${Math.max(1, Math.round(1 / p)).toLocaleString()}); it pays ${fmtOdds(decToAm(d))} and fair would be ${fmtOdds(decToAm(1 / p))}.${p < 0.1 ? ' Still a lotto ticket: the grade says how good a lotto ticket, not that it will hit.' : ''}`;
+  return { letter, p, d, ev, vs, plus, minus, tips: tips.slice(0, 4), summary, unpriced, notes };
 }
 
 const PAR_VIEW = { graded: false };
