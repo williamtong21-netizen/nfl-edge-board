@@ -737,6 +737,10 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 .tdkind button[aria-pressed="true"]{background:var(--good);color:var(--on-good)}
 .ftnote{margin:6px 0 8px}
 .recapbtn{margin:0 0 8px}
+.gaps{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin:0 0 6px}
+.gapcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:6px;min-width:0}
+.gaph{display:flex;justify-content:space-between;align-items:center}.gapm{font:800 18px var(--f-display);color:var(--good)}
+.gapleg{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;font-size:13.5px}.gapleg a{color:var(--accent)}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1784,6 +1788,18 @@ function vPriceCard(v) {
     <div class="acts"><button class="addp" data-addleg="${g.id}|${v.kind}|${v.side}|||${v.line ?? ''}">+ Parlay</button>${leg ? oneBetButton(leg, v.best.book) : ''}</div></article>`;
 }
 
+// price gaps (arbitrage): back both sides at two places and lock in a small profit, if the prices are still there
+function gapSection() {
+  const gaps = (S.slate?.arbs || []).filter(a => new Date(a.kick) > Date.now()).slice(0, 6);
+  if (!gaps.length) return '';
+  const age = h => h === 0 ? 'this sync' : h >= 99 ? 'unknown age' : `${h < 1 ? '<1' : Math.round(h)}h old`;
+  const card = a => `<div class="gapcard"><div class="gaph"><b>${esc(a.game)}</b><span class="gapm">+${(a.margin * 100).toFixed(1)}%</span></div>
+    ${a.legs.map(l => `<div class="gapleg"><span>${esc(l.pick)}</span><span>${l.url ? `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.src)} ${fmtOdds(l.odds)} ↗</a>` : `${esc(l.src)} ${fmtOdds(l.odds)}`}</span><span class="note">$${Math.round(100 * l.share)} · ${age(l.age)}</span></div>`).join('')}
+    <small class="note">Split $100 this way and you win about $${(100 * a.margin).toFixed(2)} either way.</small></div>`;
+  return `<div class="sechead"><h2>Price gaps</h2><small>${gaps.length} · both sides, two places</small></div>
+    <div class="gaps">${gaps.map(card).join('')}</div>
+    <p class="note">Prices disagree enough that betting both sides locks in a small profit. These close fast, and some prices are hours old: open both apps and confirm both prices before betting either side. Books may limit accounts that do this a lot.</p>`;
+}
 function renderPicks() {
   const box = $('#picks'); if (!box) return;
   const wrap = $('#trapWrap'); if (wrap) box.after(wrap);
@@ -1799,6 +1815,7 @@ function renderPicks() {
     <div class="sechead tdsec"><h2>Touchdown value</h2><small>${tdv.length ? `${tdv.length} spots · swipe →` : ''}</small></div>
     ${tdv.length ? `<div class="vgrid">${tdv.slice(0, 15).map(vTdCard).join('')}</div>`
       : `<p class="note">No touchdown prices beat our numbers by enough right now. New prices land Thursday morning and refresh through the week.</p>`}
+    ${gapSection()}
     <div class="sechead"><h2>Best prices</h2><small>${pe.length ? `${pe.length} bets · swipe →` : ''}</small></div>
     ${pe.length ? `<div class="vgrid">${pe.slice(0, 15).map(vPriceCard).join('')}</div>`
       : `<p class="note">Every book is priced about the same on the game lines right now.</p>`}

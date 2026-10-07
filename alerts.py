@@ -5,6 +5,7 @@ The sync calls run() at the end of every pass. Bets live on each phone, so alert
   - a starting QB is ruled out
   - anytime-TD prices post at more books for a game
   - a finished week gets graded on the report card
+  - a price gap (arbitrage) worth 1%+ where both prices were just fetched (DraftKings via ESPN, Kalshi)
   - TD value: an anytime TD 7+ points above the best US book's price, or a first TD well above Kalshi's (2 a day at most)
 Each alert goes out once (state in alerts_state.json). At most MAX_PER_RUN per pass, so a big sync never floods phones,
 and nothing between midnight and 8 AM Eastern.
@@ -71,8 +72,14 @@ def value_picks(games, props, now):
     return sorted(out, reverse=True)
 
 
-def candidates(games, props, report, st, label="NFL"):
+def candidates(games, props, report, st, label="NFL", gaps=None):
     out = []
+    for a in gaps or []:   # a price gap where both prices were just fetched, worth 1%+
+        if not a.get("fresh") or a["margin"] < 0.01: continue
+        l1, l2 = a["legs"]
+        out.append((0, f'arb:{a["gid"]}:{l1["pick"]}:{l1["src"]}:{l2["src"]}', f'Price gap: {a["game"]}',
+                    f'{l1["pick"]} {fmt(l1["odds"])} at {l1["src"]} + {l2["pick"]} {fmt(l2["odds"])} at {l2["src"]}: about {a["margin"] * 100:.1f}% locked in '
+                    f'(${round(100 * l1["share"])} / ${round(100 * l2["share"])} of $100). Gaps close fast: check both prices first.', "scales", None))
     for e, key, title, body in value_picks(games, props, datetime.now(timezone.utc)):
         out.append((6, key, title, body, "moneybag", None))
     base = st.setdefault("lines", {})
@@ -109,7 +116,7 @@ def candidates(games, props, report, st, label="NFL"):
     return out
 
 
-def run(games, props, report, cfg, state_path, label="NFL"):
+def run(games, props, report, cfg, state_path, label="NFL", gaps=None):
     top = topic(cfg)
     if not top: return 0
     try:
@@ -125,7 +132,7 @@ def run(games, props, report, cfg, state_path, label="NFL"):
     try: day = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
     except Exception: day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     vday = st.setdefault("valday", {})
-    for pri, key, title, body, tags, after in sorted(candidates(games, props, report, st, label), key=lambda x: x[0]):
+    for pri, key, title, body, tags, after in sorted(candidates(games, props, report, st, label, gaps), key=lambda x: x[0]):
         if key in sent: continue
         if not first and quiet: continue
         if key.startswith("val:") and not first:

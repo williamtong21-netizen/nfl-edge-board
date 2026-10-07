@@ -826,11 +826,14 @@ def main():
     save(os.path.join(OUT, "manifest.json"), manifest)
 
     for g in games: g.pop("city", None)
-    slate = {"updatedAt": now, "propParts": len(chunks), "analytics": team_an, "season": season, "week": week, "seasonType": stype, "odds": odds_meta, "report": report, "games": games}
+    try:   # price gaps across books and Kalshi (arbitrage), each leg with how old its price is
+        import arbs; gaps = arbs.find(games, props, (odds_meta or {}).get("at"))
+    except Exception as e: print("arbs failed", e, file=sys.stderr); gaps = []
+    slate = {"updatedAt": now, "propParts": len(chunks), "analytics": team_an, "season": season, "week": week, "seasonType": stype, "odds": odds_meta, "report": report, "games": games, "arbs": gaps}
     save(os.path.join(OUT, "slate.json"), slate)
     try:   # group push alerts (ntfy): line moves, QBs out, TD prices posting, weekly recap
         import alerts
-        sent = alerts.run(games, props, report, cfg, os.path.join(DATA, "alerts_state.json"))
+        sent = alerts.run(games, props, report, cfg, os.path.join(DATA, "alerts_state.json"), gaps=slate.get("arbs"))
         if sent: print("alerts sent", sent, file=sys.stderr)
     except Exception as e:
         print("alerts failed", e, file=sys.stderr)
