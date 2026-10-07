@@ -1536,15 +1536,26 @@ const LocalDB = (() => {
 
 const DATA_BASE = (window.__DATA_BASE || 'out/') + (CFB ? 'cfb/' : '');
 async function loadLocalData() {
-  const j = p => fetch(DATA_BASE + p.split('/').pop(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  // 'no-cache' = ask the server whether the file changed (an unchanged file comes back as a tiny "not modified"),
+  // instead of downloading every file again on each 10-minute refresh
+  const j = p => fetch(DATA_BASE + p.split('/').pop(), { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
   const [slate, hist, man, res] = await Promise.all([j('slate.json'), j('history.json'), j('manifest.json'), j('results.json')]);
   if (!slate) return false;
-  const parts = async c => { const m = {}; for (const x of (man || []).filter(x => x.collection === c)) Object.assign(m, (await j(x.file))?.games || {}); return Object.keys(m).length ? m : null; };
-  const [props, lineups, players] = await Promise.all([parts('props'), parts('lineups'), parts('players')]);
-  S.slate = slate; S.hist = hist; S.results = res; S.props = props; S.lineups = lineups; S.players = players;
+  if (S.slate && slate.updatedAt === S.slate.updatedAt && S.props) return true;   // same sync as on screen: nothing to redraw
+  const parts = async c => { const ms = await Promise.all((man || []).filter(x => x.collection === c).map(x => j(x.file)));
+    const m = {}; for (const d of ms) Object.assign(m, d?.games || {}); return Object.keys(m).length ? m : null; };
+  // games first (the board and lines draw right away), then props, then the big player / lineup files in the background
+  const first = !S.slate;
+  S.slate = slate; S.hist = hist; S.results = res;
   for (const g of slate.games || []) for (const t of [g.home, g.away]) if (t.logo) LOGO_URL[t.abbr] = t.logo;
   S.slate.games.forEach(derive);
-  fillGames(); renderAll();
+  if (first) { fillGames(); renderAll(); }
+  const pp = parts('props'), lp = parts('lineups'), plp = parts('players');
+  S.props = await pp;
+  if (first) renderAll();
+  [S.lineups, S.players] = await Promise.all([lp, plp]);
+  if (!first) fillGames();
+  renderAll();
   return true;
 }
 async function startLocal() {
