@@ -703,6 +703,13 @@ details.leans{margin-top:22px;border:1px solid var(--line);border-radius:var(--r
 details.leans > summary{cursor:pointer;font:800 18px var(--f-display);letter-spacing:1px;text-transform:uppercase;list-style:none}
 details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[open] > summary::after{content:" ▴"}
 .honest{margin:4px 0 12px;padding:8px 12px;border-radius:10px;background:var(--warn-soft);color:var(--ink);font-size:13px}
+.sportsw{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin-left:10px}
+.sportsw button{background:none;border:0;color:var(--muted);font:800 12.5px var(--f-display);letter-spacing:1px;padding:5px 11px;cursor:pointer}
+.sportsw button[aria-pressed="true"]{background:var(--good);color:var(--on-good)}
+.rk{font:700 11px var(--f-display);color:var(--muted);margin-right:3px}
+/* college mode: tabs that need NFL-only data (player props, depth charts, nflverse analytics) are hidden */
+body.cfb nav [data-tab="props"],body.cfb nav [data-tab="tds"],body.cfb nav [data-tab="lineups"],body.cfb nav [data-tab="players"],body.cfb nav [data-tab="teams"]{display:none}
+body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec + .vgrid,body.cfb #picks .tdsec + p{display:none}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -720,7 +727,8 @@ details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[o
 </div></div>
 <header>
   <div class="bar">
-    <p class="brand">Edge Board <small>NFL</small></p>
+    <p class="brand">Edge Board <small id="sportName">NFL</small></p>
+    <div class="sportsw" role="group" aria-label="Sport"><button data-sport="nfl">NFL</button><button data-sport="cfb">College</button></div>
     <div class="sync"><span class="dot off" id="syncDot"></span><span id="syncText">Waiting for data…</span></div>
     <div class="hdr-btns"><button class="hdr-btn" id="helpBtn" aria-label="How the app works">?</button></div>
   </div>
@@ -935,7 +943,12 @@ const pct = p => p == null ? '–' : (p * 100).toFixed(1) + '%';
 const prob = a => a == null ? null : a < 0 ? -a / (-a + 100) : 100 / (a + 100);
 const dec = a => a < 0 ? 1 + 100 / -a : 1 + a / 100;
 const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
-const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+const SPORT = (() => { try { return localStorage.getItem('edge-sport') === 'cfb' ? 'cfb' : 'nfl'; } catch { return 'nfl'; } })();
+const CFB = SPORT === 'cfb';
+// each sport keeps its own parlay, bets and per-sport picks; app-wide prefs (theme, easy mode, your book) are shared
+const SHARED_KEYS = new Set(['edge-sport', 'edge-easy', 'edge-welcomed', 'edge-mybook', 'edge-state', 'edge-altbook']);
+const skey = k => CFB && !SHARED_KEYS.has(k) ? k + '-cfb' : k;
+const store = { get(k) { try { return localStorage.getItem(skey(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(skey(k), v); } catch {} } };
 function toast(msg) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 2200); }
 const ago = iso => { const m = Math.max(0, (Date.now() - new Date(iso)) / 60000); return m < 1 ? 'just now' : m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
 const isOut = s => /out|reserve|doubtful|suspend|pup/i.test(s);
@@ -1162,7 +1175,8 @@ $('#teams').addEventListener('click', e => {
 
 // ------------------------------------------------------------ friendly layer: logos, icons, storylines
 const LOGO_BASE = window.__LOGO_BASE || 'logos/';
-const logo = (abbr, px, cls = 'logo') => `<img class="${cls}" src="${LOGO_BASE}${esc(abbr)}.png" width="${px}" height="${px}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`;
+const LOGO_URL = {};   // college: team abbreviation -> ESPN logo, filled when the slate loads
+const logo = (abbr, px, cls = 'logo') => `<img class="${cls}" src="${esc(LOGO_URL[abbr] || LOGO_BASE + abbr + '.png')}" width="${px}" height="${px}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`;
 const ICON = {
   model: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 13h12v1.5H2zM3 9h2v3H3zm4-4h2v7H7zm4 2h2v5h-2z"/></svg>',
   move: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 11l4-4 3 3 5-5"/><path d="M10 5h4v4"/></svg>',
@@ -1413,8 +1427,8 @@ function renderLive() {
 
 // ------------------------------------------------------------ local real-time mode (page served from your PC)
 // Same shape as live.py. Only runs when the page can reach ESPN directly, i.e. outside claude.ai.
-const ESPN_SB = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
-const ESPN_SUM = 'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=';
+const ESPN_SB = `https://site.api.espn.com/apis/site/v2/sports/football/${CFB ? 'college-football' : 'nfl'}/scoreboard${CFB ? '?groups=80&limit=300' : ''}`;
+const ESPN_SUM = `https://site.web.api.espn.com/apis/site/v2/sports/football/${CFB ? 'college-football' : 'nfl'}/summary?event=`;
 const LIVE_COLS = ['passingYards', 'passingTouchdowns', 'interceptions', 'rushingAttempts', 'rushingYards', 'rushingTouchdowns', 'longRushing',
   'receptions', 'receivingYards', 'receivingTouchdowns', 'longReception', 'receivingTargets'];
 function parsePlayers(sum) {
@@ -1451,7 +1465,7 @@ async function pollLocal() {
 }
 // Bets and settings for the standalone app: kept on this device, same calls as the hosted db.
 const LocalDB = (() => {
-  const KEY = 'edge-board-db', subs = new Set();
+  const KEY = CFB ? 'edge-board-db-cfb' : 'edge-board-db', subs = new Set();   // bets never mix between sports
   let data = {};
   try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {} queueMicrotask(() => subs.forEach(f => f())); };   // notify after the write, never mid-redraw
@@ -1468,7 +1482,7 @@ const LocalDB = (() => {
   };
 })();
 
-const DATA_BASE = window.__DATA_BASE || 'out/';
+const DATA_BASE = (window.__DATA_BASE || 'out/') + (CFB ? 'cfb/' : '');
 async function loadLocalData() {
   const j = p => fetch(DATA_BASE + p.split('/').pop(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
   const [slate, hist, man, res] = await Promise.all([j('slate.json'), j('history.json'), j('manifest.json'), j('results.json')]);
@@ -1476,6 +1490,7 @@ async function loadLocalData() {
   const parts = async c => { const m = {}; for (const x of (man || []).filter(x => x.collection === c)) Object.assign(m, (await j(x.file))?.games || {}); return Object.keys(m).length ? m : null; };
   const [props, lineups, players] = await Promise.all([parts('props'), parts('lineups'), parts('players')]);
   S.slate = slate; S.hist = hist; S.results = res; S.props = props; S.lineups = lineups; S.players = players;
+  for (const g of slate.games || []) for (const t of [g.home, g.away]) if (t.logo) LOGO_URL[t.abbr] = t.logo;
   S.slate.games.forEach(derive);
   fillGames(); renderAll();
   return true;
@@ -1697,7 +1712,7 @@ function renderPicks() {
   queueMicrotask(() => { const m = $('#trapMount'), w = $('#trapWrap'); if (m && w) m.append(w); });
   const nS = PK.allSides ? 12 : 4, nP = PK.allProps ? 30 : 6;
   box.innerHTML = `${reportCard()}
-    <div class="sechead"><h2>Touchdown value</h2><small>${tdv.length ? `${tdv.length} spots · swipe →` : ''}</small></div>
+    <div class="sechead tdsec"><h2>Touchdown value</h2><small>${tdv.length ? `${tdv.length} spots · swipe →` : ''}</small></div>
     ${tdv.length ? `<div class="vgrid">${tdv.slice(0, 15).map(vTdCard).join('')}</div>`
       : `<p class="note">No touchdown prices beat our numbers by enough right now. New prices land Thursday morning and refresh through the week.</p>`}
     <div class="sechead"><h2>Best prices</h2><small>${pe.length ? `${pe.length} bets · swipe →` : ''}</small></div>
@@ -3095,7 +3110,7 @@ function cellFor(g, kind, side) {
   return `<button class="ocell" data-betcell="${g.id}|${kind}|${side}" aria-label="${esc(kind)} ${esc(side)} ${esc(top)}"><b>${esc(top)}</b>${kind !== 'ml' ? `<small>${fmtOdds(best.price)}</small>` : ''}</button>`;
 }
 function oddsGrid(g) {
-  const A = g.away, H = g.home, tm = (t, home) => `<div class="tm">${logo(t.abbr, 30)}<div><b><span class="full">${esc(nick(t))}</span><span class="short">${esc(t.abbr)}</span></b><small>${esc(t.rec)}<span class="full">${styleTag(t.abbr) ? ' ' + styleTag(t.abbr) : ''}</span></small></div></div>`;
+  const A = g.away, H = g.home, tm = (t, home) => `<div class="tm">${logo(t.abbr, 30)}<div><b>${t.rank ? `<span class="rk">#${t.rank}</span>` : ''}<span class="full">${esc(nick(t))}</span><span class="short">${esc(t.abbr)}</span></b><small>${esc(t.rec)}<span class="full">${styleTag(t.abbr) ? ' ' + styleTag(t.abbr) : ''}</span></small></div></div>`;
   return `<div class="oddsgrid"><span></span><span class="oh">Spread</span><span class="oh">Money</span><span class="oh">Total</span>
     ${tm(A, false)}${cellFor(g, 'spread', 'away')}${cellFor(g, 'ml', 'away')}${cellFor(g, 'total', 'over')}
     ${tm(H, true)}${cellFor(g, 'spread', 'home')}${cellFor(g, 'ml', 'home')}${cellFor(g, 'total', 'under')}</div>`;
@@ -3799,6 +3814,17 @@ function loadSharedSlip() {
   } catch (e) { toast('Could not read that shared link'); }
 }
 
+// ------------------------------------------------------------ NFL / College switch
+queueMicrotask(() => {
+  document.body.classList.toggle('cfb', CFB);
+  $('#sportName').textContent = CFB ? 'College' : 'NFL';
+  document.title = CFB ? 'CFB Edge Board' : document.title;
+  for (const b of document.querySelectorAll('[data-sport]')) {
+    b.setAttribute('aria-pressed', b.dataset.sport === SPORT);
+    b.onclick = () => { if (b.dataset.sport === SPORT) return; try { localStorage.setItem('edge-sport', b.dataset.sport); } catch {} location.reload(); };
+  }
+  if (CFB && ['props', 'tds', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
+});
 function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
 
 function setTab(t) {
