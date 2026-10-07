@@ -726,6 +726,12 @@ body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec + .vgrid,body.cfb #picks .
 .hl small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .bkgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.bkgrid h4{margin:0 0 6px}
 table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{padding:6px 4px;border-top:1px solid var(--line)}table.bk td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.alertrow{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;margin:12px 0 0;padding:10px 12px;border-radius:12px;border:1px solid var(--good);background:var(--good-soft);color:inherit;cursor:pointer}
+.alertrow b{font:800 15px var(--f-display);letter-spacing:.4px}.alertrow span{color:var(--muted);font-size:13px}
+.alertban{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 12px;border-radius:14px;background:var(--good-soft);border:1px solid var(--good)}
+.alertban span{flex:1;min-width:0;font-size:13.5px}.alertban .x{background:none;border:0;color:var(--muted);font-size:20px;cursor:pointer;padding:0 4px}
+.alsteps{margin:0 0 10px;padding-left:20px;display:grid;gap:10px}.alsteps a{color:var(--accent)}
+.altopic{display:flex;gap:8px;align-items:center;margin-top:6px}.altopic code{flex:1;min-width:0;overflow-wrap:anywhere;background:var(--surface2);border-radius:10px;padding:8px 10px;font-size:14px}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -738,6 +744,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
     <div class="t2"><span class="ic2">+</span><div><b>Parlay</b><span>Build a parlay and get a grade, then open it in FanDuel or DraftKings in one tap.</span></div></div>
     <div class="t2"><span class="ic2">$</span><div><b>My Bets</b><span>Your tickets, tracked live during games: every leg checks itself off.</span></div></div>
   </div>
+  <button class="alertrow" data-alerts><b>Get alerts on your phone</b><span>Line moves, QBs ruled out, TD prices posting, weekly recap</span></button>
   <label class="easy"><input type="checkbox" id="easyMode"><span><b>Easy mode</b> · hide the research tabs (Line Shop, Lineups, Players, Teams). You can change this any time with the ? button.</span></label>
   <button class="go" id="welcomeGo">Let's go</button>
 </div></div>
@@ -750,6 +757,18 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
   <div class="fbbtns"><button class="btn primary" id="fbSend">Send to the group chat</button><button class="btn" id="fbCopy">Copy</button><a class="btn" id="fbIssue" href="https://github.com/williamtong21-netizen/nfl-edge-board/issues/new" target="_blank" rel="noopener">GitHub issue</a></div>
   <p class="note" id="fbMsg" aria-live="polite"></p>
   <button class="btn" id="fbClose" style="margin-top:4px">Close</button>
+</div></div>
+<div class="welcome" id="alertSheet" hidden role="dialog" aria-modal="true" aria-labelledby="alTitle"><div class="box">
+  <h2 id="alTitle">Get alerts</h2>
+  <p class="sub">Free, through the ntfy app. Everyone in the group gets the same alerts: big line moves, a starting QB ruled out, TD prices posting, and the weekly recap. Tap an alert to open the app.</p>
+  <ol class="alsteps">
+    <li>Install <b>ntfy</b>: <a href="https://apps.apple.com/us/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a> · <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a></li>
+    <li>In ntfy, tap <b>+</b> (Subscribe to topic) and paste this name. Leave the server as ntfy.sh.
+      <div class="altopic"><code id="alTopic">edgeboard-gjmjta8ulgns</code><button class="btn" id="alCopy">Copy</button></div></li>
+    <li>Allow notifications when your phone asks.</li>
+  </ol>
+  <p class="note" id="alMsg" aria-live="polite">At most a few alerts per update, and nothing between midnight and 8 AM Eastern. Anyone with the app sees the same channel, so nothing personal is ever sent.</p>
+  <button class="btn" id="alClose">Close</button>
 </div></div>
 <header>
   <div class="bar">
@@ -784,6 +803,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
     <div class="toolbar"><h2 style="margin:0">Best bets</h2></div>
     <p class="note">What we can back up with results: touchdown spots where our numbers and the market disagree, and the best price for every bet across the books. Our other model reads are further down, labeled honestly.</p>
     
+    <div class="alertban" id="alertBan" hidden><span><b>New: phone alerts.</b> Line moves, QBs ruled out, TD prices posting.</span><button class="btn primary" data-alerts>Set up</button><button class="x" id="alertBanX" aria-label="Dismiss">×</button></div>
     <div id="picks"></div>
     <div id="trapWrap"><details class="moreangles"><summary>More angles: trap watch &amp; alternate lines</summary>
     <h2 style="margin-top:14px">Trap watch</h2>
@@ -973,7 +993,7 @@ const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1;
 const SPORT = (() => { try { return localStorage.getItem('edge-sport') === 'cfb' ? 'cfb' : 'nfl'; } catch { return 'nfl'; } })();
 const CFB = SPORT === 'cfb';
 // each sport keeps its own parlay, bets and per-sport picks; app-wide prefs (theme, easy mode, your book) are shared
-const SHARED_KEYS = new Set(['edge-sport', 'edge-easy', 'edge-welcomed', 'edge-mybook', 'edge-state', 'edge-altbook']);
+const SHARED_KEYS = new Set(['edge-sport', 'edge-easy', 'edge-welcomed', 'edge-alerts-seen', 'edge-mybook', 'edge-state', 'edge-altbook']);
 const skey = k => CFB && !SHARED_KEYS.has(k) ? k + '-cfb' : k;
 const store = { get(k) { try { return localStorage.getItem(skey(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(skey(k), v); } catch {} } };
 function toast(msg) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 2200); }
@@ -3896,6 +3916,24 @@ queueMicrotask(() => {
     const t = $('#fbText').value.trim();
     $('#fbIssue').href = `https://github.com/williamtong21-netizen/nfl-edge-board/issues/new?title=${encodeURIComponent(`[${FB.kind}] ${t.slice(0, 70)}`)}&body=${encodeURIComponent(fbBody())}`;
   };
+});
+
+// ------------------------------------------------------------ phone alerts (ntfy): one group channel the sync posts to
+function showAlerts(on) { $('#alertSheet').hidden = !on; if (on) { $('#alMsg').dataset.t ||= $('#alMsg').textContent; $('#alMsg').textContent = $('#alMsg').dataset.t; $('#alCopy').focus(); } }
+queueMicrotask(() => {
+  document.addEventListener('click', e => { if (e.target.closest('[data-alerts]')) { showWelcome(false); showAlerts(true); } });
+  $('#alClose').onclick = () => showAlerts(false);
+  $('#alertSheet').onclick = e => { if (e.target.id === 'alertSheet') showAlerts(false); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#alertSheet').hidden) showAlerts(false); });
+  $('#alCopy').onclick = async () => {
+    try { await navigator.clipboard.writeText($('#alTopic').textContent); $('#alMsg').textContent = 'Copied. Paste it into ntfy.'; }
+    catch { const r = document.createRange(); r.selectNodeContents($('#alTopic')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); $('#alMsg').textContent = 'Selected: copy it, then paste it into ntfy.'; }
+  };
+  // a one-time banner on Picks until it's dismissed or opened
+  if (!CFB && !store.get('edge-alerts-seen')) $('#alertBan').hidden = false;
+  const seen = () => { store.set('edge-alerts-seen', '1'); $('#alertBan').hidden = true; };
+  $('#alertBanX').onclick = seen;
+  $('#alertBan').querySelector('[data-alerts]').addEventListener('click', seen);
 });
 
 // ------------------------------------------------------------ share a ticket: a slip image for the group chat + a link that loads the parlay

@@ -5,7 +5,8 @@ The sync calls run() at the end of every pass. Bets live on each phone, so alert
   - a starting QB is ruled out
   - anytime-TD prices post at more books for a game
   - a finished week gets graded on the report card
-Each alert goes out once (state in alerts_state.json). At most MAX_PER_RUN per pass, so a big sync never floods phones.
+Each alert goes out once (state in alerts_state.json). At most MAX_PER_RUN per pass, so a big sync never floods phones,
+and nothing between midnight and 8 AM Eastern.
 Channel: config.json "ntfy_topic" or env NTFY_TOPIC. No channel = no alerts.
 """
 import json, os, sys
@@ -73,11 +74,17 @@ def run(games, props, report, cfg, state_path, label="NFL"):
     try:
         with open(state_path, encoding="utf-8") as f: st = json.load(f)
     except (FileNotFoundError, ValueError): st = {}
+    try:   # quiet hours: midnight to 8 AM Eastern, nothing is sent (held alerts go out on the next pass after)
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        quiet = datetime.now(ZoneInfo("America/New_York")).hour < 8
+    except Exception: quiet = False
     first = "sent" not in st          # first run: remember everything as already sent, so a new channel isn't spammed with old news
     sent = set(st.get("sent", []))
     n = 0
     for pri, key, title, body, tags, after in sorted(candidates(games, props, report, st, label), key=lambda x: x[0]):
         if key in sent: continue
+        if not first and quiet: continue
         if not first and n < MAX_PER_RUN:
             try: send(top, title, body, tags); n += 1
             except Exception as e: print("alert failed", e, file=sys.stderr); continue

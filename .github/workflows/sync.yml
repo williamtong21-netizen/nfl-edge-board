@@ -31,6 +31,7 @@ jobs:
           ODDS_API_MIN_HOURS: "12"
           ODDS_API_PROPS: ${{ vars.ODDS_API_PROPS }}
           ODDS_API_TDS: ${{ vars.ODDS_API_TDS || '1' }}
+          NTFY_TOPIC: edgeboard-gjmjta8ulgns
         run: python sync.py
       - name: College football (separate data folder)
         continue-on-error: true
