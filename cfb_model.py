@@ -4,7 +4,8 @@ Ratings, solved together from every game so far (so beating good teams counts mo
   margin  r_home - r_away + home field = capped score margin
   points  pts = league avg + off_team - def_opponent (+ half home field)
   eff     e_home - e_away = net EPA per play (offense minus defense), turned into points
-Each season starts from last season's ratings, regressed toward average, and this season's games take over as they come.
+Each season starts from last season's ratings, kept more for teams returning more production, plus a recruiting-talent
+term; this season's games take over as they come. (Preseason fix held out on 2025-26: off by 12.1-12.3 pts vs 12.8-14.0 before.)
 Predictions: spread and total for any matchup. backtest() replays seasons week by week against the closing lines.
 Free key: config.json "cfbd_api_key" or env CFBD_API_KEY.  Run:  python cfb_model.py   (backtest 2023-2025)
 """
@@ -19,7 +20,7 @@ API = "https://api.collegefootballdata.com"
 HFA = 2.6          # home field, points
 CAP = 28           # blowout cap on the margin rating
 LAM = 3.0          # games-worth of prior pulled into each team's rating
-REGRESS = 0.55     # share of last season's rating carried into the next
+REGRESS = 0.75     # share of last season's rating carried into the next (tuned 2022-24 with the two below)
 FCS_PRIOR = -18.0  # FCS teams (rarely seen) start this far below an average FBS team
 EFF_PTS = 70.0     # points per 1.0 EPA/play difference (about plays per game)
 W_EFF = 0.45       # blend weight on the efficiency rating vs the margin rating
@@ -88,8 +89,8 @@ def ratings(games, prior):
     mg = [{"h": g["home"], "a": g["away"], "v": max(-CAP, min(CAP, g["hp"] - g["ap"])) - (0 if g["neutral"] else HFA)} for g in done]
     eg = [{"h": g["home"], "a": g["away"], "v": (g["eff"][g["home"]] - g["eff"][g["away"]]) * EFF_PTS / 2 - (0 if g["neutral"] else HFA / 2)}
           for g in done if g["home"] in g["eff"] and g["away"] in g["eff"]]
-    mov = solve(mg, prior.get("mov", {}))
-    eff = solve(eg, prior.get("eff", {}))
+    mov = solve(mg, prior.get("mov", {}), LAM)
+    eff = solve(eg, prior.get("eff", {}), LAM)
     # points: offense o and defense d (points allowed vs average), mu = league average points per team
     pts = [(g["home"], g["away"], g["hp"] - (0 if g["neutral"] else HFA / 2)) for g in done] + [(g["away"], g["home"], g["ap"] + (0 if g["neutral"] else HFA / 2)) for g in done]
     mu = sum(p for *_, p in pts) / max(1, len(pts))
@@ -102,11 +103,37 @@ def ratings(games, prior):
     return {"mov": mov, "eff": eff, "off": o, "def": d, "mu": mu}
 
 
-def carry(final, fbs):
-    """Next season's prior: last season's ratings regressed toward average (FCS teams start well below)."""
+K_RET = 0.8        # extra carry-over per 1.0 of returning production above average (offense PPA share)
+K_TAL = 6.0        # points per standard deviation of recruiting talent, added to the starting rating
+RET_AVG = 0.55
+
+
+def team_extras(year):
+    """Returning production and recruiting talent for a season (CFBD, 2 calls a year, cached)."""
+    try:
+        ret = {r["team"]: r for r in fetch("returning", f"/player/returning?year={year}", year, 30 * 86400)}
+        tal = {r["team"]: float(r["talent"]) for r in fetch("talent", f"/talent?year={year}", year, 30 * 86400)}
+    except Exception: return {}, {}
+    return ret, tal
+
+
+def carry(final, fbs, year=None, k_ret=None, k_tal=None, reg=None):
+    """Next season's prior: last season's ratings regressed toward average (FCS teams start well below).
+    With returning production, teams that kept more of last year's offense carry more of their rating; recruiting talent
+    nudges every team toward what its roster should be."""
+    k_ret = K_RET if k_ret is None else k_ret; k_tal = K_TAL if k_tal is None else k_tal; reg = REGRESS if reg is None else reg
+    ret, tal = team_extras(year) if year and (k_ret or k_tal) else ({}, {})
+    tv = [v for t, v in tal.items() if fbs.get(t)]
+    tm = sum(tv) / len(tv) if tv else 0; tsd = (sum((v - tm) ** 2 for v in tv) / len(tv)) ** 0.5 if tv else 1
     pr = {}
     for k in ("mov", "eff", "off", "def"):
-        pr[k] = {t: REGRESS * v for t, v in final.get(k, {}).items()}
+        pr[k] = {}
+        for t, v in final.get(k, {}).items():
+            rp = ret.get(t, {}).get("percentPPA")
+            keep = reg + (k_ret * (rp - RET_AVG) if rp is not None and k != "def" else 0)
+            tz = (tal[t] - tm) / tsd if t in tal and tsd else 0
+            add = k_tal * tz * {"mov": 1, "eff": 1, "off": 0.5, "def": -0.5}[k]
+            pr[k][t] = max(0, keep) * v + add
         for t, is_fbs in fbs.items():
             if not is_fbs and t not in pr[k]: pr[k][t] = FCS_PRIOR if k in ("mov", "eff") else (FCS_PRIOR / 2 if k == "off" else -FCS_PRIOR / 2)
     return pr
@@ -128,7 +155,7 @@ def season_priors(all_games):
     for s in SEASONS:
         gs = [g for g in all_games if g["season"] == s]
         fbs = {t: v for g in gs for t, v in g["fbs"].items()}
-        prior = carry(finals.get(s - 1, {}), fbs) if s - 1 in finals else prior
+        prior = carry(finals.get(s - 1, {}), fbs, s) if s - 1 in finals else prior
         finals[s] = ratings(gs, prior)
         finals[s]["prior"] = prior
     return finals
@@ -192,7 +219,7 @@ def live_ratings(season, max_age=12 * 3600):
     fbs = {t: v for g in gs for t, v in g["fbs"].items()}
     raw = fetch("games", f"/games?year={season}&seasonType=regular", season, max_age)
     ids = {str(g[k + "Id"]): g[k + "Team"] for g in raw for k in ("home", "away")}   # CFBD team ids are ESPN's
-    R = ratings(gs, carry(last, fbs))
+    R = ratings(gs, carry(last, fbs, season))
     L = {"at": time.time(), "season": season, "games": sum(1 for g in gs if g["done"]), "ids": ids,
          "R": {"mu": R["mu"], **{k: {t: round(v, 2) for t, v in R[k].items()} for k in ("mov", "eff", "off", "def")}}}
     with open(out, "w", encoding="utf-8") as fh: json.dump(L, fh)
