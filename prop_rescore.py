@@ -18,6 +18,7 @@ from prop_backtest import p_over, DIST, ANCHOR, SHRINK_P
 POS_EFF = {"ypt": {"WR": 8.2, "TE": 7.2, "RB": 5.8}, "cr": {"WR": 0.63, "TE": 0.70, "RB": 0.78},
            "ypc": {"RB": 4.3, "QB": 5.5, "WR": 6.0}, "ypa": 6.6}
 K = {"tgt": 50, "car": 80, "att": 200}        # sample size (targets / carries / attempts) at which his own rate gets half the weight
+QB_YPC = 5.0                                  # prior yards per carry for a quarterback's runs
 SCRIPT = 0.012                                # pass share change per point of expected margin (trailing teams throw)
 
 
@@ -110,6 +111,13 @@ def usage_raw(C, nm, mkt, team=None, pos=None, game=None):
         tgts = ts * team_pass * 0.94                               # ~6% of dropbacks are sacks / throwaways without a target
         if mkt == "Rec yds": return tgts * rate("receiving_yards", "targets", POS_EFF["ypt"][pg], K["tgt"]) * C["dfac"](o, "ry", "tg", "ypt", 150)
         return tgts * rate("receptions", "targets", POS_EFF["cr"][pg], K["tgt"]) * C["dfac"](o, "rc", "tg", "cr", 150)
+    if mkt == "Rush yds" and pg == "QB":
+        # QB runs are scrambles and designed runs, not a share of team carries: his own carries per game x yards per
+        # carry (backtest weeks 1-4: 55.7% leans this way vs 41.9% as a carry share)
+        num = den = 0.0
+        for age, (y, wk, r) in enumerate(hist):
+            wt = 0.85 ** age * (1.0 if y == SEASON else prev_w); num += wt * (f(r.get("carries")) or 0); den += wt
+        return (num / den if den else 0) * rate("rushing_yards", "carries", QB_YPC, 60)
     if mkt == "Rush yds":
         cs = share("carries", "carries")
         if cs is None: return None
