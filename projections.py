@@ -166,6 +166,15 @@ MKT_PROP_W = 0.6  # yardage / reception props: weight on the market's chance (ou
 # (accuracy kept improving as they were pulled toward 50/50), and 85% market beat 60% on rush yds and rush+rec
 MKT_PROP_W_BY = {"Rush yds": 0.85, "Carries": 0.85, "Rush+rec yds": 0.85}
 MKT_TD_W = 0.6    # TD chance: weight on the market's own chance; 0.6 tested best on weeks 1-4 of 2026 (td_backtest.py)
+# the model's own TD chance, recalibrated: over 2025 weeks 1-11 it read long shots too low (said 7%, they scored 10%)
+# and 45-60% players too high (said 51%, scored 43%). logit(p') = A + B x logit(p), fit on 2025, and it also improved
+# the held-out 2026 weeks (Brier 0.1507 -> 0.1497). td_backtest.py applies the same.
+TD_RECAL = (-0.15, 0.75)
+
+
+def td_recal(p):
+    p = min(1 - 1e-4, max(1e-4, p)); z = TD_RECAL[0] + TD_RECAL[1] * math.log(p / (1 - p))
+    return 1 / (1 + math.exp(-z))
 TD_VIG = 1.07     # books' typical margin on a Yes-only anytime-TD price
 MKT_PTS_W = 0.7   # TD model: weight on the market's implied team total (spread + total) vs our own projected points
 
@@ -347,7 +356,7 @@ def prop_projections(props, games, an, season):
                         if pos == "RB" and not glb and sum(recent) / len(recent) < 0.45: lam *= RB2_TD   # committee/backup backs lose the money touches
                     lam = max(lam, TD_FLOOR.get(pos, 0.04) * (0.5 if recent and max(recent) < 0.15 else 1))   # nobody is a true zero
                     pr["proj"] = round(lam, 2)
-                    ours = min(0.75, 1 - math.exp(-lam))
+                    ours = td_recal(min(0.75, 1 - math.exp(-lam)))
                     # blend with the market: the books' Yes prices (vig trimmed), or Kalshi's mid-price when no book has it
                     imps = sorted((100 / (b["o"] + 100) if b["o"] > 0 else -b["o"] / (-b["o"] + 100)) / TD_VIG for b in pr.get("books", []) if b.get("o"))
                     k = next((a for a in (pr.get("alt") or []) if a.get("l") == 0.5 and a.get("ya") and a.get("yb")), None)

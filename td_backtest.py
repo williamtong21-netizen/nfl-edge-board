@@ -21,6 +21,7 @@ K_API = "https://api.elections.kalshi.com/trade-api/v2"
 K_CODE = {"JAX": "JAC", "LAR": "LA", "WSH": "WAS"}          # ESPN-style -> Kalshi team codes
 MON = "JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC".split()
 TD_PER_PT, TD_PASS, PRIOR = 0.105, 0.6, 6
+TD_RECAL = (-0.15, 0.75)   # keep equal to projections.TD_RECAL
 RZ_T, EZ_T, RZ_C, GL_C = 0.22, 0.20, 0.10, 0.20
 FLOOR = {"RB": 0.07, "WR": 0.05, "TE": 0.05, "QB": 0.06}
 
@@ -179,7 +180,9 @@ def build(week):
             lam = min(lam, TD_PER_PT * pts * max(mean(recent), gls if glb and gls else 0, 0.04) * 0.8)
             if pg == "RB" and not glb and mean(recent) < 0.45: lam *= 0.85
         lam = max(lam, FLOOR[pg] * (0.5 if recent and max(recent) < 0.15 else 1))
-        return {"team": team, "opp": opp, "pos": pg, "p": min(0.75, 1 - math.exp(-lam)), "kick": gm["kick"], "game": gm["g"]}
+        raw = min(0.75, 1 - math.exp(-lam))
+        z = TD_RECAL[0] + TD_RECAL[1] * math.log(raw / (1 - raw))   # same recalibration as projections.td_recal
+        return {"team": team, "opp": opp, "pos": pg, "p": 1 / (1 + math.exp(-z)), "p_raw": raw, "kick": gm["kick"], "game": gm["g"]}
 
     # Kalshi: each game's "1+ touchdowns" markets and their last price before kickoff
     out = []
@@ -201,7 +204,7 @@ def build(week):
             bid, ask = cs[-1]
             if ask >= 0.99 or bid <= 0: continue
             scored = ((f(w4.get("rushing_tds")) or 0) + (f(w4.get("receiving_tds")) or 0)) > 0
-            out.append({"n": w4["player_display_name"], **{k: ours[k] for k in ("team", "opp", "pos", "p")}, "game": f"{A} @ {H}",
+            out.append({"n": w4["player_display_name"], **{k: ours[k] for k in ("team", "opp", "pos", "p", "p_raw")}, "game": f"{A} @ {H}",
                         "bid": bid, "ask": ask, "mid": (bid + ask) / 2, "scored": scored})
             time.sleep(0.12)
     return out
