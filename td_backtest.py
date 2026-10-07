@@ -223,6 +223,13 @@ def summarize(rows_, wt):
         out[key] = {"sse": round(sum((r[key] - r["scored"]) ** 2 for r in rows_), 4)}
     for key in ("p", "blend"):
         n, w, pl = bets(rows_, key); out[key].update({"bets": n, "won": w, "pl": round(pl, 2)})
+    # the week's best calls for the recap card: value bets on "he scores" that cashed, biggest payout first
+    hits = []
+    for r in rows_:
+        cost = r["ask"] + fee(r["ask"])
+        if r["scored"] and r["blend"] - cost >= 0.03:
+            hits.append({"n": r["n"], "team": r.get("team"), "game": r.get("game"), "cost": round(cost, 3), "won": round(10 * (1 - cost) / cost, 2)})
+    out["hits"] = sorted(hits, key=lambda h: -h["won"])[:5]
     return out
 
 

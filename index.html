@@ -736,6 +736,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 .tdkind button{background:none;border:0;color:var(--muted);font:700 13px var(--f-body);padding:6px 12px;cursor:pointer}
 .tdkind button[aria-pressed="true"]{background:var(--good);color:var(--on-good)}
 .ftnote{margin:6px 0 8px}
+.recapbtn{margin:0 0 8px}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1701,7 +1702,8 @@ function reportCard() {
   for (const v of Object.values(R.pbt2 || {})) for (const [m, d] of Object.entries(v.mk || {})) { const x = mk2[m] ||= { n: 0, w: 0, l: 0, sse: 0, kse: 0 }; for (const k in x) x[k] += d[k]; }
   const mk2rows = Object.entries(mk2).sort((a, b) => b[1].n - a[1].n).map(([m, d]) => `<tr><td>${esc(m)}</td><td class="n">${d.w}–${d.l}${d.w + d.l ? ` (${Math.round(d.w / (d.w + d.l) * 100)}%)` : ''}</td><td class="n">${(d.sse / d.n).toFixed(3)}</td><td class="n">${(d.kse / d.n).toFixed(3)}</td></tr>`);
   const line = [['props', R.props.all], ['spreads', R.sides?.all], ['totals', R.totals?.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
-  return `<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
+  const recapWk = Math.max(0, ...Object.keys(R.tdbt || {}).map(Number));
+  return `${recapWk ? `<button class="btn small recapbtn" data-recap="${recapWk}">Share Week ${recapWk} recap</button>` : ''}<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
     <div class="rc-chips">${chip('Prop leans', R.props.all)}${chip('Strong leans (60%+)', strong)}${chip('Spreads', R.sides?.all)}${chip('Totals', R.totals?.all)}${tdbt.chip ? `<div class="rc-chip"><span>TD value bets</span><b class="${tdbt.chip.pl > 0 ? 'pos' : 'neg'}">${tdbt.chip.pl > 0 ? '+' : '−'}$${Math.abs(tdbt.chip.pl).toFixed(0)}</b><span>${tdbt.chip.w}–${tdbt.chip.l}, $10 each</span></div>` : ''}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
     <details><summary>Full breakdown</summary><div class="rc-grid">
       <div><h4>Props by confidence</h4>${tbl(['Our chance', 'Record', 'Hit'], conf)}<p class="note">If the reads are honest, higher confidence should hit more often.</p></div>
@@ -3983,6 +3985,76 @@ async function ticketImage(b) {
   x.fillStyle = '#8e9aa9'; x.font = '600 26px Barlow, Arial, sans-serif'; x.fillText('Built on Edge Board · tap the link to load this parlay', 48, H - 56);
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
+// ------------------------------------------------------------ weekly recap card: a group-chat image of how the week went
+function recapData(wk) {
+  const R = S.slate?.report || {}, t = R.tdbt?.[wk];
+  const gids = new Set(Object.entries(S.results?.games || {}).filter(([, r]) => +r.w === +wk).map(([id]) => id));
+  const inWeek = b => { const legs = ticketLegs(b); return legs.length ? legs.every(l => gids.has(l.gid)) : gids.has(b.gameId); };
+  const mine = S.bets.map(b => ({ b, res: gradeBet(b) })).filter(x => ['win', 'loss', 'push'].includes(x.res) && inWeek(x.b));
+  const dollars = mine.length && mine.every(x => stakeOf(x.b) != null);
+  const amt = x => { const u = profit(x.b, x.res); return dollars ? u * stakeOf(x.b) / (+x.b.units || 1) : u; };
+  const big = mine.filter(x => x.res === 'win').sort((a, b) => amt(b) - amt(a))[0];
+  return { wk, t, miss: (R.misses || []).find(m => +m.w === +wk), mine, dollars, w: mine.filter(x => x.res === 'win').length, l: mine.filter(x => x.res === 'loss').length,
+    net: mine.reduce((s, x) => s + amt(x), 0), big: big ? { label: big.b.market === 'parlay' ? `${big.b.legs.length}-leg parlay` : pickText(big.b), odds: +big.b.odds, amt: amt(big) } : null };
+}
+async function recapImage(d) {
+  const W = 1080, c = document.createElement('canvas'), hits = (d.t?.hits || []).slice(0, 3);
+  const H = 300 + (d.mine.length ? 250 : 0) + 210 + hits.length * 84 + (d.miss ? 190 : 0) + 110; c.width = W; c.height = H;
+  const x = c.getContext('2d'), F = (w, sz, fam = 'Barlow, Arial, sans-serif') => `${w} ${sz}px ${fam}`, COND = '"Barlow Condensed", Arial Narrow, sans-serif';
+  const bg = x.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#0b1119'); bg.addColorStop(1, '#0d2a1d'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  const head = x.createLinearGradient(0, 0, W, 0); head.addColorStop(0, '#2edc84'); head.addColorStop(1, '#1d9e63'); x.fillStyle = head; x.fillRect(0, 0, W, 150);
+  x.fillStyle = '#03140b'; x.font = F(800, 76, COND); x.fillText(`WEEK ${d.wk} RECAP`, 48, 100);
+  x.font = F(700, 30); x.textAlign = 'right'; x.fillText('EDGE BOARD', W - 48, 98); x.textAlign = 'left';
+  const money = v => d.dollars ? `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(Math.abs(v) >= 100 ? 0 : 2)}` : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}u`;
+  const label = (t, y) => { x.fillStyle = '#8e9aa9'; x.font = F(700, 28, COND); x.fillText(t.toUpperCase(), 48, y); };
+  const rule = y => { x.setLineDash([10, 10]); x.strokeStyle = '#243041'; x.lineWidth = 3; x.beginPath(); x.moveTo(48, y); x.lineTo(W - 48, y); x.stroke(); x.setLineDash([]); };
+  let y = 220;
+  if (d.mine.length) {
+    label('My week', y);
+    x.fillStyle = '#f3f6f9'; x.font = F(800, 84, COND); x.fillText(`${d.w}–${d.l}`, 48, y + 90);
+    x.fillStyle = d.net >= 0 ? '#2edc84' : '#ff6b6b'; x.textAlign = 'right'; x.fillText(money(d.net), W - 48, y + 90); x.textAlign = 'left';
+    if (d.big) { x.fillStyle = '#c9d2dc'; x.font = F(600, 30); x.fillText(`Biggest win: ${d.big.label} at ${fmtOdds(d.big.odds)} (${money(d.big.amt)})`.slice(0, 64), 48, y + 150); }
+    rule(y + 190); y += 250;
+  }
+  label('Our TD value bets', y);
+  const b = d.t?.blend || {};
+  x.fillStyle = '#f3f6f9'; x.font = F(800, 84, COND); x.fillText(`${b.won ?? 0} of ${b.bets ?? 0} hit`, 48, y + 90);
+  x.fillStyle = (b.pl || 0) >= 0 ? '#2edc84' : '#ff6b6b'; x.textAlign = 'right'; x.fillText(`${(b.pl || 0) >= 0 ? '+' : '−'}$${Math.abs(b.pl || 0).toFixed(0)}`, W - 48, y + 90); x.textAlign = 'left';
+  x.fillStyle = '#8e9aa9'; x.font = F(500, 26); x.fillText('$10 on every TD we priced above the market', 48, y + 135);
+  y += 180;
+  if (hits.length) {
+    label('Best calls', y); y += 20;
+    const imgs = await Promise.all(hits.map(h => h.team ? loadImg(`${LOGO_BASE}${h.team}.png`) : null));
+    hits.forEach((h, i) => {
+      const yy = y + i * 84;
+      if (imgs[i]) x.drawImage(imgs[i], 48, yy + 14, 52, 52);
+      x.fillStyle = '#f3f6f9'; x.font = F(700, 36); x.fillText(`${h.n} TD`, 116, yy + 54);
+      const wName = x.measureText(`${h.n} TD`).width;
+      x.fillStyle = '#8e9aa9'; x.font = F(500, 28); x.fillText(`at ${fmtOdds(centsAm(h.cost))}`, 116 + wName + 14, yy + 54);
+      x.fillStyle = '#2edc84'; x.font = F(800, 40, COND); x.textAlign = 'right'; x.fillText(`+$${Math.round(h.won)}`, W - 48, yy + 54); x.textAlign = 'left';
+    });
+    y += hits.length * 84 + 10;
+  }
+  if (d.miss) {
+    rule(y); y += 60; label('Biggest miss', y);
+    x.fillStyle = '#f3f6f9'; x.font = F(700, 34); x.fillText(`${d.miss.n} ${d.miss.side.toLowerCase()} ${d.miss.l} ${d.miss.m.toLowerCase()}`.slice(0, 52), 48, y + 52);
+    x.fillStyle = '#8e9aa9'; x.font = F(500, 28); x.fillText(`We said ${Math.round(d.miss.p * 100)}%. He finished with ${d.miss.a}.`, 48, y + 96);
+    y += 130;
+  }
+  x.fillStyle = '#8e9aa9'; x.font = F(600, 26); x.fillText('Edge Board · graded every week, wins and misses', 48, H - 50);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+async function shareRecap(wk) {
+  const d = recapData(wk), b = d.t?.blend || {};
+  const text = `Week ${wk} on Edge Board: TD value bets ${b.won ?? 0} of ${b.bets ?? 0}, ${(b.pl || 0) >= 0 ? '+' : '-'}$${Math.abs(b.pl || 0).toFixed(0)} on $10 each${d.mine.length ? `. My week: ${d.w}-${d.l}` : ''}.`;
+  try {
+    const blob = await recapImage(d), file = blob && new File([blob], `edge-board-week-${wk}.png`, { type: 'image/png' });
+    if (file && navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], text }); return; }
+    if (blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `edge-board-week-${wk}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast('Recap image saved'); return; }
+  } catch (e) { if (e?.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text); toast('Recap copied: paste it in the group chat'); } catch { toast(text); }
+}
+document.addEventListener('click', e => { const r = e.target.closest('[data-recap]'); if (r) shareRecap(+r.dataset.recap); });
 async function shareTicket(b) {
   const legs = ticketLegs(b), url = legs.length ? shareUrl(legs) : location.href.split('?')[0];
   const text = `${b.label || 'My bet'} (${fmtOdds(+b.odds)}): ${(b.legs || []).map(l => l.label).join(', ') || pickText(b)}`;
