@@ -199,6 +199,69 @@ def live_ratings(season, max_age=12 * 3600):
     return L
 
 
+# ------------------------------------------------------------ quarterback changes (no free college injury feed: we see who started)
+BACKUP_YPA = 6.3    # a typical backup's yards per attempt, the prior for a QB with little or no tape
+QB_PTS = 1.8        # points per game per 1.0 yard-per-attempt gap (about 30 throws a game; starter -> backup lands near 3-6 points)
+QB_CAP = 8.0
+
+
+def qb_weeks(season, week, max_age=12 * 3600):
+    """Each team's starting QB (most attempts) in every finished week, kept small in the data folder: one CFBD call per new week."""
+    path = os.path.join(os.path.dirname(CACHE), "cfb_qb_weeks.json")
+    try:
+        with open(path, encoding="utf-8") as fh: W = json.load(fh)
+    except (FileNotFoundError, ValueError): W = {}
+    if W.get("season") != season: W = {"season": season, "weeks": {}, "at": {}}
+    for w in range(1, week):
+        k = str(w)
+        # past weeks are final; the latest finished week refreshes until its stats settle
+        if k in W["weeks"] and (w < week - 1 or time.time() - W["at"].get(k, 0) < max_age): continue
+        req = Request(f"{API}/games/players?year={season}&week={w}&seasonType=regular&category=passing", headers={"Authorization": f"Bearer {key()}"})
+        with urlopen(req, timeout=90) as r: d = json.loads(r.read().decode())
+        rows = {}
+        for g in d:
+            for t in g.get("teams", []):
+                qbs = {}
+                for typ in t["categories"][0]["types"] if t.get("categories") else []:
+                    for a in typ["athletes"]:
+                        q = qbs.setdefault(a["id"], {"n": a["name"]})
+                        if typ["name"] == "C/ATT" and "/" in str(a["stat"]): q["att"] = int(str(a["stat"]).split("/")[1] or 0)
+                        if typ["name"] == "YDS": q["yds"] = float(a["stat"] or 0)
+                if qbs:
+                    sid, q = max(qbs.items(), key=lambda kv: kv[1].get("att", 0))
+                    rows[t["team"]] = {"id": sid, "n": q["n"], "att": q.get("att", 0), "yds": q.get("yds", 0), "all": {i: [v.get("att", 0), v.get("yds", 0)] for i, v in qbs.items()}}
+        W["weeks"][k] = rows; W["at"][k] = time.time()
+    with open(path, "w", encoding="utf-8") as fh: json.dump(W, fh)
+    return W
+
+
+def qb_changes(season, week):
+    """Teams whose last game was started by someone other than their usual starter, with a points adjustment for our number."""
+    W = qb_weeks(season, week)
+    weeks = sorted(W["weeks"], key=int)
+    out = {}
+    teams = {t for w in weeks for t in W["weeks"][w]}
+    for t in teams:
+        played = [(int(w), W["weeks"][w][t]) for w in weeks if t in W["weeks"][w]]
+        if len(played) < 2: continue
+        starts = {}
+        for _, r in played: starts[r["id"]] = starts.get(r["id"], 0) + 1
+        usual = max(starts, key=starts.get)
+        last_w, last = played[-1]
+        if last["id"] == usual: continue
+        # season passing for both, from every game they threw in
+        tot = lambda pid: [sum(r["all"].get(pid, [0, 0])[0] for _, r in played), sum(r["all"].get(pid, [0, 0])[1] for _, r in played)]
+        (oa, oy), (na, ny) = tot(usual), tot(last["id"])
+        old_ypa = (oy + BACKUP_YPA * 40) / (oa + 40)                  # regressed a little
+        new_ypa = (ny + BACKUP_YPA * 80) / (na + 80)                  # regressed hard toward a backup
+        share = starts[usual] / len(played)                            # how much of the rating was built with the usual starter
+        adj = max(-QB_CAP, min(QB_CAP / 2, (new_ypa - old_ypa) * QB_PTS * share))
+        usual_name = next(r["n"] for _, r in played if r["id"] == usual)
+        out[t] = {"new": last["n"], "old": usual_name, "wk": last_w, "starts": starts[usual], "games": len(played), "adj": round(adj, 1),
+                  "newYpa": round(ny / na, 1) if na else None, "oldYpa": round(oy / oa, 1) if oa else None, "newAtt": na}
+    return out
+
+
 if __name__ == "__main__":
     allg = []
     for s in SEASONS: allg += load(s)

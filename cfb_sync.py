@@ -34,10 +34,17 @@ def ours(games, season):
     except Exception as e:
         print("cfb model skipped:", e, file=sys.stderr); return None
     R, ids = L["R"], L["ids"]
+    try: qb = cfb_model.qb_changes(season, max(g["week"] for g in games))   # new starters (injury or benching), from last game's box score
+    except Exception as e: print("qb check skipped:", e, file=sys.stderr); qb = {}
     for g in games:
         h, a = ids.get(str(g["home"]["id"])), ids.get(str(g["away"]["id"]))
         if h in R["mov"] and a in R["mov"]:
             m, t = cfb_model.predict(R, h, a, g.get("neutral"))
+            qh, qa = qb.get(h), qb.get(a)
+            if g["state"] == "pre" and (qh or qa):
+                g["qb"] = {k: v for k, v in (("home", qh), ("away", qa)) if v}
+                m += (qh or {}).get("adj", 0) - (qa or {}).get("adj", 0)
+                t += 0.5 * ((qh or {}).get("adj", 0) + (qa or {}).get("adj", 0))   # a weaker passer scores less
             g["ours"] = {"m": round(m, 1), "t": round(t, 1)}
     return {"games": L["games"], "at": L["at"]}
 

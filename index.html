@@ -720,6 +720,12 @@ body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec + .vgrid,body.cfb #picks .
 .fbctx{margin:8px 0}.fbctx summary{color:var(--muted);font-size:12.5px;cursor:pointer}.fbctx pre{white-space:pre-wrap;font-size:11.5px;color:var(--muted);margin:6px 0 0}
 .fbbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.fbbtns .btn{text-decoration:none}
 .cfbrec .rc-chip small{display:block;color:var(--muted);font-size:11px}
+.hls{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:4px 0 12px}
+.hl{background:var(--surface2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.hl span{font:700 11px var(--f-display);letter-spacing:1px;text-transform:uppercase;color:var(--muted)}.hl b{font:800 22px var(--f-display)}
+.hl small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.bkgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.bkgrid h4{margin:0 0 6px}
+table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{padding:6px 4px;border-top:1px solid var(--line)}table.bk td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -889,6 +895,7 @@ body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec + .vgrid,body.cfb #picks .
           <h3>Units over time</h3>
           <div id="chart"></div>
         </div>
+        <div class="panel" style="min-width:0" id="breakdown" hidden></div>
         <div class="panel" style="min-width:0">
           <div class="toolbar" style="margin-bottom:8px">
             <h3 style="margin:0 8px 0 0">Ledger</h3>
@@ -2117,14 +2124,17 @@ function legStatus(l) {
 const legOK = st => ({ hit: 'win', miss: 'loss', push: 'push', void: 'push' })[st] || 'pending';
 
 function gradeParlay(b) {
-  const res = (b.legs || []).map(l => {
+  const res = parlayLegResults(b);
+  if (res.includes('loss')) return 'loss';
+  if (res.includes('pending')) return 'pending';
+  return res.includes('win') ? 'win' : 'push';
+}
+function parlayLegResults(b) {
+  return (b.legs || []).map(l => {
     if (l.kind === 'prop') return legOK(legStatus(l).st);
     if (l.kind === 'tt') { const r = S.results?.games?.[l.gid]; if (!r || r.st !== 'post' || r.hs == null) return 'pending'; const pts = l.team === r.h ? r.hs : r.as, d = pts - l.line;
       return d === 0 ? 'push' : (d > 0) === (l.side === 'over') ? 'win' : 'loss'; }
     return gradeBet({ gameId: l.gid, market: l.kind, side: l.side, line: l.line }); });
-  if (res.includes('loss')) return 'loss';
-  if (res.includes('pending')) return 'pending';
-  return res.includes('win') ? 'win' : 'push';
 }
 queueMicrotask(renderSlip);  // after the whole script has loaded
 
@@ -3196,7 +3206,7 @@ function card(g) {
   // college: our own number, shown as info only (backtested even with the closing line, so it never makes picks)
   const cfbOurs = CFB && pre && g.ours ? (() => { const m = g.ours.m, fav = m >= 0 ? H : A, half = x => (Math.round(x * 2) / 2).toFixed(1);
     const book = o?.hs != null ? ` · book ${esc((o.hs <= 0 ? H : A).abbr)} ${fmtLine(-Math.abs(o.hs))}${o.t != null ? ', ' + o.t : ''}` : '';
-    return `<div class="cfbours"><span class="ourline">Our number ${Math.abs(m) < 0.5 ? 'Pick ’em' : `${esc(fav.abbr)} -${half(Math.abs(m))}`} · total ${half(g.ours.t)}${book}</span><small>Info only: in 2023–25 tests our number matched Vegas but didn't beat it.</small></div>`; })() : '';
+    return `<div class="cfbours"><span class="ourline">Our number ${Math.abs(m) < 0.5 ? 'Pick ’em' : `${esc(fav.abbr)} -${half(Math.abs(m))}`} · total ${half(g.ours.t)}${book}</span><small>${g.qb ? Object.entries(g.qb).map(([sd, q]) => `Includes ${esc(g[sd].abbr)}'s QB change: ${esc(q.new)} started last game for ${esc(q.old)} (${q.adj > 0 ? '+' : ''}${q.adj} pts). `).join('') : ''}Info only: in 2023–25 tests our number matched Vegas but didn't beat it.</small></div>`; })() : '';
   const probs = o?.hFair && pre ? `<div class="probs">
       <div class="pl"><span>${esc(A.abbr)} ${Math.round(o.aFair * 100)}%</span><span>Win chance · betting market</span><span>${esc(H.abbr)} ${Math.round(o.hFair * 100)}%</span></div>
       <div class="pbar"><i style="width:${o.aFair * 100}%;background:${esc(teamColor(A))}"></i><i style="flex:1;background:${esc(teamColor(H))}"></i></div>
@@ -3208,6 +3218,7 @@ function card(g) {
     const out = t.inj.filter(i => isOut(i.s)), qb = out.some(i => i.r === 'starting QB');
     if (out.length) badges.push(`<span class="b ${qb ? 'r' : 'y'}">${esc(t.abbr)}: ${out.length} out${qb ? ', including the starting QB' : ''}</span>`);
   }
+  if (CFB && pre) for (const side of ['away', 'home']) { const q = g.qb?.[side]; if (q) badges.push(`<span class="b y" title="${esc(q.new)} started last game; ${esc(q.old)} started ${q.starts} of ${q.games}. College has no injury feed, so this is based on who actually played.">${esc(g[side].abbr)}: new QB ${esc(q.new)}</span>`); }
   if (pre && g.edgeH != null && Math.abs(g.edgeH) >= EDGE_MIN) badges.push(`<span class="b g">Model likes ${esc((g.edgeH > 0 ? H : A).abbr)}</span>`);
   if (g.shop) badges.push(`<span class="b">${g.shop.books.length} books compared</span>`);
   const open = S.open.has(g.id);
@@ -3669,10 +3680,56 @@ function renderBets() {
       <text x="${L}" y="${Hh - 4}">bet 1</text><text x="${W - R}" y="${Hh - 4}" text-anchor="end">bet ${seq.length}</text></svg>`;
   }
 
+  renderBreakdown(settled, rows);
   const f = S.filter, list = rows.filter(x => f === 'all' || (f === 'pending' ? x.res === 'pending' : x.res !== 'pending'))
     .sort((a, b) => (b.b.placedAt || '').localeCompare(a.b.placedAt || ''));
   queueMicrotask(() => refreshBoxes(rows.filter(x => x.res === 'pending').flatMap(x => ticketLegs(x.b).map(l => l.gid))));
   $('#ledger').innerHTML = list.length ? `<div class="slips">${list.map(slipCard).join('')}</div>` : `<div class="empty"><b>${S.bets.length ? 'Nothing here' : 'No bets yet'}</b>${S.bets.length ? 'No bets match this filter.' : 'Track a bet from any game, or build a parlay and hit “Track it”. Your tickets show up here.'}</div>`;
+}
+
+// ------------------------------------------------------------ My Bets breakdown: where you win, where you leak, and the fun stuff
+function betType(b) {
+  if (b.market === 'parlay') return (b.legs || []).length && b.legs.every(l => l.m === 'Anytime TD') ? 'TD parlays' : 'Parlays';
+  if (b.market === 'prop') return /anytime td|\btd\b|touchdown/i.test(`${b.pm || ''} ${b.desc || ''}`) ? 'Anytime TDs' : 'Player props';
+  return { spread: 'Spreads', total: 'Totals', ml: 'Moneylines' }[b.market] || 'Other';
+}
+function renderBreakdown(settled, rows) {
+  const box = $('#breakdown'); if (!box) return;
+  if (!settled.length) { box.hidden = true; return; }
+  box.hidden = false;
+  // dollars when every settled bet has a stake (or a unit size is set), otherwise units
+  const dollars = settled.every(x => stakeOf(x.b) != null);
+  const amt = x => dollars ? x.p * stakeOf(x.b) / (+x.b.units || 1) : x.p, risk = x => dollars ? stakeOf(x.b) : +x.b.units;
+  const fmt = v => dollars ? `${v > 0 ? '+' : v < 0 ? '−' : ''}$${Math.abs(v) >= 100 ? Math.round(Math.abs(v)).toLocaleString() : Math.abs(v).toFixed(2)}` : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}u`;
+  const group = key => {
+    const m = new Map();
+    for (const x of settled) { const k = key(x.b); const g = m.get(k) || { k, w: 0, l: 0, p: 0, r: 0 }; g.w += x.res === 'win'; g.l += x.res === 'loss'; g.p += amt(x); g.r += risk(x); m.set(k, g); }
+    return [...m.values()].sort((a, b) => b.p - a.p);
+  };
+  const table = (title, gs) => `<div><h4>${title}</h4><table class="bk">${gs.map(g => `<tr><td>${esc(g.k)}</td><td class="n">${g.w}–${g.l}</td><td class="n"><b class="${g.p > 0 ? 'pos' : g.p < 0 ? 'neg' : ''}">${fmt(g.p)}</b></td><td class="n note">${g.r ? `${g.p >= 0 ? '+' : ''}${Math.round(g.p / g.r * 100)}%` : ''}</td></tr>`).join('')}</table></div>`;
+  const types = group(x => betType(x)), books = group(x => x.book || 'No book picked');
+  // highlights
+  const seq = settled.slice().sort((a, b) => (a.b.kickoff || a.b.placedAt).localeCompare(b.b.kickoff || b.b.placedAt)).filter(x => x.res !== 'push');
+  let best = 0, cur = 0, curK = null;
+  for (const x of seq) { const k = x.res; cur = k === curK ? cur + 1 : 1; curK = k; if (k === 'win') best = Math.max(best, cur); }
+  const wins = settled.filter(x => x.res === 'win'), bigWin = wins.sort((a, b) => amt(b) - amt(a))[0], longHit = settled.filter(x => x.res === 'win').sort((a, b) => +b.b.odds - +a.b.odds)[0];
+  const pars = settled.filter(x => x.b.market === 'parlay').map(x => ({ x, legs: parlayLegResults(x.b) }));
+  const legsWon = pars.reduce((s, p) => s + p.legs.filter(r => r === 'win').length, 0), legsAll = pars.reduce((s, p) => s + p.legs.filter(r => r === 'win' || r === 'loss').length, 0);
+  const oneOff = pars.filter(p => p.x.res === 'loss' && p.legs.filter(r => r === 'loss').length === 1 && p.legs.length >= 2);
+  const hl = [
+    curK ? `<div class="hl"><span>Current streak</span><b class="${curK === 'win' ? 'pos' : 'neg'}">${cur} ${curK === 'win' ? 'W' : 'L'}</b><small>best win streak ${best}</small></div>` : '',
+    bigWin ? `<div class="hl"><span>Biggest win</span><b class="pos">${fmt(amt(bigWin))}</b><small>${esc(bigWin.b.market === 'parlay' ? `${bigWin.b.legs.length}-leg parlay` : pickText(bigWin.b))} at ${fmtOdds(+bigWin.b.odds)}</small></div>` : '',
+    longHit && +longHit.b.odds >= 200 ? `<div class="hl"><span>Longest odds hit</span><b>${fmtOdds(+longHit.b.odds)}</b><small>${esc(longHit.b.market === 'parlay' ? `${longHit.b.legs.length}-leg parlay` : pickText(longHit.b))}</small></div>` : '',
+    legsAll ? `<div class="hl"><span>Parlay legs hit</span><b>${Math.round(legsWon / legsAll * 100)}%</b><small>${legsWon} of ${legsAll} legs</small></div>` : '',
+    pars.length ? `<div class="hl"><span>Lost by one leg</span><b class="${oneOff.length ? 'neg' : ''}">${oneOff.length}</b><small>of ${pars.filter(p => p.x.res === 'loss').length} losing parlays${oneOff.length ? ' (pain)' : ''}</small></div>` : ''
+  ].filter(Boolean);
+  // beating the closing line, the best sign of real skill (results take hundreds of bets to mean much)
+  const cl = rows.filter(x => x.c), beat = cl.filter(x => x.c.v > 0).length;
+  const say = cl.length >= 5 ? (beat / cl.length >= 0.55 ? 'You beat the closing line more often than not: that is the best sign you are finding real value.' : beat / cl.length < 0.45 ? 'The line usually moves away from you after you bet. Betting earlier, or shopping for a better number, would help.' : 'You beat the closing line about half the time: roughly market level.') : 'After a few more spread, total and moneyline bets, we\'ll tell you whether you beat the closing line, the best sign of real skill.';
+  box.innerHTML = `<h3>Your breakdown</h3>
+    ${hl.length ? `<div class="hls">${hl.join('')}</div>` : ''}
+    <div class="bkgrid">${table('By bet type', types)}${table('By book', books)}</div>
+    <p class="note">${esc(say)} ${settled.length < 50 ? `${settled.length} settled bet${settled.length === 1 ? '' : 's'} is a small sample, so luck still dominates these numbers.` : ''}</p>`;
 }
 
 function pickText(b) {
