@@ -732,6 +732,10 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 .alertban span{flex:1;min-width:0;font-size:13.5px}.alertban .x{background:none;border:0;color:var(--muted);font-size:20px;cursor:pointer;padding:0 4px}
 .alsteps{margin:0 0 10px;padding-left:20px;display:grid;gap:10px}.alsteps a{color:var(--accent)}
 .altopic{display:flex;gap:8px;align-items:center;margin-top:6px}.altopic code{flex:1;min-width:0;overflow-wrap:anywhere;background:var(--surface2);border-radius:10px;padding:8px 10px;font-size:14px}
+.tdkind{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.tdkind button{background:none;border:0;color:var(--muted);font:700 13px var(--f-body);padding:6px 12px;cursor:pointer}
+.tdkind button[aria-pressed="true"]{background:var(--good);color:var(--on-good)}
+.ftnote{margin:6px 0 8px}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -2695,7 +2699,7 @@ document.addEventListener('change', e => { if (e.target.id === 'sgpGame') { SGP.
 // ------------------------------------------------------------ TD parlay builder: every anytime-TD candidate, our chance vs the price
 // a TD price counts as value only when our chance beats it by this much: sportsbooks take a bigger cut than Kalshi's fee
 const TD_EDGE_BOOK = 0.05, TD_EDGE_KALSHI = 0.03;
-const TDB = { game: 'all', pos: 'all', sort: 'chance', n: 10, open: new Set() };
+const TDB = { game: 'all', pos: 'all', sort: 'chance', n: 10, open: new Set(), kind: 'any' };   // kind: 'any' = anytime TD, 'first' = first TD scorer
 function tdCandidates() {
   const out = [], now = Date.now();
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > now - 3600e3))
@@ -2709,7 +2713,8 @@ function tdCandidates() {
         td: th.cur?.[1] ?? null, gp: th.cur?.[0] ?? null, tdPrev: th.prev?.[1] ?? null, gPrev: th.prev?.[0] ?? null,
         rz: u.g ? ((u.rz_t || 0) + (u.rz_c || 0)) / u.g : null, w: pr.tdw || null,
         rzRk: AN()[opp.abbr]?.def?.rk?.rz, dvpRk: AN()[opp.abbr]?.dvp?.[posGroup(pl.p)]?.rk?.td,
-        last: (S.players?.[pl.id]?.last || []).slice(0, 10).map(r => ({ ...r, n: (r.rtd || 0) + (r.td || 0) })) });
+        last: (S.players?.[pl.id]?.last || []).slice(0, 10).map(r => ({ ...r, n: (r.rtd || 0) + (r.td || 0) })),
+        ft: pl.ft ?? null, ftCost: pl.ftk?.ya ? kCost(pl.ftk.ya) : null, ftUrl: pl.ftk?.url || null });
     }
   return out;
 }
@@ -2733,6 +2738,10 @@ function renderTD() {
   const games = [...new Map(c.map(x => [x.g.id, x.g])).values()].sort((a, b) => new Date(a.date) - new Date(b.date));
   if (TDB.game !== 'all') c = c.filter(x => x.g.id === TDB.game);
   if (TDB.pos !== 'all') c = c.filter(x => posGroup(x.pl.p) === TDB.pos);
+  const FIRST = TDB.kind === 'first';
+  // first TD: value when our chance beats Kalshi's price (after its fee) by 1+ point and 15%+, since these are long shots
+  const ftVal = x => x.ft != null && x.ftCost != null && x.ft - x.ftCost >= 0.01 && x.ft / x.ftCost >= 1.15;
+  if (FIRST) c = c.filter(x => x.ft != null).map(x => ({ ...x, p: x.ft, edge: x.ftCost != null ? x.ft - x.ftCost : null }));
   const muF = x => x.w ? x.w.rz * (1 + (x.w.dvp - 1) / 2) : 1;
   c.sort(TDB.sort === 'value' ? (a, b) => (b.edge ?? -9) - (a.edge ?? -9) || b.p - a.p
     : TDB.sort === 'matchup' ? (a, b) => (b.p >= 0.2) - (a.p >= 0.2) || muF(b) - muF(a) || b.p - a.p : (a, b) => b.p - a.p);
@@ -2779,18 +2788,21 @@ function renderTD() {
   box.innerHTML = `<div class="tdb"><details class="howto"><summary>How these chances work</summary><span class="note">Our chance each player scores: his scoring rate (this season and last), red-zone, end-zone and goal-line looks, and his share of the offense times his team's expected points (mostly the betting market's implied team total), adjusted for the defense's red-zone record, whether it gives up TDs through the air or on the ground, its TDs allowed to his position, and game script.</span></details>
     <div class="tdb-bar">
       <select id="tdbGame" aria-label="Game"><option value="all">All upcoming games</option>${games.map(g => `<option value="${g.id}"${TDB.game === g.id ? ' selected' : ''}>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</option>`).join('')}</select>
+      <div class="tdkind" role="group" aria-label="Market"><button data-tdkind="any" aria-pressed="${!FIRST}">Anytime</button><button data-tdkind="first" aria-pressed="${FIRST}">First TD</button></div>
       ${['all', 'RB', 'WR', 'TE', 'QB'].map(k => `<button class="chip" data-tdpos="${k}" aria-pressed="${TDB.pos === k}">${k === 'all' ? 'All' : k}</button>`).join('')}
       <select id="tdbSort" aria-label="Sort"><option value="chance"${TDB.sort === 'chance' ? ' selected' : ''}>Most likely</option><option value="value"${TDB.sort === 'value' ? ' selected' : ''}>Best value vs price</option><option value="matchup"${TDB.sort === 'matchup' ? ' selected' : ''}>Softest matchup</option></select>
     </div>
-    <div class="tdb-quick"><span class="note">Quick build:</span>
+    ${FIRST ? `<p class="note ftnote">First TD of the game: each player's share of all the touchdowns expected in the game. Tested on weeks 1-4 against Kalshi's first-TD prices: ours were slightly more accurate (51 first TDs, so still a small sample). Books rarely let you parlay these, so bet them one at a time and small: even the favorite usually hits less than 1 in 6.</p>` : ''}
+    ${FIRST ? '' : `<div class="tdb-quick"><span class="note">Quick build:</span>
       <button class="btn small" data-tdquick="safe2">Safest 2</button><button class="btn small" data-tdquick="safe3">Safest 3</button>
       <button class="btn small" data-tdquick="spread">Top scorer, 4 games</button><button class="btn small" data-tdquick="value">Best value 3</button>
-      ${nTd ? `<button class="btn small primary" data-tab-go="parlay" style="margin-left:auto">Open parlay (${nTd}) →</button>` : ''}</div>
+      ${nTd ? `<button class="btn small primary" data-tab-go="parlay" style="margin-left:auto">Open parlay (${nTd}) →</button>` : ''}</div>`}
     ${c.slice(0, TDB.n).map(x => { const on = inPar(x.g.id, x.pl.id);
       return `<div class="tdrow">${logo(x.team.abbr, 26)}
         <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}</small>${l10(x)}${mu(x)}</div>
-        <div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · ${x.pr.kx ? `<a class="kxlink" href="${esc(x.pr.kx)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(x.price)} ↗</a>` : `Kalshi ${fmtOdds(x.price)}`}` : ''}${x.edge != null && x.edge >= x.edgeMin ? ' · <span class="val">value</span>' : ''}</small></div>
-        <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>
+        ${FIRST ? `<div class="pct">${(x.ft * 100).toFixed(1)}%<small>fair ${fmtOdds(fairAm(x.ft))}${x.ftCost != null ? ` · ${x.ftUrl ? `<a class="kxlink" href="${esc(x.ftUrl)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(centsAm(x.ftCost))} ↗</a>` : `Kalshi ${fmtOdds(centsAm(x.ftCost))}`}` : ''}${ftVal(x) ? ' · <span class="val">value</span>' : ''}<br>anytime ${Math.round(x.pr.pOver * 100)}%</small></div>
+        <span></span>` : `<div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · ${x.pr.kx ? `<a class="kxlink" href="${esc(x.pr.kx)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(x.price)} ↗</a>` : `Kalshi ${fmtOdds(x.price)}`}` : ''}${x.edge != null && x.edge >= x.edgeMin ? ' · <span class="val">value</span>' : ''}</small></div>
+        <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>`}
         ${TDB.open.has(x.pl.id) && x.last.length ? tdLog(x) : ''}</div>`; }).join('')}
     ${c.length > TDB.n ? `<button class="showmore" data-tdmore>Show more players (${c.length - TDB.n} left)</button>` : ''}
     <p class="note" style="margin-top:8px">"Fair" is the price that would be break-even at our chance. If your book pays more than that, the leg is worth it on its own. Touchdowns are long shots: even a 4-leg ticket of strong scorers usually misses, so size it small.</p></div>`;
@@ -2801,6 +2813,7 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('click', e => {
   const p = e.target.closest('[data-tdpos]'); if (p) { TDB.pos = p.dataset.tdpos; renderTD(); return; }
+  const kd = e.target.closest('[data-tdkind]'); if (kd) { TDB.kind = kd.dataset.tdkind; TDB.n = 10; renderTD(); return; }
   const q = e.target.closest('[data-tdquick]'); if (q) { tdQuick(q.dataset.tdquick); return; }
   if (e.target.closest('[data-tdmore]')) { TDB.n += 15; renderTD(); return; }
   const lg = e.target.closest('[data-tdlog]'); if (lg) { const id = lg.dataset.tdlog; TDB.open.has(id) ? TDB.open.delete(id) : TDB.open.add(id); renderTD(); }

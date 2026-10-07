@@ -738,6 +738,9 @@ def main():
     try:
         projections.team_projections(games, team_an)
         projections.prop_projections(props, games, team_an, season)
+        try:   # first touchdown scorer chances, from the anytime chances just blended
+            import firsttd; firsttd.attach(games, props)
+        except Exception as e: print("first td failed", e, file=sys.stderr)
     except Exception as e:
         import traceback; traceback.print_exc()
         print("projections failed", e, file=sys.stderr)

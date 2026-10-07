@@ -181,8 +181,9 @@ def td_pts(g, side):
 
 # usage model markets: yardage + receptions (weeks 1-4: 54.5% leans vs 50%), and its second pass on Kalshi weeks 1-4
 # (Pass att 61% vs 52%, Completions 57% vs 52%, Carries / Rush+rec slightly better). Pass TD and INT stay on the old
-# average, which scored a little better there. Pass+rush yds = the two validated pieces added up.
-USAGE_MARKETS = {"Pass yds", "Rush yds", "Rec yds", "Receptions", "Pass att", "Completions", "Carries", "Rush+rec yds", "Pass+rush yds"}
+# average, which scored a little better there. Pass TD later moved to a team-based number (team expected points x pass
+# share of TDs), which matched Kalshi on weeks 1-4; INT stays on the average (nothing tried beat it). Pass+rush yds = the two validated pieces added up.
+USAGE_MARKETS = {"Pass yds", "Rush yds", "Rec yds", "Receptions", "Pass att", "Completions", "Carries", "Rush+rec yds", "Pass+rush yds", "Pass TD"}
 _USAGE_CTX = {}
 
 

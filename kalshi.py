@@ -144,4 +144,12 @@ def apply(games, props):
                     pl["props"].append(pr)
                 pr["alt"] = rungs; n += len(rungs)
                 if urls.get(name): pr["kx"] = urls[name]
+    # first touchdown scorer: one price per player, kept on the player (pl["ftk"])
+    try: ms = markets("KXNFLFIRSTTD")
+    except Exception as e: print("kalshi KXNFLFIRSTTD failed", e, file=sys.stderr); ms = []
+    for m in ms:
+        g = _game_for(m["event_ticker"], pre); p = _price(m)
+        if not g or not p or g["id"] not in props or ":" not in m["title"]: continue
+        pl = next((x for x in props[g["id"]] if norm(x["n"]) == norm(m["title"].split(":")[0])), None)
+        if pl: pl["ftk"] = {**p, "url": page_url("KXNFLFIRSTTD", m["event_ticker"])}; n += 1
     return n

@@ -68,6 +68,10 @@ def context(week):
     for w in prev: hist[norm(w["player_display_name"])].append((SEASON - 1, i(w["week"]), w))
     for w in before: hist[norm(w["player_display_name"])].append((SEASON, i(w["week"]), w))
     snap = {(norm(s_["player"]), i(s_["week"])): f(s_.get("offense_pct")) or 0 for s_ in snaps}
+    # each team's passing vs rushing touchdowns so far (the passing-TD prop is the team's expected TDs through the air)
+    team_td = defaultdict(lambda: [0.0, 0.0])
+    for w in before:
+        team_td[fix(w["team"])][0] += f(w.get("passing_tds")) or 0; team_td[fix(w["team"])][1] += f(w.get("rushing_tds")) or 0
     co = situational.coaches(SEASON)
     this = {norm(w["player_display_name"]): w for w in st if i(w["week"]) == week}
     return locals()
@@ -135,7 +139,12 @@ def usage_raw(C, nm, mkt, team=None, pos=None, game=None):
         att = team_pass * 0.93                                       # dropbacks minus sacks / scrambles
         if mkt == "Pass att": return att
         if mkt == "Completions": return att * rate("completions", "attempts", 0.645, K["att"]) * C["dfac"](o, "rc", "tg", "cr", 150)
-        if mkt == "Pass TD": return att * rate("passing_tds", "attempts", 0.045, 300) * max(0.75, min(1.3, (gm["total"] / 44.5) ** 1.2))
+        if mkt == "Pass TD":
+            # the team's expected points x TDs per point x share of its TDs through the air (shrunk to 60%): on Kalshi weeks
+            # 1-4 this matched Kalshi (Brier 0.245 vs 0.244) where the QB's own TD rate (0.250) and the old average (0.248) didn't
+            ptd, rtd = C["team_td"][t]
+            share = (ptd + 0.6 * 8) / (ptd + rtd + 8)
+            return (gm["total"] / 2 + gm["margin"] / 2) * 0.105 * 0.94 * share
         return att * rate("passing_interceptions", "attempts", 0.024, 400) * (1 + max(-0.15, min(0.15, 0.015 * -gm["margin"])))   # trailing QBs force throws
     if mkt == "Carries":
         if pg == "QB":
