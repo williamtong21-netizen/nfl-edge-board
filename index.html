@@ -690,12 +690,15 @@ body.easy nav [data-tab="shop"],body.easy nav [data-tab="lineups"],body.easy nav
 .betsheet .bs-h button{margin-left:auto}.betsheet table{width:100%;margin:8px 0;font-size:14px}
 .betsheet td{padding:6px 4px;border-top:1px solid var(--line)}.betsheet td.n{text-align:right;font:700 15px var(--f-display)}
 .betsheet tr.best td{color:var(--good)}.betsheet .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.vpick{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:10px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.vpick{display:grid;grid-template-columns:30px minmax(0,1fr);gap:4px 10px;align-items:center;padding:10px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
 .vpick b{font:800 17px var(--f-display);letter-spacing:.3px}.vpick small{color:var(--muted);font-size:12px}
-.vpick .big{font:800 20px var(--f-display);text-align:right}.vpick .big small{display:block;font:600 11px var(--f-body);color:var(--muted)}
+.vpick .big{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:8px;font:800 20px var(--f-display)}.vpick .big small{font:600 11.5px var(--f-body);color:var(--muted);text-align:right}
 .vpick .acts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .vpick .acts .sendrow{margin:0}
-.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.vgrid{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 10px;margin:0 -2px;scrollbar-width:thin;overscroll-behavior-x:contain}
+.vgrid > .vpick{flex:0 0 min(290px,84%);scroll-snap-align:start}
+.sechead{display:flex;align-items:baseline;gap:10px;margin:18px 0 8px}.sechead h2{margin:0}.sechead small{color:var(--muted);font-size:12px}
+.vpick .acts .sendbook{padding:6px 12px;font-size:12.5px}
 details.leans{margin-top:22px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px}
 details.leans > summary{cursor:pointer;font:800 18px var(--f-display);letter-spacing:1px;text-transform:uppercase;list-style:none}
 details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[open] > summary::after{content:" ▴"}
@@ -746,7 +749,7 @@ details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[o
   <div id="view-picks" hidden>
     <div class="toolbar"><h2 style="margin:0">Best bets</h2></div>
     <p class="note">What we can back up with results: touchdown spots where our numbers and the market disagree, and the best price for every bet across the books. Our other model reads are further down, labeled honestly.</p>
-    <p class="note">Where our projections disagree most with the books, ranked by the size of the gap and how many other signals agree (recent form, matchup, usage). When we have prices from several books, each pick shows the best number and price, and the chance and EV there blend our projection 50/50 with that book's own fair odds. Our models lean toward the market on purpose and have only a few weeks of data early in the season, so treat these as a second opinion, not a sure thing.</p>
+    
     <div id="picks"></div>
     <div id="trapWrap"><details class="moreangles"><summary>More angles: trap watch &amp; alternate lines</summary>
     <h2 style="margin-top:14px">Trap watch</h2>
@@ -1657,13 +1660,21 @@ function priceEdges() {
   }
   return out.sort((a, b) => b.gain - a.gain);
 }
+// a single "Bet at <book>" button: the book with the price (or your book), falling back to any book with a link
+function oneBetButton(leg, prefer) {
+  const links = legLinks(leg, true), order = [prefer, store.get('edge-mybook'), 'FanDuel', 'DraftKings', 'BetMGM', ...Object.keys(links)];
+  const b = order.find(x => x && links[x]); if (!b) return '';
+  const url = combineLinks(b, [links[b]]); if (!url) return '';
+  return `<a class="sendbook ${BOOK_CLS[b] || ''}" href="${esc(url)}" target="_blank" rel="noopener">Bet at ${esc(b)} ↗</a>`;
+}
 function valueTDs() { return tdCandidates().filter(x => x.edge != null && x.edge >= x.edgeMin).sort((a, b) => b.edge - a.edge); }
 function vTdCard(x) {
-  const leg = makeLeg(x.g.id, 'prop', 'over', x.pl.id, 'Anytime TD');
-  const px = x.book ? `${x.book.n} ${fmtOdds(x.book.o)}` : `Kalshi ${fmtOdds(x.price)}`, theirs = x.book ? impl(x.book.o) : x.price != null ? impl(x.price) : null;
+  const leg = makeLeg(x.g.id, 'prop', 'over', x.pl.id, 'Anytime TD'), links = leg ? legLinks(leg, true) : {};
+  const bk = (x.pr.books || []).filter(b => b.o != null && links[b.n]).sort((a, b) => b.o - a.o)[0] || x.book;
+  const px = bk ? `${bk.n} ${fmtOdds(bk.o)}` : `Kalshi ${fmtOdds(x.price)}`, theirs = bk ? impl(bk.o) : x.price != null ? impl(x.price) : null;
   return `<article class="vpick">${logo(x.team.abbr, 28)}<div><b>${esc(x.pl.n)} TD</b><br><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}</small></div>
     <div class="big">${esc(px)}<small>we say ${Math.round(x.p * 100)}%${theirs != null ? ` · price says ${Math.round(theirs * 100)}%` : ''}</small></div>
-    <div class="acts"><button class="addp" data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD">+ Parlay</button>${leg ? sendButtons([leg], true) : ''}</div></article>`;
+    <div class="acts"><button class="addp" data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD">+ Parlay</button>${leg ? oneBetButton(leg, bk?.n) : ''}</div></article>`;
 }
 function vPriceCard(v) {
   const g = v.g, t = v.kind === 'total' ? null : g[v.side];
@@ -1671,7 +1682,7 @@ function vPriceCard(v) {
   const leg = makeLeg(g.id, v.kind, v.side, null, null, v.line ?? '');
   return `<article class="vpick">${t ? logo(t.abbr, 28) : logo(g.home.abbr, 28)}<div><b>${esc(what)}</b><br><small>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</small></div>
     <div class="big">${esc(v.best.book)} ${fmtOdds(v.best.price)}<small>most of ${v.n} books: ${fmtOdds(Math.round(fairAm(v.med)))}</small></div>
-    <div class="acts"><button class="addp" data-addleg="${g.id}|${v.kind}|${v.side}|||${v.line ?? ''}">+ Parlay</button>${leg ? sendButtons([leg], true, v.best.book) : ''}</div></article>`;
+    <div class="acts"><button class="addp" data-addleg="${g.id}|${v.kind}|${v.side}|||${v.line ?? ''}">+ Parlay</button>${leg ? oneBetButton(leg, v.best.book) : ''}</div></article>`;
 }
 
 function renderPicks() {
@@ -1686,14 +1697,12 @@ function renderPicks() {
   queueMicrotask(() => { const m = $('#trapMount'), w = $('#trapWrap'); if (m && w) m.append(w); });
   const nS = PK.allSides ? 12 : 4, nP = PK.allProps ? 30 : 6;
   box.innerHTML = `${reportCard()}
-    <h2 style="margin-top:6px">Touchdown value</h2>
-    ${tdv.length ? `<div class="vgrid">${tdv.slice(0, PK.allTD ? 20 : 6).map(vTdCard).join('')}</div>${tdv.length > 6 ? `<button class="showmore" data-pk="allTD">${PK.allTD ? 'Show fewer' : `Show all ${Math.min(20, tdv.length)}`} TD spots</button>` : ''}`
+    <div class="sechead"><h2>Touchdown value</h2><small>${tdv.length ? `${tdv.length} spots · swipe →` : ''}</small></div>
+    ${tdv.length ? `<div class="vgrid">${tdv.slice(0, 15).map(vTdCard).join('')}</div>`
       : `<p class="note">No touchdown prices beat our numbers by enough right now. New prices land Thursday morning and refresh through the week.</p>`}
-    <p class="note" style="margin-top:6px">Tested on weeks 1–4: betting these spots would have returned about +38%, mostly from long shots, so expect big swings week to week.</p>
-    <h2 style="margin-top:22px">Best prices right now</h2>
-    ${pe.length ? `<div class="vgrid">${pe.slice(0, PK.allPx ? 16 : 6).map(vPriceCard).join('')}</div>${pe.length > 6 ? `<button class="showmore" data-pk="allPx">${PK.allPx ? 'Show fewer' : `Show all ${Math.min(16, pe.length)}`} best prices</button>` : ''}`
+    <div class="sechead"><h2>Best prices</h2><small>${pe.length ? `${pe.length} bets · swipe →` : ''}</small></div>
+    ${pe.length ? `<div class="vgrid">${pe.slice(0, 15).map(vPriceCard).join('')}</div>`
       : `<p class="note">Every book is priced about the same on the game lines right now.</p>`}
-    <p class="note" style="margin-top:6px">Same bet, better payout than most books. You don't need a prediction for this to be worth it.</p>
     <div id="trapMount"></div>
     <details class="leans"${PK.leans ? ' open' : ''}><summary>Our model's leans</summary>
     <p class="honest">Backtests on 2024–26 games and this season's props found these leans hit about 50% against the closing lines, so treat them as information, not edges.</p>
