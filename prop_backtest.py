@@ -109,11 +109,13 @@ def build(week, markets=None):
                 tp = mean(ppg.get(team, [])); env = max(0.85, min(1.15, 1 + 0.3 * (imp[team] / tp - 1))) if tp else 1.0
                 raw = base * mult * env
                 raw_old = raw
-                try:   # the usage model (what the app now uses); the recency average is the fallback
-                    import prop_rescore
+                try:   # the usage model where the app uses it; the recency average elsewhere and as the fallback
+                    import prop_rescore, projections
+                    if mkt not in projections.USAGE_MARKETS: raise LookupError
                     if week not in _CTX: _CTX[week] = prop_rescore.context(week)
                     ru = prop_rescore.usage_raw(_CTX[week], nm, mkt)
                     if ru and ru > 0: raw = ru
+                except LookupError: pass
                 except Exception as e:
                     print("usage model failed", nm, mkt, e, file=sys.stderr)
                 # price the 3 rungs nearest our number; the one closest to 50/50 plays the role of the book line
@@ -137,6 +139,17 @@ def build(week, markets=None):
                 out.append({"n": w4["player_display_name"], "m": mkt, "pos": pg, "game": f"{A} @ {H}", "wk": week, "line": L, "raw": round(raw, 1),
                             "p": round(p, 3), "p_old": round(p_old, 3), "raw_old": round(raw_old, 1), "bid": bid, "ask": ask, "mid": (bid + ask) / 2, "actual": actual, "scored": actual > L})
     return out
+
+
+def by_market(rows_):
+    """Per-market record for the report card: 55%+ leans and accuracy, ours vs Kalshi."""
+    out = {}
+    for r in rows_:
+        d = out.setdefault(r["m"], {"n": 0, "w": 0, "l": 0, "sse": 0.0, "kse": 0.0})
+        d["n"] += 1; d["sse"] += (r["p"] - r["scored"]) ** 2; d["kse"] += (r["mid"] - r["scored"]) ** 2
+        if abs(r["p"] - 0.5) >= 0.05 and r["actual"] != r["line"]:
+            hit = (r["p"] > 0.5) == r["scored"]; d["w"] += hit; d["l"] += not hit
+    return {k: {**v, "sse": round(v["sse"], 4), "kse": round(v["kse"], 4)} for k, v in out.items()}
 
 
 if __name__ == "__main__":

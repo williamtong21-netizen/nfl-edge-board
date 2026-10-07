@@ -1672,7 +1672,10 @@ function reportCard() {
   const td = (R.td || []).map(d => `<tr><td>${esc(d.bin)}</td><td class="n">${Math.round(d.ours * 100)}%</td><td class="n">${d.scored}/${d.n} (${Math.round(d.scored / d.n * 100)}%)</td></tr>`);
   const sd = (o, lbl) => Object.entries(o || {}).filter(([k]) => k !== 'all').map(([k, d]) => `<tr><td>${lbl} · edge ${esc(k)}</td><td class="n">${recS2(d)}</td><td class="n">${rcPct(d)}</td></tr>`);
   const miss = (R.misses || []).map(m => `<tr><td>${esc(m.n)} <span class="note">${esc(m.m)} ${esc(m.side)} ${m.l}</span></td><td class="n">${Math.round(m.p * 100)}%</td><td class="n">${m.a}</td></tr>`);
-  const tdbt = tdBacktest(R), pbt = tdBacktest(R, 'pbt');
+  const tdbt = tdBacktest(R), pbt = tdBacktest(R, 'pbt'), pbt2 = tdBacktest(R, 'pbt2');
+  const mk2 = {};   // the other prop markets, added up over every graded week
+  for (const v of Object.values(R.pbt2 || {})) for (const [m, d] of Object.entries(v.mk || {})) { const x = mk2[m] ||= { n: 0, w: 0, l: 0, sse: 0, kse: 0 }; for (const k in x) x[k] += d[k]; }
+  const mk2rows = Object.entries(mk2).sort((a, b) => b[1].n - a[1].n).map(([m, d]) => `<tr><td>${esc(m)}</td><td class="n">${d.w}–${d.l}${d.w + d.l ? ` (${Math.round(d.w / (d.w + d.l) * 100)}%)` : ''}</td><td class="n">${(d.sse / d.n).toFixed(3)}</td><td class="n">${(d.kse / d.n).toFixed(3)}</td></tr>`);
   const line = [['props', R.props.all], ['spreads', R.sides?.all], ['totals', R.totals?.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
   return `<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
     <div class="rc-chips">${chip('Prop leans', R.props.all)}${chip('Strong leans (60%+)', strong)}${chip('Spreads', R.sides?.all)}${chip('Totals', R.totals?.all)}${tdbt.chip ? `<div class="rc-chip"><span>TD value bets</span><b class="${tdbt.chip.pl > 0 ? 'pos' : 'neg'}">${tdbt.chip.pl > 0 ? '+' : '−'}$${Math.abs(tdbt.chip.pl).toFixed(0)}</b><span>${tdbt.chip.w}–${tdbt.chip.l}, $10 each</span></div>` : ''}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
@@ -1686,6 +1689,9 @@ function reportCard() {
         <p class="note">Every anytime-TD market Kalshi listed, graded after the games. Accuracy compares our model, Kalshi's price before kickoff, and the blend the app shows (${Math.round((tdbt.wt || 0.6) * 100)}% market). Value bets: $10 whenever the blend beat Kalshi's price by 3+ points after fees.</p></div>` : ''}
       ${pbt.rows.length ? `<div><h4>Yardage &amp; reception props vs Kalshi</h4>${tbl(['Week', 'Overs hit', 'Most accurate', 'Value bets', 'P/L ($10 each)'], pbt.rows)}
         <p class="note">Passing, rushing and receiving yards and receptions, at the Kalshi line priced closest to 50/50 before kickoff. Blend: ${Math.round((pbt.wt || 0.6) * 100)}% market.</p></div>` : ''}
+      ${pbt2.rows.length ? `<div><h4>Other props vs Kalshi</h4>${tbl(['Week', 'Overs hit', 'Most accurate', 'Value bets', 'P/L ($10 each)'], pbt2.rows)}
+        ${tbl(['Market', 'Our leans', 'Ours (lower is better)', 'Kalshi'], mk2rows)}
+        <p class="note">Pass attempts, completions, passing TDs, interceptions, carries and rush+rec yards, graded every week. Attempts, completions, carries and rush+rec use the usage model; TDs and INTs use the recent average, which tested a little better there.</p></div>` : ''}
     </div></details></details>`;
 }
 

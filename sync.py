@@ -788,6 +788,18 @@ def main():
             if report is not None: report["pbt"] = pb
         except Exception as e:
             print("prop backtest failed", e, file=sys.stderr)
+        # the rest of the board (attempts, completions, TDs, INTs, carries, rush+rec) the same way, one week per run
+        try:
+            import td_backtest, prop_backtest
+            pb2 = load("prop_backtest2.json", {})
+            todo = [w for w in range(1, (week or 1) + 1) if str(w) not in pb2 and td_backtest.ready(w)][:1]
+            for w in todo:
+                rs = prop_backtest.build(w, prop_backtest.SERIES2)
+                pb2[str(w)] = {**td_backtest.summarize(rs, projections.MKT_PROP_W), "mk": prop_backtest.by_market(rs)}
+            if todo: save(os.path.join(DATA, "prop_backtest2.json"), pb2)
+            if report is not None: report["pbt2"] = pb2
+        except Exception as e:
+            print("prop backtest (other markets) failed", e, file=sys.stderr)
         if graded: print("graded", graded, "games", file=sys.stderr)
     except Exception as e:
         import traceback; traceback.print_exc()
