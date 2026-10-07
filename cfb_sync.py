@@ -42,6 +42,45 @@ def ours(games, season):
     return {"games": L["games"], "at": L["at"]}
 
 
+def record(games, season, prev_events):
+    """Finals, closing lines and our number for every college game, kept all season (grades My Bets and our record)."""
+    res = sync.load(f"results_{season}.json", {"season": season, "games": {}})
+    for g in games:
+        r = res["games"].setdefault(g["id"], {})
+        r.update({"w": g["week"], "d": g["date"], "h": g["home"]["abbr"], "a": g["away"]["abbr"], "st": g["state"]})
+        if g["state"] == "pre" and g.get("odds"):   # keeps updating until kickoff, then freezes = the closing line
+            r.update({"cs": g["odds"].get("hs"), "ct": g["odds"].get("t"), "chml": g["odds"].get("hml"), "caml": g["odds"].get("aml")})
+            if g.get("ours"): r.update({"om": g["ours"]["m"], "ot": g["ours"]["t"]})
+        if g["state"] == "post":
+            r.update({"hs": sync.num(g["home"]["score"]), "as": sync.num(g["away"]["score"])})
+    for e in prev_events:   # last week's games that finished after the scoreboard moved on
+        r = res["games"].get(e["id"])
+        c = e["competitions"][0]
+        if not r or r.get("st") == "post" or c["status"]["type"]["state"] != "post": continue
+        sc = {x["homeAway"]: sync.num(x.get("score")) for x in c["competitors"]}
+        r.update({"st": "post", "hs": sc.get("home"), "as": sc.get("away")})
+    sync.save(os.path.join(sync.DATA, f"results_{season}.json"), res)
+    return res
+
+
+def report(res):
+    """How our number did against the closing line: spreads and totals, by edge size and by week."""
+    blank = lambda: {"w": 0, "l": 0, "push": 0}
+    out = {"ats": {k: blank() for k in ("all", "3+", "5+")}, "tot": {k: blank() for k in ("all", "3+", "5+")}, "weeks": {}, "games": 0}
+    for r in res["games"].values():
+        if r.get("st") != "post" or r.get("hs") is None or r.get("om") is None: continue
+        out["games"] += 1
+        wk = out["weeks"].setdefault(str(r["w"]), {"ats": blank(), "tot": blank()})
+        for kind, edge, result in (("ats", None if r.get("cs") is None else r["om"] + r["cs"], None if r.get("cs") is None else r["hs"] - r["as"] + r["cs"]),
+                                   ("tot", None if r.get("ct") is None else r["ot"] - r["ct"], None if r.get("ct") is None else r["hs"] + r["as"] - r["ct"])):
+            if edge is None or abs(edge) < 0.5: continue   # no lean
+            k = "push" if result == 0 else "w" if (edge > 0) == (result > 0) else "l"
+            for b, th in (("all", 0), ("3+", 3), ("5+", 5)):
+                if abs(edge) >= th: out[kind][b][k] += 1
+            wk[kind][k] += 1
+    return out
+
+
 def main():
     try:
         with open(os.path.join(ROOT, "config.json"), encoding="utf-8") as f: cfg = json.load(f)
@@ -49,6 +88,7 @@ def main():
     sb = sync.get(sync.ESPN + "/scoreboard?groups=80&limit=300")
     season, week = sb["season"]["year"], (sb.get("week") or {}).get("number")
     events = [(e, week) for e in sb["events"] if keep(e)]
+    prev = sync.get(sync.ESPN + f"/scoreboard?groups=80&limit=300&week={week - 1}")["events"] if week and week > 1 else []
     # early in the week the current week can be mostly done: add next week's games too
     if week and sum(1 for e, _ in events if e["competitions"][0]["status"]["type"]["state"] == "pre") <= 3:
         nxt = sync.get(sync.ESPN + f"/scoreboard?groups=80&limit=300&week={week + 1}")
@@ -69,12 +109,13 @@ def main():
     sync.weather(games)
     odds_meta = sync.multibook(games, cfg)
     for g in games: g.pop("city", None)
+    res = record(games, season, prev)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     slate = {"updatedAt": now, "sport": "cfb", "propParts": 0, "analytics": None, "season": season, "week": week,
-             "seasonType": sb["season"].get("type", 2), "odds": odds_meta, "report": None, "cfbModel": model_note, "games": games}
+             "seasonType": sb["season"].get("type", 2), "odds": odds_meta, "report": None, "cfbModel": model_note, "cfbReport": report(res), "games": games}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
     sync.save(os.path.join(sync.OUT, "history.json"), {"season": season, "snaps": []})
-    sync.save(os.path.join(sync.OUT, "results.json"), {"season": season, "games": {}})
+    sync.save(os.path.join(sync.OUT, "results.json"), res)
     sync.save(os.path.join(sync.OUT, "manifest.json"), [{"collection": "slate", "doc_id": "current", "file": "slate.json"}])
     print(json.dumps({"sport": "cfb", "season": season, "week": week, "games": len(games),
                       "with_books": sum(1 for g in games if g.get("books")), "multibook": odds_meta}))

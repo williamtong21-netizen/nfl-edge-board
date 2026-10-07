@@ -652,7 +652,9 @@ details.moreangles > summary::after{content:" ▾";color:var(--muted)}details.mo
 .sc-share:hover{border-color:var(--good);color:var(--good)}
 /* welcome + easy mode */
 .hdr-btns{display:flex;gap:6px;align-items:center}
-@media (max-width:560px){#syncText{display:none}.hdr-btns{margin-left:6px}}
+@media (max-width:560px){#syncText{display:none}.hdr-btns{margin-left:6px}.brand small{display:none}.bar{flex-wrap:nowrap;gap:8px}.brand{white-space:nowrap}.sportsw{margin-left:4px}}
+@media (max-width:400px){.brand{font-size:21px}.sportsw button{padding:5px 8px}}
+.hdr-btn{display:grid;place-items:center}
 .hdr-btn{background:var(--surface2);border:1px solid var(--line);color:var(--ink);border-radius:999px;width:32px;height:32px;font:700 15px var(--f-body);cursor:pointer}
 .welcome{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(3,6,10,.72)}
 .welcome[hidden]{display:none}
@@ -711,6 +713,13 @@ details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[o
 body.cfb nav [data-tab="props"],body.cfb nav [data-tab="tds"],body.cfb nav [data-tab="lineups"],body.cfb nav [data-tab="players"],body.cfb nav [data-tab="teams"]{display:none}
 body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec + .vgrid,body.cfb #picks .tdsec + p{display:none}
 .cfbours{display:flex;flex-direction:column;gap:3px;padding:2px 12px 10px}.cfbours small{color:var(--muted);font-size:11.5px}
+.fbkinds{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.fbkinds button{border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;padding:6px 12px;font:700 13px var(--f-body);cursor:pointer}
+.fbkinds button[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:var(--on-good)}
+#fbText{width:100%;box-sizing:border-box;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--fg, inherit);padding:10px 12px;font:15px var(--f-body);resize:vertical}
+.fbctx{margin:8px 0}.fbctx summary{color:var(--muted);font-size:12.5px;cursor:pointer}.fbctx pre{white-space:pre-wrap;font-size:11.5px;color:var(--muted);margin:6px 0 0}
+.fbbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.fbbtns .btn{text-decoration:none}
+.cfbrec .rc-chip small{display:block;color:var(--muted);font-size:11px}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -726,12 +735,22 @@ body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec + .vgrid,body.cfb #picks .
   <label class="easy"><input type="checkbox" id="easyMode"><span><b>Easy mode</b> · hide the research tabs (Line Shop, Lineups, Players, Teams). You can change this any time with the ? button.</span></label>
   <button class="go" id="welcomeGo">Let's go</button>
 </div></div>
+<div class="welcome" id="fbSheet" hidden role="dialog" aria-modal="true" aria-labelledby="fbTitle"><div class="box">
+  <h2 id="fbTitle">Something off?</h2>
+  <p class="sub">Bug, bad read, confusing screen, idea: say it like you'd text it. We attach what you were looking at.</p>
+  <div class="fbkinds" role="group" aria-label="Kind"><button data-fbk="Bug">Bug</button><button data-fbk="Bad read">Bad read</button><button data-fbk="Confusing">Confusing</button><button data-fbk="Idea">Idea</button></div>
+  <textarea id="fbText" rows="5" placeholder="e.g. TD parlay grade never goes above a D"></textarea>
+  <details class="fbctx"><summary>What gets attached</summary><pre id="fbCtx"></pre></details>
+  <div class="fbbtns"><button class="btn primary" id="fbSend">Send to the group chat</button><button class="btn" id="fbCopy">Copy</button><a class="btn" id="fbIssue" href="https://github.com/williamtong21-netizen/nfl-edge-board/issues/new" target="_blank" rel="noopener">GitHub issue</a></div>
+  <p class="note" id="fbMsg" aria-live="polite"></p>
+  <button class="btn" id="fbClose" style="margin-top:4px">Close</button>
+</div></div>
 <header>
   <div class="bar">
     <p class="brand">Edge Board <small id="sportName">NFL</small></p>
     <div class="sportsw" role="group" aria-label="Sport"><button data-sport="nfl">NFL</button><button data-sport="cfb">College</button></div>
     <div class="sync"><span class="dot off" id="syncDot"></span><span id="syncText">Waiting for data…</span></div>
-    <div class="hdr-btns"><button class="hdr-btn" id="helpBtn" aria-label="How the app works">?</button></div>
+    <div class="hdr-btns"><button class="hdr-btn" id="fbBtn" aria-label="Send feedback" title="Something off? Tell us"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></button><button class="hdr-btn" id="helpBtn" aria-label="How the app works">?</button></div>
   </div>
   <nav role="tablist">
     <button role="tab" id="tab-picks" data-tab="picks" aria-selected="false">Picks</button>
@@ -1620,7 +1639,20 @@ function tdBacktest(R, key = 'tdbt') {   // weekly backtest totals (touchdowns o
   rows.push(`<tr><td><b>All</b></td><td class="n">${sum(v => v.scored)}/${n}</td><td class="n">model ${br('p').toFixed(3)} · Kalshi ${br('mid').toFixed(3)} · blend ${br('blend').toFixed(3)}</td><td class="n">${won}/${bets}</td><td class="n"><b class="${pl > 0 ? 'pos' : 'neg'}">${pl > 0 ? '+' : '−'}$${Math.abs(pl).toFixed(0)}</b></td></tr>`);
   return { rows, wt: W[W.length - 1][1].wt, chip: { w: won, l: bets - won, pct: bets ? won / bets : null, pl } };
 }
+function cfbReportCard() {   // college: how our number has done against the closing line
+  const R = S.slate?.cfbReport;
+  if (!R?.games) return `<div class="rc"><div class="rc-h"><b>Our number's record</b><small>Graded against the closing line after each final. First results after this week's games.</small></div></div>`;
+  const pct = d => d.w + d.l ? Math.round(d.w / (d.w + d.l) * 100) + '%' : '';
+  const cls = d => !(d.w + d.l) ? '' : d.w / (d.w + d.l) >= 0.524 ? 'pos' : d.w / (d.w + d.l) < 0.5 ? 'neg' : '';
+  const chip = (lbl, d, sub) => `<div class="rc-chip"><span>${lbl}</span><b class="${cls(d)}">${recS2(d)}</b><span>${pct(d)}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  const wk = Object.entries(R.weeks).sort((a, b) => +a[0] - +b[0]).map(([w, d]) => `<tr><td>Week ${w}</td><td class="n">${recS2(d.ats)}</td><td class="n">${recS2(d.tot)}</td></tr>`);
+  return `<details class="rc cfbrec"><summary class="rc-h"><b>Our number's record</b><small>spreads ${recS2(R.ats.all)} · totals ${recS2(R.tot.all)} · ${R.games} games ▾</small></summary>
+    <div class="rc-chips">${chip('Spreads', R.ats.all, 'every game we leaned')}${chip('Spreads, 5+ pt gap', R.ats['5+'])}${chip('Totals', R.tot.all)}${chip('Totals, 5+ pt gap', R.tot['5+'])}</div>
+    <details><summary>Week by week</summary><table><tr><th>Week</th><th class="n">Spreads</th><th class="n">Totals</th></tr>${wk.join('')}</table>
+    <p class="note">Top 25 and Power 4 games, graded against the last line before kickoff. Breaking even takes about 52.4% at normal -110 prices. Weeks before this one were replayed using only games played up to then. Early weeks lean mostly on last season, which is why they're weakest.</p></details></details>`;
+}
 function reportCard() {
+  if (CFB) return cfbReportCard();
   const R = S.slate?.report;
   if (!R?.games) return `<div class="rc"><div class="rc-h"><b>Our report card</b><small>Every read gets graded after the final whistle. The first results show up after this week's games.</small></div></div>`;
   const strong = ['60–65%', '65%+'].reduce((a, k) => { const d = R.props[k]; if (d) { a.w += d.w; a.l += d.l; } return a; }, { w: 0, l: 0 });
@@ -3763,6 +3795,44 @@ queueMicrotask(() => {
   $('#easyMode').onchange = e => setEasy(e.target.checked);
   $('#welcome').onclick = e => { if (e.target.id === 'welcome') { store.set('edge-welcomed', '1'); showWelcome(false); } };
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#welcome').hidden) { store.set('edge-welcomed', '1'); showWelcome(false); } });
+});
+
+// ------------------------------------------------------------ feedback: a note plus what you were looking at, sent through the phone's
+// share sheet (the group chat), copied, or filed as a GitHub issue. Nothing is sent anywhere unless you pick one.
+const FB = { kind: 'Bug' };
+function fbContext() {
+  const tab = document.querySelector('nav [aria-selected="true"]')?.textContent || '';
+  const open = [...(S.open || [])].map(id => S.slate?.games?.find(g => g.id === id)).filter(Boolean).map(g => `${g.away.abbr} @ ${g.home.abbr}`);
+  const legs = (PAR?.legs || []).map(l => l.label);
+  return [`Edge Board · ${CFB ? 'College' : 'NFL'} · ${tab} tab`, open.length ? `Open games: ${open.join(', ')}` : '', legs.length ? `Parlay: ${legs.join(' + ')}` : '',
+    `Data from ${S.slate?.updatedAt ? new Date(S.slate.updatedAt).toLocaleString() : 'unknown'} · ${innerWidth}x${innerHeight}${$('body').classList.contains('easy') ? ' · easy mode' : ''}`].filter(Boolean).join('\n');
+}
+const fbBody = () => `[${FB.kind}] ${$('#fbText').value.trim()}\n\n${fbContext()}`;
+function showFeedback(on) {
+  $('#fbSheet').hidden = !on; if (!on) return;
+  $('#fbCtx').textContent = fbContext(); $('#fbMsg').textContent = '';
+  for (const b of document.querySelectorAll('[data-fbk]')) b.setAttribute('aria-pressed', b.dataset.fbk === FB.kind);
+  $('#fbText').focus();
+}
+queueMicrotask(() => {
+  $('#fbBtn').onclick = () => showFeedback(true);
+  $('#fbClose').onclick = () => showFeedback(false);
+  $('#fbSheet').onclick = e => { if (e.target.id === 'fbSheet') showFeedback(false); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#fbSheet').hidden) showFeedback(false); });
+  for (const b of document.querySelectorAll('[data-fbk]')) b.onclick = () => { FB.kind = b.dataset.fbk; showFeedback(true); };
+  const need = () => { if ($('#fbText').value.trim()) return false; $('#fbMsg').textContent = 'Type a quick note first.'; $('#fbText').focus(); return true; };
+  const copy = async () => { try { await navigator.clipboard.writeText(fbBody()); $('#fbMsg').textContent = 'Copied. Paste it in the group chat.'; } catch { $('#fbMsg').textContent = 'Could not copy on this device. Long-press the note to copy it.'; } };
+  $('#fbCopy').onclick = () => { if (!need()) copy(); };
+  $('#fbSend').onclick = async () => {
+    if (need()) return;
+    if (navigator.share) { try { await navigator.share({ text: fbBody() }); $('#fbMsg').textContent = 'Thanks!'; return; } catch (e) { if (e?.name === 'AbortError') return; } }
+    copy();
+  };
+  $('#fbIssue').onclick = e => {
+    if (need()) { e.preventDefault(); return; }
+    const t = $('#fbText').value.trim();
+    $('#fbIssue').href = `https://github.com/williamtong21-netizen/nfl-edge-board/issues/new?title=${encodeURIComponent(`[${FB.kind}] ${t.slice(0, 70)}`)}&body=${encodeURIComponent(fbBody())}`;
+  };
 });
 
 // ------------------------------------------------------------ share a ticket: a slip image for the group chat + a link that loads the parlay
