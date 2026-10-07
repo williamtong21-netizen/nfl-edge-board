@@ -127,6 +127,29 @@ def usage_raw(C, nm, mkt, team=None, pos=None, game=None):
         if pg != "QB": return None
         att = team_pass * 0.93
         return att * rate("passing_yards", "attempts", POS_EFF["ypa"], K["att"]) * C["dfac"](o, "py", "pa", "ypa", 120)
+    # the rest of the board, same opportunity x efficiency idea
+    if mkt in ("Pass att", "Completions", "Pass TD", "INT"):
+        if pg != "QB": return None
+        att = team_pass * 0.93                                       # dropbacks minus sacks / scrambles
+        if mkt == "Pass att": return att
+        if mkt == "Completions": return att * rate("completions", "attempts", 0.645, K["att"]) * C["dfac"](o, "rc", "tg", "cr", 150)
+        if mkt == "Pass TD": return att * rate("passing_tds", "attempts", 0.045, 300) * max(0.75, min(1.3, (gm["total"] / 44.5) ** 1.2))
+        return att * rate("passing_interceptions", "attempts", 0.024, 400) * (1 + max(-0.15, min(0.15, 0.015 * -gm["margin"])))   # trailing QBs force throws
+    if mkt == "Carries":
+        if pg == "QB":
+            num = den = 0.0
+            for age, (y, wk, r) in enumerate(hist):
+                wt = 0.85 ** age * (1.0 if y == SEASON else prev_w); num += wt * (f(r.get("carries")) or 0); den += wt
+            return num / den if den else None
+        cs = share("carries", "carries")
+        return cs * team_run if cs is not None else None
+    if mkt == "Rush+rec yds":
+        parts = [usage_raw(C, nm, "Rush yds", team, pos, game), usage_raw(C, nm, "Rec yds", team, pos, game)]
+        return sum(x for x in parts if x) if any(parts) else None
+    if mkt == "Pass+rush yds":
+        if pg != "QB": return None
+        py, ry = usage_raw(C, nm, "Pass yds", team, pos, game), usage_raw(C, nm, "Rush yds", team, pos, game)
+        return py + (ry or 0) if py else None
     return None
 
 

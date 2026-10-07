@@ -15,7 +15,13 @@ from td_backtest import kget, kickoff_utc, MON, K_CODE, SEASON, fee
 
 SERIES = {"KXNFLPASSYDS": ("Pass yds", "passing_yards", "QB", "pyd"), "KXNFLRSHYDS": ("Rush yds", "rushing_yards", None, "ryd"),
           "KXNFLRECYDS": ("Rec yds", "receiving_yards", None, "yds"), "KXNFLREC": ("Receptions", "receptions", None, "rec")}
-DIST = {"Pass yds": ("lognormal", 0.28), "Rush yds": ("lognormal", 0.55), "Rec yds": ("lognormal", 0.65), "Receptions": ("poisson",)}
+# the rest of the board (added with the usage model's second pass)
+SERIES2 = {"KXNFLPASSATT": ("Pass att", "attempts", "QB", None), "KXNFLPASSCOMP": ("Completions", "completions", "QB", None),
+           "KXNFLPASSTDS": ("Pass TD", "passing_tds", "QB", None), "KXNFLPASSINT": ("INT", "passing_interceptions", "QB", None),
+           "KXNFLRSHATT": ("Carries", "carries", None, None), "KXNFLRRYDS": ("Rush+rec yds", "rushing_yards+receiving_yards", None, None)}
+DIST = {"Pass yds": ("lognormal", 0.28), "Rush yds": ("lognormal", 0.55), "Rec yds": ("lognormal", 0.65), "Receptions": ("poisson",),
+        "Pass att": ("normal", 0.16), "Completions": ("normal", 0.2), "Pass TD": ("poisson",), "INT": ("poisson",), "Carries": ("poisson",),
+        "Rush+rec yds": ("lognormal", 0.5)}
 ANCHOR, SHRINK_P = 0.6, 0.85
 
 
@@ -24,6 +30,7 @@ def phi(z): return 0.5 * (1 + math.erf(z / math.sqrt(2)))
 
 def p_over(dist, proj, line):
     if proj <= 0: return 0.0
+    if dist[0] == "normal": return 1 - phi((line - proj) / max(0.5, dist[1] * proj))
     if dist[0] == "poisson":
         k = math.floor(line); return 1 - sum(math.exp(-proj) * proj ** j / math.factorial(j) for j in range(k + 1))
     s2 = math.log(1 + dist[1] ** 2)
@@ -33,7 +40,11 @@ def p_over(dist, proj, line):
 _CTX = {}
 
 
-def build(week):
+def stat(r, col):
+    return sum(f(r.get(c)) or 0 for c in col.split("+"))
+
+
+def build(week, markets=None):
     st = [w for w in rows(f"stats_player/stats_player_week_{SEASON}.csv", 6 * 3600) if w.get("season_type") == "REG"]
     prev = [w for w in rows(f"stats_player/stats_player_week_{SEASON - 1}.csv", 30 * 86400) if w.get("season_type") == "REG"]
     snaps = rows(f"snap_counts/snap_counts_{SEASON}.csv", 6 * 3600)
@@ -67,7 +78,8 @@ def build(week):
         imp = {H: tl / 2 + sl / 2, A: tl / 2 - sl / 2}; opp = {H: A, A: H}
         end = int(kickoff_utc(g).timestamp())
         d = g["gameday"]; tag = f"{d[2:4]}{MON[int(d[5:7]) - 1]}{d[8:10]}{K_CODE.get(A, A)}{K_CODE.get(H, H)}"
-        for series, (mkt, col, only_pos, _) in SERIES.items():
+        for series_t, (mkt, col, only_pos, _) in (markets or SERIES).items():
+            series = series_t
             try: ms = kget(f"/markets?event_ticker={series}-{tag}&limit=400").get("markets", [])
             except Exception as e: print("kalshi", series, tag, e, file=sys.stderr); continue
             ladders = defaultdict(list)
@@ -88,12 +100,15 @@ def build(week):
                 for age, (y, wk, r) in enumerate(hist):
                     s_ = snap.get((nm, wk)) if y == SEASON else None
                     if usual and s_ is not None and s_ < min(0.3, usual / 2): continue   # cameo / early exit
-                    vals.append(f(r.get(col)) or 0); wts.append(0.85 ** age * (1.0 if y == SEASON else prev_w))
+                    vals.append(stat(r, col)); wts.append(0.85 ** age * (1.0 if y == SEASON else prev_w))
                 if len(vals) < 2: continue
                 base = sum(v * w for v, w in zip(vals, wts)) / sum(wts)
-                o = dvp.get((opp[team], pg, col)); mult = max(0.85, min(1.15, 1 + 0.5 * (o / lg[(pg, col)] - 1))) if o is not None and lg.get((pg, col)) else 1.0
+                o = sum(dvp.get((opp[team], pg, c_), 0) for c_ in col.split("+")) or None
+                lgv = sum(lg.get((pg, c_), 0) for c_ in col.split("+"))
+                mult = max(0.85, min(1.15, 1 + 0.5 * (o / lgv - 1))) if o is not None and lgv else 1.0
                 tp = mean(ppg.get(team, [])); env = max(0.85, min(1.15, 1 + 0.3 * (imp[team] / tp - 1))) if tp else 1.0
                 raw = base * mult * env
+                raw_old = raw
                 try:   # the usage model (what the app now uses); the recency average is the fallback
                     import prop_rescore
                     if week not in _CTX: _CTX[week] = prop_rescore.context(week)
@@ -117,17 +132,19 @@ def build(week):
                 L = m["floor_strike"]
                 proj = L + ANCHOR * (raw - L)
                 p = max(0.03, min(0.97, 0.5 + SHRINK_P * (p_over(DIST[mkt], proj, L) - 0.5)))
-                actual = f(w4.get(col)) or 0
+                actual = stat(w4, col)
+                p_old = max(0.03, min(0.97, 0.5 + SHRINK_P * (p_over(DIST[mkt], L + ANCHOR * (raw_old - L), L) - 0.5)))
                 out.append({"n": w4["player_display_name"], "m": mkt, "pos": pg, "game": f"{A} @ {H}", "wk": week, "line": L, "raw": round(raw, 1),
-                            "p": round(p, 3), "bid": bid, "ask": ask, "mid": (bid + ask) / 2, "actual": actual, "scored": actual > L})
+                            "p": round(p, 3), "p_old": round(p_old, 3), "raw_old": round(raw_old, 1), "bid": bid, "ask": ask, "mid": (bid + ask) / 2, "actual": actual, "scored": actual > L})
     return out
 
 
 if __name__ == "__main__":
-    weeks = [int(x) for x in sys.argv[1:]] or [4]
+    two = "--rest" in sys.argv
+    weeks = [int(x) for x in sys.argv[1:] if x.isdigit()] or [4]
     allr = []
     for w in weeks:
-        r = build(w); allr += r
-        json.dump(r, open(os.path.join(analytics.CACHE, f"prop_backtest_w{w}.json"), "w"))
+        r = build(w, SERIES2 if two else None); allr += r
+        json.dump(r, open(os.path.join(analytics.CACHE, f"prop_backtest{'2' if two else ''}_w{w}.json"), "w"))
         print(f"week {w}: {len(r)} props", flush=True)
     print("done", len(allr))

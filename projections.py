@@ -176,7 +176,10 @@ def td_pts(g, side):
     return imp if ours is None else MKT_PTS_W * imp + (1 - MKT_PTS_W) * ours
 
 
-USAGE_MARKETS = {"Pass yds", "Rush yds", "Rec yds", "Receptions"}
+# usage model markets: yardage + receptions (weeks 1-4: 54.5% leans vs 50%), and its second pass on Kalshi weeks 1-4
+# (Pass att 61% vs 52%, Completions 57% vs 52%, Carries / Rush+rec slightly better). Pass TD and INT stay on the old
+# average, which scored a little better there. Pass+rush yds = the two validated pieces added up.
+USAGE_MARKETS = {"Pass yds", "Rush yds", "Rec yds", "Receptions", "Pass att", "Completions", "Carries", "Rush+rec yds", "Pass+rush yds"}
 _USAGE_CTX = {}
 
 
