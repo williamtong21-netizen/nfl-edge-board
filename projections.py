@@ -164,7 +164,8 @@ def game_tilt(g, an):
 MKT_PROP_W = 0.6  # yardage / reception props: weight on the market's chance (our model alone hit ~50% on weeks 1-4)
 # rushing props lean harder on the market: on Kalshi weeks 1-4 our rushing reads were barely better than a coin flip
 # (accuracy kept improving as they were pulled toward 50/50), and 85% market beat 60% on rush yds and rush+rec
-MKT_PROP_W_BY = {"Rush yds": 0.85, "Carries": 0.85, "Rush+rec yds": 0.85}
+# passing yards too, after the full 2025 replay (weeks 5-18): our pass-yds leans hit 46%; 85% market beat 60% (0.2446 vs 0.2476)
+MKT_PROP_W_BY = {"Rush yds": 0.85, "Carries": 0.85, "Rush+rec yds": 0.85, "Pass yds": 0.85, "Pass+rush yds": 0.85}
 MKT_TD_W = 0.6    # TD chance: weight on the market's own chance; 0.6 tested best on weeks 1-4 of 2026 (td_backtest.py)
 # the model's own TD chance, recalibrated: over 2025 weeks 1-11 it read long shots too low (said 7%, they scored 10%)
 # and 45-60% players too high (said 51%, scored 43%). logit(p') = A + B x logit(p), fit on 2025, and it also improved
