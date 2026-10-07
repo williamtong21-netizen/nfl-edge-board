@@ -176,6 +176,27 @@ def td_pts(g, side):
     return imp if ours is None else MKT_PTS_W * imp + (1 - MKT_PTS_W) * ours
 
 
+USAGE_MARKETS = {"Pass yds", "Rush yds", "Rec yds", "Receptions"}
+_USAGE_CTX = {}
+
+
+def usage_for(pl, m, g, side, team, opp):
+    """The usage model (prop_rescore.usage_raw) for one live prop; None when it has too little to go on."""
+    try:
+        import prop_rescore
+        from analytics import norm
+        wk = g.get("week")
+        if wk not in _USAGE_CTX: _USAGE_CTX[wk] = prop_rescore.context(wk)
+        o = g.get("odds") or {}
+        game = None
+        if o.get("hs") is not None and o.get("t") is not None:
+            game = {"opp": opp["abbr"], "margin": -o["hs"] if side == "home" else o["hs"], "total": o["t"]}
+        return prop_rescore.usage_raw(_USAGE_CTX[wk], norm(pl["n"]), m, team=team["abbr"], pos=pl.get("p"), game=game)
+    except Exception as e:
+        print("usage model failed", pl.get("n"), m, e)
+        return None
+
+
 def prop_projections(props, games, an, season):
     """Adds proj, pOver and lean to every prop line in `props` ({game_id: [player rows]})."""
     teams = (an or {}).get("teams", {})
@@ -341,6 +362,11 @@ def prop_projections(props, games, an, season):
                     if wxm and lv != 1 and abs(lv - lc_vol(pr["m"])) > 0.005: pr["wxv"] = round(lv / lc_vol(pr["m"]), 3)
                     if lv != 1.0: pr["lcv"] = lv
                     raw = base * mult * vol * lv * (env if pr["m"] not in ("INT",) else 1.0)
+                    # usage model for the main yardage / reception markets: opportunity (share x team plays, game script)
+                    # x efficiency (shrunk to position, vs this defense); lineup and weather changes still apply on top
+                    if pr["m"] in USAGE_MARKETS:
+                        ru = usage_for(pl, pr["m"], g, side, team, opp)
+                        if ru and ru > 0: pr["rawOld"] = round(raw, 1); raw = ru * lv
                     proj = pr["l"] + ANCHOR * (raw - pr["l"])
                     pr["proj"], pr["raw"] = round(proj, 1), round(raw, 1)
                     def chance(line):

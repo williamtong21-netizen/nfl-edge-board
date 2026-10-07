@@ -30,6 +30,9 @@ def p_over(dist, proj, line):
     return 1 - phi((math.log(max(line, 0.01)) - (math.log(proj) - s2 / 2)) / math.sqrt(s2))
 
 
+_CTX = {}
+
+
 def build(week):
     st = [w for w in rows(f"stats_player/stats_player_week_{SEASON}.csv", 6 * 3600) if w.get("season_type") == "REG"]
     prev = [w for w in rows(f"stats_player/stats_player_week_{SEASON - 1}.csv", 30 * 86400) if w.get("season_type") == "REG"]
@@ -91,6 +94,13 @@ def build(week):
                 o = dvp.get((opp[team], pg, col)); mult = max(0.85, min(1.15, 1 + 0.5 * (o / lg[(pg, col)] - 1))) if o is not None and lg.get((pg, col)) else 1.0
                 tp = mean(ppg.get(team, [])); env = max(0.85, min(1.15, 1 + 0.3 * (imp[team] / tp - 1))) if tp else 1.0
                 raw = base * mult * env
+                try:   # the usage model (what the app now uses); the recency average is the fallback
+                    import prop_rescore
+                    if week not in _CTX: _CTX[week] = prop_rescore.context(week)
+                    ru = prop_rescore.usage_raw(_CTX[week], nm, mkt)
+                    if ru and ru > 0: raw = ru
+                except Exception as e:
+                    print("usage model failed", nm, mkt, e, file=sys.stderr)
                 # price the 3 rungs nearest our number; the one closest to 50/50 plays the role of the book line
                 near = sorted(rungs, key=lambda m: abs(m["floor_strike"] - raw))[:3]
                 priced = []
