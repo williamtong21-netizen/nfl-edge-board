@@ -711,7 +711,7 @@ details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[o
 .rk{font:700 11px var(--f-display);color:var(--muted);margin-right:3px}
 /* college mode: tabs that need NFL-only data (player props, depth charts, nflverse analytics) are hidden */
 body.cfb nav [data-tab="props"],body.cfb nav [data-tab="tds"],body.cfb nav [data-tab="lineups"],body.cfb nav [data-tab="players"],body.cfb nav [data-tab="teams"]{display:none}
-body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec + .vgrid,body.cfb #picks .tdsec + p{display:none}
+body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec ~ .vgrid,body.cfb #picks .tdsec + p,body.cfb #picks .tdhonest{display:none}
 .cfbours{display:flex;flex-direction:column;gap:3px;padding:2px 12px 10px}.cfbours small{color:var(--muted);font-size:11.5px}
 .fbkinds{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .fbkinds button{border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;padding:6px 12px;font:700 13px var(--f-body);cursor:pointer}
@@ -1720,7 +1720,7 @@ function reportCard() {
   const line = [['props', R.props.all], ['spreads', R.sides?.all], ['totals', R.totals?.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
   const recapWk = Math.max(0, ...Object.keys(R.tdbt || {}).map(Number));
   return `${recapWk ? `<button class="btn small recapbtn" data-recap="${recapWk}">Share Week ${recapWk} recap</button>` : ''}<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
-    <div class="rc-chips">${chip('Prop leans', R.props.all)}${chip('Strong leans (60%+)', strong)}${chip('Spreads', R.sides?.all)}${chip('Totals', R.totals?.all)}${tdbt.chip ? `<div class="rc-chip"><span>TD value bets</span><b class="${tdbt.chip.pl > 0 ? 'pos' : 'neg'}">${tdbt.chip.pl > 0 ? '+' : '−'}$${Math.abs(tdbt.chip.pl).toFixed(0)}</b><span>${tdbt.chip.w}–${tdbt.chip.l}, $10 each</span></div>` : ''}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
+    <div class="rc-chips">${chip('Prop leans', R.props.all)}${chip('Strong leans (60%+)', strong)}${chip('Spreads', R.sides?.all)}${chip('Totals', R.totals?.all)}${tdbt.chip ? `<div class="rc-chip"><span>TD price picks</span><b class="${tdbt.chip.pl > 0 ? 'pos' : 'neg'}">${tdbt.chip.pl > 0 ? '+' : '−'}$${Math.abs(tdbt.chip.pl).toFixed(0)}</b><span>${tdbt.chip.w}–${tdbt.chip.l}, $10 each</span></div>` : ''}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
     <details><summary>Full breakdown</summary><div class="rc-grid">
       <div><h4>Props by confidence</h4>${tbl(['Our chance', 'Record', 'Hit'], conf)}<p class="note">If the reads are honest, higher confidence should hit more often.</p></div>
       <div><h4>Props by market</h4>${tbl(['Market', 'Record', 'Hit'], mk)}</div>
@@ -1812,13 +1812,14 @@ function renderPicks() {
   queueMicrotask(() => { const m = $('#trapMount'), w = $('#trapWrap'); if (m && w) m.append(w); });
   const nS = PK.allSides ? 12 : 4, nP = PK.allProps ? 30 : 6;
   box.innerHTML = `${reportCard()}
-    <div class="sechead tdsec"><h2>Touchdown value</h2><small>${tdv.length ? `${tdv.length} spots · swipe →` : ''}</small></div>
-    ${tdv.length ? `<div class="vgrid">${tdv.slice(0, 15).map(vTdCard).join('')}</div>`
-      : `<p class="note">No touchdown prices beat our numbers by enough right now. New prices land Thursday morning and refresh through the week.</p>`}
     ${gapSection()}
     <div class="sechead"><h2>Best prices</h2><small>${pe.length ? `${pe.length} bets · swipe →` : ''}</small></div>
     ${pe.length ? `<div class="vgrid">${pe.slice(0, 15).map(vPriceCard).join('')}</div>`
       : `<p class="note">Every book is priced about the same on the game lines right now.</p>`}
+    <div class="sechead tdsec"><h2>TD prices vs our chances</h2><small>${tdv.length ? `${tdv.length} spots · swipe →` : ''}</small></div>
+    <p class="note tdhonest">Touchdowns where a price pays more than our chance says it should. Honest record: betting every one of these over the full 2025 season lost 9% (261 bets); the market was sharper. Fun picks, not an edge.</p>
+    ${tdv.length ? `<div class="vgrid">${tdv.slice(0, 15).map(vTdCard).join('')}</div>`
+      : `<p class="note tdhonest">No touchdown prices beat our numbers right now. New prices land Thursday morning and refresh through the week.</p>`}
     <div id="trapMount"></div>
     <details class="leans"${PK.leans ? ' open' : ''}><summary>Our model's leans</summary>
     <p class="honest">Backtests on 2024–26 games and this season's props found these leans hit about 50% against the closing lines, so treat them as information, not edges.</p>
@@ -2758,7 +2759,7 @@ function tdQuick(kind) {
   if (kind === 'safe3') take(c.sort((a, b) => b.p - a.p), 3);
   if (kind === 'value') take(c.filter(x => x.edge != null && x.edge >= x.edgeMin).sort((a, b) => b.edge - a.edge), 3);
   if (kind === 'spread') take(c.sort((a, b) => b.p - a.p), 4, true);
-  if (!pick.length) { toast(kind === 'value' ? 'No priced TD props beat their price right now' : 'Not enough TD candidates yet'); return; }
+  if (!pick.length) { toast(kind === 'value' ? 'No TD prices beat our chances right now' : 'Not enough TD candidates yet'); return; }
   let n = 0; for (const x of pick) if (!inPar(x.g.id, x.pl.id)) { const l = makeLeg(x.g.id, 'prop', 'over', x.pl.id, 'Anytime TD'); if (l) { PAR.legs.push(l); n++; } }
   saveParlay(); renderSlip(); toast(n ? `Added ${n} TD leg${n > 1 ? 's' : ''}` : 'Those are already in your parlay');
 }
@@ -2821,18 +2822,18 @@ function renderTD() {
       <select id="tdbGame" aria-label="Game"><option value="all">All upcoming games</option>${games.map(g => `<option value="${g.id}"${TDB.game === g.id ? ' selected' : ''}>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</option>`).join('')}</select>
       <div class="tdkind" role="group" aria-label="Market"><button data-tdkind="any" aria-pressed="${!FIRST}">Anytime</button><button data-tdkind="first" aria-pressed="${FIRST}">First TD</button></div>
       ${['all', 'RB', 'WR', 'TE', 'QB'].map(k => `<button class="chip" data-tdpos="${k}" aria-pressed="${TDB.pos === k}">${k === 'all' ? 'All' : k}</button>`).join('')}
-      <select id="tdbSort" aria-label="Sort"><option value="chance"${TDB.sort === 'chance' ? ' selected' : ''}>Most likely</option><option value="value"${TDB.sort === 'value' ? ' selected' : ''}>Best value vs price</option><option value="matchup"${TDB.sort === 'matchup' ? ' selected' : ''}>Softest matchup</option></select>
+      <select id="tdbSort" aria-label="Sort"><option value="chance"${TDB.sort === 'chance' ? ' selected' : ''}>Most likely</option><option value="value"${TDB.sort === 'value' ? ' selected' : ''}>Biggest gap vs price</option><option value="matchup"${TDB.sort === 'matchup' ? ' selected' : ''}>Softest matchup</option></select>
     </div>
     ${FIRST ? `<p class="note ftnote">First TD of the game: each player's share of all the touchdowns expected in the game. Tested on weeks 1-4 against Kalshi's first-TD prices: ours were slightly more accurate (51 first TDs, so still a small sample). Books rarely let you parlay these, so bet them one at a time and small: even the favorite usually hits less than 1 in 6.</p>` : ''}
     ${FIRST ? '' : `<div class="tdb-quick"><span class="note">Quick build:</span>
       <button class="btn small" data-tdquick="safe2">Safest 2</button><button class="btn small" data-tdquick="safe3">Safest 3</button>
-      <button class="btn small" data-tdquick="spread">Top scorer, 4 games</button><button class="btn small" data-tdquick="value">Best value 3</button>
+      <button class="btn small" data-tdquick="spread">Top scorer, 4 games</button><button class="btn small" data-tdquick="value">Biggest gaps 3</button>
       ${nTd ? `<button class="btn small primary" data-tab-go="parlay" style="margin-left:auto">Open parlay (${nTd}) →</button>` : ''}</div>`}
     ${c.slice(0, TDB.n).map(x => { const on = inPar(x.g.id, x.pl.id);
       return `<div class="tdrow">${logo(x.team.abbr, 26)}
         <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}</small>${l10(x)}${mu(x)}</div>
-        ${FIRST ? `<div class="pct">${(x.ft * 100).toFixed(1)}%<small>fair ${fmtOdds(fairAm(x.ft))}${x.ftCost != null ? ` · ${x.ftUrl ? `<a class="kxlink" href="${esc(x.ftUrl)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(centsAm(x.ftCost))} ↗</a>` : `Kalshi ${fmtOdds(centsAm(x.ftCost))}`}` : ''}${ftVal(x) ? ' · <span class="val">value</span>' : ''}<br>anytime ${Math.round(x.pr.pOver * 100)}%</small></div>
-        <span></span>` : `<div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · ${x.pr.kx ? `<a class="kxlink" href="${esc(x.pr.kx)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(x.price)} ↗</a>` : `Kalshi ${fmtOdds(x.price)}`}` : ''}${x.edge != null && x.edge >= x.edgeMin ? ' · <span class="val">value</span>' : ''}</small></div>
+        ${FIRST ? `<div class="pct">${(x.ft * 100).toFixed(1)}%<small>fair ${fmtOdds(fairAm(x.ft))}${x.ftCost != null ? ` · ${x.ftUrl ? `<a class="kxlink" href="${esc(x.ftUrl)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(centsAm(x.ftCost))} ↗</a>` : `Kalshi ${fmtOdds(centsAm(x.ftCost))}`}` : ''}${ftVal(x) ? ' · <span class="val">beats price</span>' : ''}<br>anytime ${Math.round(x.pr.pOver * 100)}%</small></div>
+        <span></span>` : `<div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · ${x.pr.kx ? `<a class="kxlink" href="${esc(x.pr.kx)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(x.price)} ↗</a>` : `Kalshi ${fmtOdds(x.price)}`}` : ''}${x.edge != null && x.edge >= x.edgeMin ? ' · <span class="val">beats price</span>' : ''}</small></div>
         <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>`}
         ${TDB.open.has(x.pl.id) && x.last.length ? tdLog(x) : ''}</div>`; }).join('')}
     ${c.length > TDB.n ? `<button class="showmore" data-tdmore>Show more players (${c.length - TDB.n} left)</button>` : ''}
@@ -4045,7 +4046,7 @@ async function recapImage(d) {
     if (d.big) { x.fillStyle = '#c9d2dc'; x.font = F(600, 30); x.fillText(`Biggest win: ${d.big.label} at ${fmtOdds(d.big.odds)} (${money(d.big.amt)})`.slice(0, 64), 48, y + 150); }
     rule(y + 190); y += 250;
   }
-  label('Our TD value bets', y);
+  label('Our TD price picks', y);
   const b = d.t?.blend || {};
   x.fillStyle = '#f3f6f9'; x.font = F(800, 84, COND); x.fillText(`${b.won ?? 0} of ${b.bets ?? 0} hit`, 48, y + 90);
   x.fillStyle = (b.pl || 0) >= 0 ? '#2edc84' : '#ff6b6b'; x.textAlign = 'right'; x.fillText(`${(b.pl || 0) >= 0 ? '+' : '−'}$${Math.abs(b.pl || 0).toFixed(0)}`, W - 48, y + 90); x.textAlign = 'left';
@@ -4075,7 +4076,7 @@ async function recapImage(d) {
 }
 async function shareRecap(wk) {
   const d = recapData(wk), b = d.t?.blend || {};
-  const text = `Week ${wk} on Edge Board: TD value bets ${b.won ?? 0} of ${b.bets ?? 0}, ${(b.pl || 0) >= 0 ? '+' : '-'}$${Math.abs(b.pl || 0).toFixed(0)} on $10 each${d.mine.length ? `. My week: ${d.w}-${d.l}` : ''}.`;
+  const text = `Week ${wk} on Edge Board: TD price picks ${b.won ?? 0} of ${b.bets ?? 0}, ${(b.pl || 0) >= 0 ? '+' : '-'}$${Math.abs(b.pl || 0).toFixed(0)} on $10 each${d.mine.length ? `. My week: ${d.w}-${d.l}` : ''}.`;
   try {
     const blob = await recapImage(d), file = blob && new File([blob], `edge-board-week-${wk}.png`, { type: 'image/png' });
     if (file && navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], text }); return; }

@@ -6,7 +6,7 @@ The sync calls run() at the end of every pass. Bets live on each phone, so alert
   - anytime-TD prices post at more books for a game
   - a finished week gets graded on the report card
   - a price gap (arbitrage) worth 1%+ where both prices were just fetched (DraftKings via ESPN, Kalshi)
-  - TD value: an anytime TD 7+ points above the best US book's price, or a first TD well above Kalshi's (2 a day at most)
+  - (TD value alerts were tried and turned off: they lost money over 2025)
 Each alert goes out once (state in alerts_state.json). At most MAX_PER_RUN per pass, so a big sync never floods phones,
 and nothing between midnight and 8 AM Eastern.
 Channel: config.json "ntfy_topic" or env NTFY_TOPIC. No channel = no alerts.
@@ -80,8 +80,8 @@ def candidates(games, props, report, st, label="NFL", gaps=None):
         out.append((0, f'arb:{a["gid"]}:{l1["pick"]}:{l1["src"]}:{l2["src"]}', f'Price gap: {a["game"]}',
                     f'{l1["pick"]} {fmt(l1["odds"])} at {l1["src"]} + {l2["pick"]} {fmt(l2["odds"])} at {l2["src"]}: about {a["margin"] * 100:.1f}% locked in '
                     f'(${round(100 * l1["share"])} / ${round(100 * l2["share"])} of $100). Gaps close fast: check both prices first.', "scales", None))
-    for e, key, title, body in value_picks(games, props, datetime.now(timezone.utc)):
-        out.append((6, key, title, body, "moneybag", None))
+    # TD value alerts are off: over the full 2025 season those picks lost 9% (the market was sharper). value_picks() stays
+    # for reference; turn back on only if a later backtest shows an edge.
     base = st.setdefault("lines", {})
     for g in games:
         if g.get("state") != "pre": continue

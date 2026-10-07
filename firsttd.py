@@ -60,6 +60,10 @@ def backtest(weeks):
             if sl is None or tl is None or key not in by_game: continue
             imp = {H: tl / 2 + sl / 2, A: tl / 2 - sl / 2}
             rs = by_game[key]
+            for r in rs:   # the app's anytime chance: recalibrated model blended 60% with the market
+                if "blend" not in r:
+                    import projections
+                    r["blend"] = projections.MKT_TD_W * r["mid"] + (1 - projections.MKT_TD_W) * projections.td_recal(r.get("p_raw", r["p"]))
             ours = fair([(norm(r["n"]), r["team"], r["blend"]) for r in rs], imp)           # what the app would show
             mkt = fair([(norm(r["n"]), r["team"], r["mid"]) for r in rs], imp)              # same recipe from Kalshi's anytime prices
             d = g["gameday"]; ev = f"KXNFLFIRSTTD-{d[2:4]}{MON[int(d[5:7]) - 1]}{d[8:10]}{K_CODE.get(A, A)}{K_CODE.get(H, H)}"
