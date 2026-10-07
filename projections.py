@@ -162,6 +162,9 @@ def game_tilt(g, an):
 
 
 MKT_PROP_W = 0.6  # yardage / reception props: weight on the market's chance (our model alone hit ~50% on weeks 1-4)
+# rushing props lean harder on the market: on Kalshi weeks 1-4 our rushing reads were barely better than a coin flip
+# (accuracy kept improving as they were pulled toward 50/50), and 85% market beat 60% on rush yds and rush+rec
+MKT_PROP_W_BY = {"Rush yds": 0.85, "Carries": 0.85, "Rush+rec yds": 0.85}
 MKT_TD_W = 0.6    # TD chance: weight on the market's own chance; 0.6 tested best on weeks 1-4 of 2026 (td_backtest.py)
 TD_VIG = 1.07     # books' typical margin on a Yes-only anytime-TD price
 MKT_PTS_W = 0.7   # TD model: weight on the market's implied team total (spread + total) vs our own projected points
@@ -384,7 +387,8 @@ def prop_projections(props, games, an, season):
                             return io / (io + iu)
                         k = next((r for r in pr.get("alt") or [] if r.get("l") == line and r.get("ya") and r.get("yb")), None)
                         return (k["ya"] + k["yb"]) / 2 if k else 0.5
-                    blend_m = lambda ours, m: round(max(0.03, min(0.97, (1 - MKT_PROP_W) * ours + MKT_PROP_W * m)), 3)
+                    wm = MKT_PROP_W_BY.get(pr["m"], MKT_PROP_W)
+                    blend_m = lambda ours, m: round(max(0.03, min(0.97, (1 - wm) * ours + wm * m)), 3)
                     ours_l = chance(pr["l"])
                     pr["pModel"] = ours_l
                     pr["pOver"] = blend_m(ours_l, mkt_at(pr["l"]))

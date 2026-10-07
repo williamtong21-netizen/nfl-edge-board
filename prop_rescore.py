@@ -20,6 +20,8 @@ POS_EFF = {"ypt": {"WR": 8.2, "TE": 7.2, "RB": 5.8}, "cr": {"WR": 0.63, "TE": 0.
 K = {"tgt": 50, "car": 80, "att": 200}        # sample size (targets / carries / attempts) at which his own rate gets half the weight
 QB_YPC = 5.0                                  # prior yards per carry for a quarterback's runs
 SCRIPT = 0.012                                # pass share change per point of expected margin (trailing teams throw)
+DECAY = 0.85                                  # weight per game back in a player's history (shares and volumes)
+RUN_SCRIPT = 1.0                              # how strongly game script moves the run game (1 = mirror of the pass side)
 
 
 def context(week):
@@ -94,7 +96,7 @@ def usage_raw(C, nm, mkt, team=None, pos=None, game=None):
             if usual and s_ is not None and s_ < min(0.3, usual / 2): continue
             tt = C["team"][(y, wk, fix(r["team"]))][tcol] + (C["team"][(y, wk, fix(r["team"]))]["sacks_suffered"] if tcol == "attempts" else 0)
             if not tt: continue
-            wt = 0.85 ** age * (1.0 if y == SEASON else prev_w)
+            wt = DECAY ** age * (1.0 if y == SEASON else prev_w)
             num += wt * (f(r.get(col)) or 0) / tt; den += wt
         return num / den if den else None
     def rate(num_col, den_col, prior, k):
@@ -103,7 +105,7 @@ def usage_raw(C, nm, mkt, team=None, pos=None, game=None):
     pass_pg, run_pg = C["pace"].get(t, (35, 26))
     plays = 1 + 0.25 * (gm["total"] / 44.5 - 1)
     tilt = max(-0.12, min(0.12, -SCRIPT * gm["margin"]))         # trailing -> more passing
-    team_pass, team_run = pass_pg * plays * (1 + tilt), run_pg * plays * (1 - tilt)
+    team_pass, team_run = pass_pg * plays * (1 + tilt), run_pg * plays * (1 - RUN_SCRIPT * tilt)
     o = gm["opp"]
     if mkt in ("Rec yds", "Receptions"):
         ts = share("targets", "targets")

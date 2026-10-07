@@ -825,6 +825,12 @@ def main():
     for g in games: g.pop("city", None)
     slate = {"updatedAt": now, "propParts": len(chunks), "analytics": team_an, "season": season, "week": week, "seasonType": stype, "odds": odds_meta, "report": report, "games": games}
     save(os.path.join(OUT, "slate.json"), slate)
+    try:   # group push alerts (ntfy): line moves, QBs out, TD prices posting, weekly recap
+        import alerts
+        sent = alerts.run(games, props, report, cfg, os.path.join(DATA, "alerts_state.json"))
+        if sent: print("alerts sent", sent, file=sys.stderr)
+    except Exception as e:
+        print("alerts failed", e, file=sys.stderr)
     save(os.path.join(OUT, "history.json"), hist_out)
     save(os.path.join(OUT, "results.json"), res)
     sizes = {f: os.path.getsize(os.path.join(OUT, f)) // 1024 for f in os.listdir(OUT)}
