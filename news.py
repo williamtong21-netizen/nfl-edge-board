@@ -3,7 +3,8 @@
 One ESPN call gets every team's injury report; another gets the latest headlines. We alert the group channel when a
 player who matters this week changes status (Questionable / Doubtful / Out / IR, or cleared after being out), or a
 headline about him says he's ruled out, inactive, activated, starting, benched or suspended.
-"Matters" = a starting QB or lead back, or anyone with a 25%+ anytime-TD chance in this week's props.
+"Matters" = a starting QB or lead back, or anyone with a 25%+ anytime-TD chance in this week's props. Out / Doubtful / IR
+and "cleared" always alert; Questionable only for QBs and 40%+ TD scorers within 48 hours of kickoff (midweek practice noise).
 State (what was already sent, last status seen) lives in state/news_state.json. Same quiet hours as alerts.py.
 Run:  python news.py        (EDGE_OUT = the published data folder, EDGE_DATA = the state folder)
 """
@@ -73,6 +74,11 @@ def candidates(keys, st):
             if new == old: continue
             worse, cleared = RANK.get(new, 0) > RANK.get(old, 0), RANK.get(old, 0) >= 2 and RANK.get(new, 0) == 0
             if not (worse or cleared): continue
+            # Questionable is mostly midweek practice noise: only for QBs and big scorers (40%+ anytime TD), within 48 hours
+            if new == "Questionable" and not cleared:
+                try: soon = datetime.fromisoformat(k["kick"].replace("Z", "+00:00")) - datetime.now(timezone.utc) < timedelta(hours=48)
+                except Exception: soon = False
+                if not (soon and (k.get("pos") == "QB" or (k.get("td") or 0) >= 0.40)): continue
             note = (i.get("shortComment") or "").strip()
             title = f'{k["n"]} ({k["team"]}): {"cleared to play" if cleared else new}'
             why = f'{k["pos"]}, {round(k["td"] * 100)}% to score' if k.get("td") else k.get("pos") or ""
