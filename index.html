@@ -741,6 +741,8 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 .gapcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:6px;min-width:0}
 .gaph{display:flex;justify-content:space-between;align-items:center}.gapm{font:800 18px var(--f-display);color:var(--good)}
 .gapleg{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;font-size:13.5px}.gapleg a{color:var(--accent)}
+.pdrop:not(.why-open) .pwhy{display:none}
+.pwhy{display:grid;gap:4px;margin:8px 0 4px;font-size:13px}.pwhy .plus{color:var(--good)}.pwhy .minus{color:var(--bad, #e5484d)}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1744,7 +1746,7 @@ document.addEventListener('click', e => {
   if (b) { const k = b.dataset.pk, wasOpen = PK[k]; PK[k] = !PK[k]; if (k === 'allSides' || k === 'allProps') PK.leans = true; renderPicks();
     if (wasOpen) b.closest('#picks') && $('#picks')?.scrollIntoView({ block: 'start' });   // collapsing: jump back up
     return; }
-  const w = e.target.closest('[data-why]'); if (w) { const c = w.closest('.pick'); c.classList.toggle('why-open'); w.textContent = c.classList.contains('why-open') ? 'Why ▴' : 'Why ▾'; }
+  const w = e.target.closest('[data-why]'); if (w) { const c = w.closest('.pick, .pdrop'); if (!c) return; c.classList.toggle('why-open'); w.textContent = c.classList.contains('why-open') ? 'Why ▴' : 'Why ▾'; }
 });
 // line shopping: the same bet at a better price than most books is real value, whatever anyone's model says
 function priceEdges() {
@@ -3489,6 +3491,17 @@ const OPP_STAT = m => /Rush yds|Carries/.test(m) ? ['rushingYardsPerGameAllowed'
   : m === 'Anytime TD' ? ['totalPointsPerGameAllowed', 'pts'] : ['passingYardsPerGameAllowed', 'pass yds'];
 const PF = { game: '', market: '', pos: '', sort: 'trend', all: false, open: new Set(), games: new Set(), players: new Set() };
 // last-10 drop-down for a prop: bars for each game (oldest left), the line drawn across, and a game table
+// the reasons behind a prop read, for the drop-down's "Why" button: our number vs the market, then the same plus / minus
+// notes the parlay grader uses (matchup, game script, lineup changes, weather, recent form)
+function propWhy(pl, pr, g, over, td) {
+  const side = td || over ? 'over' : 'under', leg = makeLeg(g.id, 'prop', side, pl.id, pr.m);
+  const n = leg ? legNotes(leg) : { plus: [], minus: [] }, strip = t => t.replace(/^[^:]+: /, '');
+  const lines = [];
+  if (pr.pModel != null && pr.pMkt != null) lines.push(`Our model ${Math.round(pr.pModel * 100)}%, the market ${Math.round(pr.pMkt * 100)}%; we show a blend that leans on the market, ${Math.round(pr.pOver * 100)}% ${td ? 'to score' : 'over'}.`);
+  else if (pr.proj != null && !td) lines.push(`We project ${pr.proj} against a line of ${pr.l}.`);
+  const all = [...n.plus.map(t => ['plus', strip(t)]), ...n.minus.map(t => ['minus', strip(t)])];
+  return `<div class="why pwhy">${lines.map(t => `<span>${esc(t)}</span>`).join('')}${all.map(([k, t]) => `<span class="${k}">${k === 'plus' ? '+ ' : '− '}${esc(t)}</span>`).join('')}${!lines.length && !all.length ? '<span>No strong reasons either way: this one is close to a coin flip.</span>' : ''}</div>`;
+}
 function propDrop(pl, pr, g, over) {
   const page = S.players?.[pl.id], td = pr.m === 'Anytime TD', L = td ? 0.5 : pr.l;
   let games = [];
@@ -3517,6 +3530,7 @@ function propDrop(pl, pr, g, over) {
   return `<div class="tdlog pdrop">
     <p class="note" style="margin:0 0 4px"><b>${td ? (over ? 'Scored' : 'Held out') : over ? 'Over' : 'Under'} ${td ? '' : L + ' '}in ${nHit} of last ${games.length}</b>${pr.proj != null && !td ? ` · we project <b>${pr.proj}</b>` : ''}${pr.alt?.length ? ` · ${pr.alt.length} alt lines on the player page` : ''}</p>
     ${svg}<div class="tbl"><table><tr><th>Game</th><th>${esc(pr.m)}</th><th>Result</th><th>Snap</th></tr>${rows}</table></div>
+    ${propWhy(pl, pr, g, over, td)}
     <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${g.id}|prop|over|${esc(pl.id)}|${esc(pr.m)}">+ Parlay ${td ? 'Yes' : 'Over'}</button>${td ? '' : `<button class="addp" data-addleg="${g.id}|prop|under|${esc(pl.id)}|${esc(pr.m)}">+ Parlay Under</button>`}
       <button class="btn small" data-player="${esc(pl.id)}" data-openprop="${esc(pr.m)}">Player page &amp; alt lines →</button></div></div>`;
 }
