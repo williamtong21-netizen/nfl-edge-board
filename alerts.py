@@ -108,7 +108,7 @@ def candidates(games, props, report, st, label="NFL", gaps=None):
                     out.append((1, f"qb:{gid}:{i['n']}", f"{t['abbr']} QB {i['n']}: {i['s']}", f"{name}. Lines and our reads update on the next sync.", "rotating_light", None))
         books = {b_["n"] for pl in (props or {}).get(gid, []) for pr in pl.get("props", []) if pr.get("m") == "Anytime TD" for b_ in pr.get("books", [])}
         if len(books) >= 2:
-            out.append((4, f"td:{gid}", f"TD prices are up: {name}", f"Anytime TD prices from {len(books)} books. Check the TDs tab for value.", "football", None))
+            out.append((4, f"td:{gid}", f"TD prices are up: {name}", f"Anytime TD prices from {len(books)} books. Compare prices in the TDs tab.", "football", None))
     for w, v in sorted(((report or {}).get("tdbt") or {}).items(), key=lambda x: int(x[0])):
         pl = (v.get("blend") or {}).get("pl")
         if pl is not None:
