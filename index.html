@@ -1542,13 +1542,20 @@ const LocalDB = (() => {
 })();
 
 const DATA_BASE = (window.__DATA_BASE || 'out/') + (CFB ? 'cfb/' : '');
+// a game whose kickoff time has passed is not "upcoming", even if the last sync (up to a few hours old) still says so:
+// every pre-game list (props, TDs, picks, prices) filters on state === 'pre', so flip it here
+function markStarted() {
+  let changed = false;
+  for (const g of S.slate?.games || []) if (g.state === 'pre' && new Date(g.date) < Date.now()) { g.state = 'in'; changed = true; }
+  return changed;
+}
 async function loadLocalData() {
   // 'no-cache' = ask the server whether the file changed (an unchanged file comes back as a tiny "not modified"),
   // instead of downloading every file again on each 10-minute refresh
   const j = p => fetch(DATA_BASE + p.split('/').pop(), { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
   const [slate, hist, man, res] = await Promise.all([j('slate.json'), j('history.json'), j('manifest.json'), j('results.json')]);
   if (!slate) return false;
-  if (S.slate && slate.updatedAt === S.slate.updatedAt && S.props) return true;   // same sync as on screen: nothing to redraw
+  if (S.slate && slate.updatedAt === S.slate.updatedAt && S.props) { if (markStarted()) renderAll(); return true; }   // same sync: just retire started games
   const parts = async c => { const ms = await Promise.all((man || []).filter(x => x.collection === c).map(x => j(x.file)));
     const m = {}; for (const d of ms) Object.assign(m, d?.games || {}); return Object.keys(m).length ? m : null; };
   // games first (the board and lines draw right away), then props, then the big player / lineup files in the background
@@ -1556,6 +1563,7 @@ async function loadLocalData() {
   S.slate = slate; S.hist = hist; S.results = res;
   for (const g of slate.games || []) for (const t of [g.home, g.away]) if (t.logo) LOGO_URL[t.abbr] = t.logo;
   S.slate.games.forEach(derive);
+  markStarted();
   if (first) { fillGames(); renderAll(); }
   const pp = parts('props'), lp = parts('lineups'), plp = parts('players');
   S.props = await pp;
@@ -1572,6 +1580,10 @@ async function startLocal() {
   LocalDB.doc('settings/main').onSnapshot(snap => { S.settings = snap.exists ? snap.data() : {}; if (document.activeElement !== $('#unitSize')) $('#unitSize').value = S.settings.unitSize ?? ''; renderBets(); });
   if (!await loadLocalData()) { $('#boardEmpty').innerHTML = '<b>No data yet</b>The first data sync hasn\'t run. Check back in a few minutes.'; return; }
   setInterval(loadLocalData, 10 * 60000);  // pick up each new sync
+  // phones pause timers while the app is in the background: check for new data the moment it's back on screen
+  const wake = () => { if (!document.hidden) loadLocalData(); };
+  document.addEventListener('visibilitychange', wake); addEventListener('pageshow', wake); addEventListener('focus', wake);
+  setInterval(() => { if (markStarted()) renderAll(); }, 60000);
   await pollLocal(); setInterval(pollLocal, 15000);
 }
 
