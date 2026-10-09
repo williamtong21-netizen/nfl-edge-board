@@ -22,6 +22,9 @@ QB_YPC = 5.0                                  # prior yards per carry for a quar
 SCRIPT = 0.012                                # pass share change per point of expected margin (trailing teams throw)
 DECAY = 0.85                                  # weight per game back in a player's history (shares and volumes)
 RUN_SCRIPT = 1.0                              # how strongly game script moves the run game (1 = mirror of the pass side)
+PASS_SCRIPT = 0.0                             # passing / receiving volume: no extra game-script shift. The book line we anchor to
+                                              # already prices the expected script; adding ours double-counted it (2025 wks 5-18 and
+                                              # 2026 wks 1-4: accuracy best with it off, 0.2528 vs 0.2545 and 0.2515 vs 0.2520)
 
 
 def context(week):
@@ -109,7 +112,7 @@ def usage_raw(C, nm, mkt, team=None, pos=None, game=None):
     pass_pg, run_pg = C["pace"].get(t, (35, 26))
     plays = 1 + 0.25 * (gm["total"] / 44.5 - 1)
     tilt = max(-0.12, min(0.12, -SCRIPT * gm["margin"]))         # trailing -> more passing
-    team_pass, team_run = pass_pg * plays * (1 + tilt), run_pg * plays * (1 - RUN_SCRIPT * tilt)
+    team_pass, team_run = pass_pg * plays * (1 + PASS_SCRIPT * tilt), run_pg * plays * (1 - RUN_SCRIPT * tilt)
     o = gm["opp"]
     if mkt in ("Rec yds", "Receptions"):
         ts = share("targets", "targets")
