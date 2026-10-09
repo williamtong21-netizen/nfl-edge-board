@@ -3568,6 +3568,9 @@ function bars(x) {
   </svg>`;
 }
 
+// how strong a prop read is, for picking which ones to feature: anytime TDs only ever lean "he scores" (a QB's 89% "no TD"
+// is true but unbettable), so they rank by scoring chance; other props by distance from a coin flip
+const propStrength = x => x.pr.m === 'Anytime TD' ? Math.max(0, (x.pr.pOver ?? 0) - 0.25) : Math.abs((x.pr.pOver ?? 0.5) - 0.5);
 function renderProps() {
   const box = $('#props'), sl = S.slate;
   if (!sl || !S.props) { box.innerHTML = `<div class="empty"><b>No props yet</b>Player lines show up here after the sync picks them up. DraftKings usually posts yardage props midweek.</div>`; return; }
@@ -3584,9 +3587,9 @@ function renderProps() {
     for (const pl of S.props[g.id]) {
       if (PF.pos && pl.p !== PF.pos) continue;
       const props = pl.props.filter(p => !PF.market || p.m === PF.market).map(p => propRow(pl, p, g))
-        .filter(x => PF.all || PF.market || x.pr.proj > 0 && (Math.abs((x.pr.pOver ?? 0.5) - 0.5) >= 0.08 || ['bounce', 'td', 'regress', 'role'].includes(dueRead(x)?.k) || (x.n >= 5 && (x.over >= 5 || x.under >= 5))));
+        .filter(x => PF.all || PF.market || x.pr.proj > 0 && (propStrength(x) >= 0.08 || (x.pr.m !== 'Anytime TD' && (['bounce', 'regress', 'role'].includes(dueRead(x)?.k) || (x.n >= 5 && (x.over >= 5 || x.under >= 5)))) || (x.pr.m === 'Anytime TD' && dueRead(x)?.k === 'td' && (x.pr.pOver ?? 0) >= 0.25)));
       if (props.length) rows.push({ pl, g, props: props.sort((a, b) => PROP_ORDER.indexOf(a.pr.m) - PROP_ORDER.indexOf(b.pr.m)),
-        score: Math.max(...props.map(p => p.score)), move: Math.max(...props.map(p => Math.abs(p.move))) });
+        score: Math.max(...props.map(p => p.pr.m === 'Anytime TD' ? propStrength(p) * 10 : p.score)), move: Math.max(...props.map(p => Math.abs(p.move))) });
     }
   }
   // games in kickoff order; the sort menu orders players within each game
@@ -3608,8 +3611,8 @@ function renderProps() {
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
     const inj = team.inj.find(i => i.n === pl.n), page = S.players?.[pl.id];
     return `${head}<article class="pcard" style="--tc:${teamColor(team)}"><div class="pcard-h">${logo(team.abbr, 24)}<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button><span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
-      ${(PF.players.has(pl.id) ? props : props.slice().sort((a, b) => Math.abs((b.pr.pOver ?? 0.5) - 0.5) - Math.abs((a.pr.pOver ?? 0.5) - 0.5)).slice(0, 3)).map(x => {
-        const td = x.pr.m === 'Anytime TD', has = x.pr.pOver != null && x.pr.proj > 0, over = (x.pr.pOver ?? 0.5) >= 0.5, pct = Math.round((over ? x.pr.pOver : 1 - x.pr.pOver) * 100);
+      ${(PF.players.has(pl.id) ? props : props.slice().sort((a, b) => propStrength(b) - propStrength(a)).slice(0, 3)).map(x => {
+        const td = x.pr.m === 'Anytime TD', has = x.pr.pOver != null && x.pr.proj > 0, over = td || (x.pr.pOver ?? 0.5) >= 0.5, pct = Math.round((over ? x.pr.pOver : 1 - x.pr.pOver) * 100);
         const ten = page?.last?.length && PAGE_STAT[x.pr.m] ? page.last.map(r => PAGE_STAT[x.pr.m].reduce((a, k) => a + (r[k] || 0), 0)) : null;
         const L = td ? 0.5 : x.pr.l;
         const [dp, dk] = DVP_FOR(x.pr.m, posGroup(pl.p)), r = AN()[opp.abbr]?.dvp?.[dp]?.rk?.[dk], mc = r ? (r <= 8 ? 'great' : r >= 25 ? 'tough' : '') : null;
@@ -3617,7 +3620,7 @@ function renderProps() {
         const dropKey = pl.id + '|' + x.pr.m, isOpen = PF.open.has(dropKey);
         return `<button class="prow2" data-propdrop="${esc(dropKey)}" aria-expanded="${isOpen}">
           <span class="m">${esc(x.pr.m)} <span>${td ? '' : x.pr.l}</span>${!td && x.pr.o != null && x.pr.o !== x.pr.l ? ` <i>${x.move > 0 ? '▲' : '▼'}${Math.abs(x.move).toFixed(1).replace(/\.0$/, '')}</i>` : ''}</span>
-          <span class="lean ${has ? (over ? 'o' : 'u') : ''}">${has ? `${td ? (over ? 'Yes' : 'No') : over ? 'O' : 'U'} ${pct}%` : '–'}</span>
+          <span class="lean ${has ? (td ? (x.pr.pOver >= 0.33 ? 'o' : '') : over ? 'o' : 'u') : ''}">${has ? `${td ? 'Scores' : over ? 'O' : 'U'} ${pct}%` : '–'}</span>
           <span class="meta"><span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span class="sec">proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
             ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
             ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide last 10 ▴' : 'Last 10 ▾'}</span></span>
