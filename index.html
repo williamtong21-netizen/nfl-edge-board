@@ -3582,7 +3582,10 @@ function bars(x) {
 
 // how strong a prop read is, for picking which ones to feature: anytime TDs only ever lean "he scores" (a QB's 89% "no TD"
 // is true but unbettable), so they rank by scoring chance; other props by distance from a coin flip
-const propStrength = x => x.pr.m === 'Anytime TD' ? Math.max(0, (x.pr.pOver ?? 0) - 0.25) : Math.abs((x.pr.pOver ?? 0.5) - 0.5);
+// TD reads are scaled down so a short-priced 70% scorer ranks like a strong yardage read rather than burying them, and
+// longest-reception reads count half (that market still runs on the older, weaker recency method)
+const propStrength = x => x.pr.m === 'Anytime TD' ? Math.max(0, (x.pr.pOver ?? 0) - 0.25) * 0.4
+  : Math.abs((x.pr.pOver ?? 0.5) - 0.5) * (x.pr.m === 'Long rec' ? 0.5 : 1);
 function renderProps() {
   const box = $('#props'), sl = S.slate;
   if (!sl || !S.props) { box.innerHTML = `<div class="empty"><b>No props yet</b>Player lines show up here after the sync picks them up. DraftKings usually posts yardage props midweek.</div>`; return; }
@@ -3599,9 +3602,10 @@ function renderProps() {
     for (const pl of S.props[g.id]) {
       if (PF.pos && pl.p !== PF.pos) continue;
       const props = pl.props.filter(p => !PF.market || p.m === PF.market).map(p => propRow(pl, p, g))
-        .filter(x => PF.all || PF.market || x.pr.proj > 0 && (propStrength(x) >= 0.08 || (x.pr.m !== 'Anytime TD' && (['bounce', 'regress', 'role'].includes(dueRead(x)?.k) || (x.n >= 5 && (x.over >= 5 || x.under >= 5)))) || (x.pr.m === 'Anytime TD' && dueRead(x)?.k === 'td' && (x.pr.pOver ?? 0) >= 0.25)));
+        .filter(x => PF.all || PF.market || x.pr.proj > 0 && ((x.pr.m === 'Anytime TD' ? (x.pr.pOver ?? 0) >= 0.33 : propStrength(x) >= 0.08) || (x.pr.m !== 'Anytime TD' && (['bounce', 'regress', 'role'].includes(dueRead(x)?.k) || (x.n >= 5 && (x.over >= 5 || x.under >= 5)))) || (x.pr.m === 'Anytime TD' && dueRead(x)?.k === 'td' && (x.pr.pOver ?? 0) >= 0.25)));
       if (props.length) rows.push({ pl, g, props: props.sort((a, b) => PROP_ORDER.indexOf(a.pr.m) - PROP_ORDER.indexOf(b.pr.m)),
-        score: Math.max(...props.map(p => p.pr.m === 'Anytime TD' ? propStrength(p) * 10 : p.score)), move: Math.max(...props.map(p => Math.abs(p.move))) });
+        // rank players by our chance first (what the read actually is), recent streaks only as a tiebreaker
+        score: Math.max(...props.map(p => propStrength(p) * 10 + (p.pr.m === 'Anytime TD' ? 0 : p.score * 0.1))), move: Math.max(...props.map(p => Math.abs(p.move))) });
     }
   }
   // "By game": games in kickoff order, strongest players first in each. The other sorts rank the whole slate at once
