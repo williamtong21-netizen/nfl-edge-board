@@ -890,7 +890,6 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
   <div id="view-players" hidden>
     <div class="psearch"><input id="pl-q" type="search" placeholder="Search players or a team (e.g. Olave, NO)" aria-label="Search players" autocomplete="off">
       <div class="row" id="pl-pos"><button class="chip" data-ppos="" aria-pressed="true">All</button><button class="chip" data-ppos="QB" aria-pressed="false">QB</button><button class="chip" data-ppos="RB" aria-pressed="false">RB</button><button class="chip" data-ppos="WR" aria-pressed="false">WR</button><button class="chip" data-ppos="TE" aria-pressed="false">TE</button></div></div>
-    <details class="sepbox" id="sepBox"><summary><b>Getting open vs getting targets</b><span class="note">receivers, this season ▾</span></summary><div id="sepChart"></div></details>
     <div id="players"></div>
   </div>
 
@@ -902,6 +901,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
         <button class="chip" data-tv="def" aria-pressed="false">Defense</button>
         <button class="chip" data-tv="dvp" aria-pressed="false">Defense vs position</button>
         <button class="chip" data-tv="tr" aria-pressed="false">Betting trends</button>
+        <button class="chip" data-tv="sep" aria-pressed="false">Receivers: open vs targeted</button>
       </div>
     </div>
     <p class="note" id="tm-note"></p>
@@ -1206,6 +1206,7 @@ function sitFlags(g) {
 const TM = { view: 'off', sort: null, dir: -1 };
 function renderTeams() {
   if (TM.view === 'tr') return renderTrendTable();
+  if (TM.view === 'sep') { $('#tm-note').textContent = 'Which receivers get open, and which ones actually get the ball. Each dot is a player; the dashed lines are the league medians.'; return renderSepChart($('#teams')); }
   const an = AN(), box = $('#teams'), teams = Object.keys(an).filter(t => an[t].off || an[t].dvp);
   if (!teams.length) { box.innerHTML = '<div class="empty"><b>No analytics yet</b>Team efficiency appears after the next sync.</div>'; $('#tm-note').textContent = ''; return; }
   const wk = new Set((S.slate.games || []).filter(g => g.week === S.week).flatMap(g => [g.home.abbr, g.away.abbr]));
@@ -1939,8 +1940,8 @@ function propView(p, propsRow, pr, g) {
 }
 // ------------------------------------------------------------ separation vs targets: who gets open, and who gets the ball
 const SEP = { pos: 'WR' };
-function renderSepChart() {
-  const box = $('#sepChart'); if (!box) return;
+function renderSepChart(box) {
+  if (!box) return;
   const all = (S.slate?.analytics?.sep || []), data = all.filter(r => r.pos === SEP.pos);
   if (data.length < 8) { box.innerHTML = '<p class="note">Shows up once enough receivers have Next Gen tracking this season.</p>'; return; }
   const ids = {}; for (const pls of Object.values(S.props || {})) for (const pl of pls) ids[pl.n] = pl.id;
@@ -1949,7 +1950,7 @@ function renderSepChart() {
   const med = a => { const b = [...a].sort((x, y) => x - y); return b[b.length >> 1]; };
   const mx = med(data.map(r => r.sep)), my = med(data.map(r => r.tps));
   const xs = data.map(r => r.sep), ys = data.map(r => r.tps);
-  const x0 = Math.floor(Math.min(...xs) * 2) / 2, x1 = Math.ceil((Math.max(...xs) + 0.35) * 2) / 2, y0 = 0, y1 = Math.ceil(Math.max(...ys) * 20) / 20;
+  const x0 = Math.floor(Math.min(...xs) * 2) / 2, x1 = Math.ceil((Math.max(...xs) + 0.35) * 2) / 2, y0 = 0, y1 = Math.ceil((Math.max(...ys) + 0.015) * 20) / 20;
   const W = 760, H = 520, L = 46, R = 14, T = 14, B = 42;
   const X = v => L + (v - x0) / (x1 - x0) * (W - L - R), Y = v => T + (1 - (v - y0) / (y1 - y0)) * (H - T - B);
   const short = n => { const p = n.replace(/ (Jr\.|Sr\.|II|III|IV)$/, '').split(' '); return p.length > 1 ? `${p[0][0]}. ${p.slice(1).join(' ')}` : n; };
@@ -1973,9 +1974,8 @@ function renderSepChart() {
     <div class="sepwrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Separation versus targets per snap">${quads}${axes}${dots}</svg></div>
     <p class="note">Separation is from the NFL's Next Gen Stats; targets per snap stands in for targets per route run (routes aren't in free data). ${open.length ? `Getting open without the volume: <b>${open.map(esc).join(', ')}</b>.` : ''} Heads up: tested on 2025, separation didn't predict props beyond what target share already says, so this is for reading the field, not a betting signal.</p>`;
 }
-document.addEventListener('click', e => { const b = e.target.closest('[data-seppos]'); if (b) { SEP.pos = b.dataset.seppos; renderSepChart(); } });
+document.addEventListener('click', e => { const b = e.target.closest('[data-seppos]'); if (b) { SEP.pos = b.dataset.seppos; renderTeams(); } });
 function renderPlayers() {
-  renderSepChart();
   const box = $('#players'); if (!box) return;
   const all = S.players;
   if (!all) { box.innerHTML = `<div class="empty"><b>No player data yet</b>Player pages appear after the next sync.</div>`; return; }
