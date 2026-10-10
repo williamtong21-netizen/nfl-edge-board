@@ -732,6 +732,8 @@ def main():
             team_an["coaches"] = co
             cr = situational.correlations(season)
             team_an["corr"] = {"years": cr["years"], "pairs": cr["pairs"]}
+        try: team_an["sep"] = analytics.receiver_separation(season)   # Players tab: separation vs targets chart
+        except Exception as e: print("separation chart failed", e, file=sys.stderr)
     except Exception as e:
         import traceback; traceback.print_exc()
         print("situations failed", e, file=sys.stderr)

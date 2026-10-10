@@ -743,6 +743,12 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 .gapleg{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;font-size:13.5px}.gapleg a{color:var(--accent)}
 .pdrop:not(.why-open) .pwhy{display:none}
 .pwhy{display:grid;gap:4px;margin:8px 0 4px;font-size:13px}.pwhy .plus{color:var(--good)}.pwhy .minus{color:var(--bad, #e5484d)}
+.sepbox{margin:10px 0 14px;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface)}
+.sepbox summary{display:flex;gap:8px;align-items:baseline;cursor:pointer;list-style:none}.sepbox summary::-webkit-details-marker{display:none}
+.sepbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:10px 0 6px}
+.sepwrap{overflow-x:auto}.sepwrap svg{width:100%;max-width:820px;min-width:560px;height:auto;display:block;margin:0 auto}
+.sepq{font:800 12px var(--f-display);letter-spacing:1px;fill:var(--muted)}.sept{font:10px var(--f-body);fill:var(--muted)}.sepl{font:600 11px var(--f-body);fill:var(--muted)}
+.sepn{font:600 9.5px var(--f-body);fill:var(--ink)}.sepdot[data-player]{cursor:pointer}.sepdot[data-player]:hover circle{r:6.5}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -884,6 +890,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
   <div id="view-players" hidden>
     <div class="psearch"><input id="pl-q" type="search" placeholder="Search players or a team (e.g. Olave, NO)" aria-label="Search players" autocomplete="off">
       <div class="row" id="pl-pos"><button class="chip" data-ppos="" aria-pressed="true">All</button><button class="chip" data-ppos="QB" aria-pressed="false">QB</button><button class="chip" data-ppos="RB" aria-pressed="false">RB</button><button class="chip" data-ppos="WR" aria-pressed="false">WR</button><button class="chip" data-ppos="TE" aria-pressed="false">TE</button></div></div>
+    <details class="sepbox" id="sepBox"><summary><b>Getting open vs getting targets</b><span class="note">receivers, this season ▾</span></summary><div id="sepChart"></div></details>
     <div id="players"></div>
   </div>
 
@@ -1930,7 +1937,45 @@ function propView(p, propsRow, pr, g) {
     ${propLadder(p, propsRow, pr, g)}
   </div>`;
 }
+// ------------------------------------------------------------ separation vs targets: who gets open, and who gets the ball
+const SEP = { pos: 'WR' };
+function renderSepChart() {
+  const box = $('#sepChart'); if (!box) return;
+  const all = (S.slate?.analytics?.sep || []), data = all.filter(r => r.pos === SEP.pos);
+  if (data.length < 8) { box.innerHTML = '<p class="note">Shows up once enough receivers have Next Gen tracking this season.</p>'; return; }
+  const ids = {}; for (const pls of Object.values(S.props || {})) for (const pl of pls) ids[pl.n] = pl.id;
+  const tobj = {}; for (const g of S.slate?.games || []) { tobj[g.home.abbr] = g.home; tobj[g.away.abbr] = g.away; }
+  const tc = ab => tobj[ab] ? teamColor(tobj[ab]) : 'var(--muted)';
+  const med = a => { const b = [...a].sort((x, y) => x - y); return b[b.length >> 1]; };
+  const mx = med(data.map(r => r.sep)), my = med(data.map(r => r.tps));
+  const xs = data.map(r => r.sep), ys = data.map(r => r.tps);
+  const x0 = Math.floor(Math.min(...xs) * 2) / 2, x1 = Math.ceil((Math.max(...xs) + 0.35) * 2) / 2, y0 = 0, y1 = Math.ceil(Math.max(...ys) * 20) / 20;
+  const W = 760, H = 520, L = 46, R = 14, T = 14, B = 42;
+  const X = v => L + (v - x0) / (x1 - x0) * (W - L - R), Y = v => T + (1 - (v - y0) / (y1 - y0)) * (H - T - B);
+  const short = n => { const p = n.replace(/ (Jr\.|Sr\.|II|III|IV)$/, '').split(' '); return p.length > 1 ? `${p[0][0]}. ${p.slice(1).join(' ')}` : n; };
+  const q = (x, y, w, h, fill, label, tx, ty, anchor) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" opacity=".10"/><text x="${tx}" y="${ty}" text-anchor="${anchor}" class="sepq">${label}</text>`;
+  const mxp = X(mx), myp = Y(my);
+  const quads = q(L, T, mxp - L, myp - T, 'var(--bad)', 'TARGETED, NOT OPEN', L + 8, T + 18, 'start')
+    + q(mxp, T, W - R - mxp, myp - T, 'var(--good)', 'OPEN AND TARGETED', W - R - 8, T + 18, 'end')
+    + q(L, myp, mxp - L, H - B - myp, 'var(--accent)', 'NOT OPEN, NOT TARGETED', L + 8, H - B - 8, 'start')
+    + q(mxp, myp, W - R - mxp, H - B - myp, 'var(--warn)', 'OPEN, NOT TARGETED', W - R - 8, H - B - 8, 'end');
+  const ticksX = []; for (let v = x0; v <= x1 + 1e-9; v += 0.5) ticksX.push(v);
+  const ticksY = []; for (let v = 0; v <= y1 + 1e-9; v += 0.05) ticksY.push(v);
+  const axes = ticksX.map(v => `<text x="${X(v)}" y="${H - B + 16}" text-anchor="middle" class="sept">${v.toFixed(1)}</text>`).join('')
+    + ticksY.map(v => `<text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" class="sept">${v.toFixed(2)}</text><line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width=".6"/>`).join('')
+    + `<line x1="${mxp}" x2="${mxp}" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-dasharray="4 4"/><line x1="${L}" x2="${W - R}" y1="${myp}" y2="${myp}" stroke="var(--muted)" stroke-dasharray="4 4"/>`
+    + `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle" class="sepl">Separation (yards from nearest defender at the catch point) →</text>`
+    + `<text transform="translate(12 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle" class="sepl">Targets per snap →</text>`;
+  const dots = data.map(r => { const id = ids[r.n], cx = X(r.sep), cy = Y(r.tps);
+    return `<g class="sepdot"${id ? ` data-player="${esc(id)}"` : ''}><circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4.5" fill="${esc(tc(r.tm))}" stroke="var(--bg)" stroke-width="1"/><text x="${(cx + 6).toFixed(1)}" y="${(cy + 3.5).toFixed(1)}" class="sepn">${esc(short(r.n))}</text><title>${esc(r.n)} (${esc(r.tm)}): ${r.sep} yds separation, ${(r.tps * 100).toFixed(1)} targets per 100 snaps, ${r.tgt} targets, ${r.yds} yds</title></g>`; }).join('');
+  const open = data.filter(r => r.sep > mx && r.tps < my).sort((a, b) => b.sep - a.sep).slice(0, 4).map(r => r.n);
+  box.innerHTML = `<div class="sepbar">${['WR', 'TE'].map(k => `<button class="chip" data-seppos="${k}" aria-pressed="${SEP.pos === k}">${k}</button>`).join('')}<span class="note">${data.length} ${SEP.pos === 'WR' ? 'receivers' : 'tight ends'}, 15+ targets · dashed lines are the medians · tap a dot for his page</span></div>
+    <div class="sepwrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Separation versus targets per snap">${quads}${axes}${dots}</svg></div>
+    <p class="note">Separation is from the NFL's Next Gen Stats; targets per snap stands in for targets per route run (routes aren't in free data). ${open.length ? `Getting open without the volume: <b>${open.map(esc).join(', ')}</b>.` : ''} Heads up: tested on 2025, separation didn't predict props beyond what target share already says, so this is for reading the field, not a betting signal.</p>`;
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-seppos]'); if (b) { SEP.pos = b.dataset.seppos; renderSepChart(); } });
 function renderPlayers() {
+  renderSepChart();
   const box = $('#players'); if (!box) return;
   const all = S.players;
   if (!all) { box.innerHTML = `<div class="empty"><b>No player data yet</b>Player pages appear after the next sync.</div>`; return; }

@@ -382,3 +382,23 @@ def lineup_changes(season, games, depth):
             out[team] = {"weeks": weeks, "keys": keys, "pts": round(sum(k["pts"] for k in keys), 2),
                          "def": dkeys, "dpts": round(min(2.0, sum(k["pts"] for k in dkeys)), 2)}
     return out
+
+
+def receiver_separation(season, min_targets=15, min_snaps=75):
+    """Next Gen Stats separation (yards from the nearest defender when the ball arrives, target-weighted over the season)
+    against targets per offensive snap (a free stand-in for targets per route run), for every WR / TE with enough volume."""
+    ngs = [r for r in rows("nextgen_stats/ngs_receiving.csv.gz", 6 * 3600) if r.get("season") == str(season) and r.get("season_type") == "REG" and r.get("week") not in ("0", "", None)]
+    acc = defaultdict(lambda: {"s": 0.0, "t": 0, "y": 0.0, "pos": "", "tm": ""})
+    for r in ngs:
+        try: sep, t = float(r["avg_separation"]), int(float(r["targets"]))
+        except (TypeError, ValueError): continue
+        a = acc[norm(r["player_display_name"])]
+        a["s"] += sep * t; a["t"] += t; a["y"] += f(r.get("yards")) or 0; a["pos"] = r.get("player_position") or a["pos"]; a["tm"] = fix(r.get("team_abbr") or a["tm"]); a["n"] = r["player_display_name"]
+    snaps = defaultdict(float)
+    for r in rows(f"snap_counts/snap_counts_{season}.csv", 6 * 3600):
+        if r.get("game_type") in (None, "", "REG"): snaps[norm(r["player"])] += f(r.get("offense_snaps")) or 0
+    out = []
+    for k, a in acc.items():
+        if a["pos"] not in ("WR", "TE") or a["t"] < min_targets or snaps.get(k, 0) < min_snaps: continue
+        out.append({"n": a["n"], "tm": a["tm"], "pos": a["pos"], "sep": round(a["s"] / a["t"], 2), "tps": round(a["t"] / snaps[k], 3), "tgt": a["t"], "yds": round(a["y"])})
+    return sorted(out, key=lambda x: -x["tgt"])
