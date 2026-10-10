@@ -161,6 +161,9 @@ def game_tilt(g, an):
     return out
 
 
+# receiving yards / receptions with a backup QB starting, vs the player's normal (2024-25 nflverse, 831 player-games)
+QB_SWAP = {"WR": (0.96, 0.98), "TE": (1.06, 1.05), "RB": (0.82, 0.89)}
+QB_SWAP_Q = 0.25   # extra cut per unit of QB downgrade (k["eff"], 0.8-1.1), a quarter of the old flat effect
 MKT_PROP_W = 0.6  # yardage / reception props: weight on the market's chance (our model alone hit ~50% on weeks 1-4)
 # rushing props lean harder on the market: on Kalshi weeks 1-4 our rushing reads were barely better than a coin flip
 # (accuracy kept improving as they were pulled toward 50/50), and 85% market beat 60% on rush yds and rush+rec
@@ -284,7 +287,12 @@ def prop_projections(props, games, an, season):
                 v = 1.0
                 for k in lck:
                     if k["k"] == "qb" and len(k["with"]) < 2 and pos != "QB" and m in ("Rec yds", "Long rec", "Rush+rec yds", "Receptions"):
-                        v *= k["eff"] if m != "Receptions" else 1 + (k["eff"] - 1) / 2   # a weaker QB: fewer yards per target
+                        # backup QB: each position's measured change (2024-25, 831 player-games), nudged by how big the
+                        # downgrade is. Tight ends gain, receivers dip a little, backs lose the most (the old flat cut
+                        # took ~20% off everyone)
+                        yds_m, rec_m = QB_SWAP.get(pos, QB_SWAP["WR"])
+                        base = rec_m if m == "Receptions" else (1 + (yds_m - 1) * 0.25 if m == "Rush+rec yds" and pos == "RB" else yds_m)
+                        v *= base * (1 + QB_SWAP_Q * (k["eff"] - 1))
                     if k["k"] != "out": continue
                     without = sum(1 for r in pl["log"] if r["y"] == season and r["w"] not in k["have"])
                     if without >= 2: continue    # he already has games without the star; the reweighting covers it
