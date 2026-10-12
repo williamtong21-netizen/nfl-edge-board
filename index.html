@@ -3639,6 +3639,10 @@ function renderProps() {
   gsel.innerHTML = `<option value="">All games</option>` + games.map(g => `<option value="${g.id}">Wk ${g.week} · ${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</option>`).join('');
   gsel.value = games.some(g => g.id === keep) ? keep : '';
   PF.game = gsel.value;
+  // a light day (Monday night, a lone Thursday game): when only 1-2 games kick off in the next 36 hours, show every
+  // player in those games instead of the top 3 + "show more"; drop the game picker when there's only one game at all
+  const soon = games.filter(g => new Date(g.date) - Date.now() < 36 * 3600e3), openAll = new Set(soon.length <= 2 ? soon.map(g => g.id) : []);
+  gsel.hidden = games.length <= 1;
   const msel = $('#pf-market');
   if (msel.options.length === 1) msel.insertAdjacentHTML('beforeend', PROP_ORDER.map(m => `<option>${m}</option>`).join(''));
   const rows = [];
@@ -3666,7 +3670,7 @@ function renderProps() {
   let lastGame = null;
   const perGame = {}, hiddenN = {}, shown = [];
   for (const r of rows) { const k = r.g.id, i = perGame[k] = (perGame[k] || 0) + 1;
-    if (!byGame || i <= 3 || PF.games.has(k) || PF.game) shown.push(r); else hiddenN[k] = (hiddenN[k] || 0) + 1; }
+    if (!byGame || openAll.has(k) || i <= 3 || PF.games.has(k) || PF.game) shown.push(r); else hiddenN[k] = (hiddenN[k] || 0) + 1; }
   const lastOf = {}; shown.forEach((r, i) => { lastOf[r.g.id] = i; });
   box.innerHTML = `<div class="pgrid compact">${shown.slice(0, 150).map(({ pl, g, props }, idx) => {
     const head = byGame && g.id !== lastGame ? `<h3 class="pgame">${logo(g.away.abbr, 22)}${logo(g.home.abbr, 22)}<span>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</span><small>${kick(g)}</small></h3>` : '';
@@ -3691,7 +3695,7 @@ function renderProps() {
       }).join('')}
       ${props.length > 3 && !PF.players.has(pl.id) ? `<button class="showmore" data-pplayer="${esc(pl.id)}" style="margin:4px 10px 8px;width:auto">+${props.length - 3} more props</button>` : ''}
       ${pl.lc?.length ? `<div class="lcline"><b>Lineup</b><span>${esc(pl.lc.join(' · '))}</span></div>` : ''}
-    </article>${lastOf[g.id] === idx && hiddenN[g.id] ? `<button class="showmore" data-pgame="${g.id}" style="grid-column:1/-1">Show ${hiddenN[g.id]} more players in ${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>` : ''}`;
+    </article>${lastOf[g.id] === idx && hiddenN[g.id] ? `<button class="showmore" data-pgame="${g.id}" style="grid-column:1/-1">Show ${hiddenN[g.id]} more player${hiddenN[g.id] === 1 ? '' : 's'} in ${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>` : ''}`;
   }).join('')}</div>${rows.length > 150 ? `<p class="note">Showing 150 of ${rows.length} players. Pick a game or position to narrow it.</p>` : ''}`;
 }
 document.addEventListener('click', e => {
