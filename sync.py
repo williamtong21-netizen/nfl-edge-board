@@ -276,8 +276,9 @@ TD_RESERVE = 80   # credits kept back each month: below this, TD prices refresh 
 
 def multibook_tds(games, props, cfg):
     """Anytime-TD prices and bet-slip links from every book, 1 credit per game per pull. Starting the morning of the
-    week's first game (Thursday), every game that week is pulled, then refreshed at least every 48 hours, daily while FanDuel or DraftKings hasn't posted it yet,
-    and once more on game day (kickoff within 14 hours). If the month's credits run low (under TD_RESERVE), only
+    week's first game (Thursday), every game that week is pulled once, retried daily while FanDuel or DraftKings hasn't posted it
+    yet, and pulled once more on game day (within 5 hours of kickoff): about 2 credits per game per week (trimmed 2026-10-11
+    from 4-5, when game day alone used ~45). If the month's credits run low (under TD_RESERVE), only
     game-day pulls run. On by default with an Odds API key; config "odds_api_tds": false or env ODDS_API_TDS=0 turns it off.
     Env ODDS_API_TDS_NOW=1 refreshes every upcoming game right away."""
     key = (cfg.get("odds_api_key") or os.environ.get("ODDS_API_KEY") or "").strip()
@@ -300,11 +301,12 @@ def multibook_tds(games, props, cfg):
             hit = cache.get(g["id"])
             age = (time.time() - hit["t"]) / 3600 if hit else 1e9
             books = {b.get("key") for b in ((hit or {}).get("data") or {}).get("bookmakers", [])}
-            game_day = kick - now < timedelta(hours=14)
+            game_day = kick - now < timedelta(hours=5)
             if now_all and age >= 1: due.append(g); continue
-            if game_day and age >= 6: due.append(g); continue          # last look before kickoff
+            if game_day and age >= 8: due.append(g); continue          # one last look before kickoff (one pull per game)
             if low: continue                                            # saving credits: game day only
-            if age >= 48 or (age >= 20 and not {"fanduel", "draftkings"} <= books): due.append(g)
+            if not hit: due.append(g); continue                         # the week's opening pull
+            if age >= 24 and not {"fanduel", "draftkings"} <= books and kick - now > timedelta(hours=20): due.append(g)   # retry once a day until FanDuel / DraftKings post
         if due:
             try: events = get("https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events?" + urlencode({"apiKey": key}))  # free call
             except Exception as e: print("odds api events failed", e, file=sys.stderr); events = []
