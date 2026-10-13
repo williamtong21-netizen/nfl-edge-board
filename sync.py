@@ -79,6 +79,27 @@ def parse_team(c):
             "inj": [], "stats": None, "form": []}
 
 
+def news_outs(games):
+    """Players a headline just ruled out (news.py, every 20 minutes) before ESPN's injury status caught up: mark them Out so
+    the lineup model moves their targets / carries now. Only while ESPN still has them Questionable / Doubtful (or not
+    listed), and only until kickoff."""
+    outs = load("news_state.json", {}).get("outs", {})
+    now = datetime.now(timezone.utc)
+    for g in games:
+        if g["state"] != "pre": continue
+        for side in ("home", "away"):
+            t = g[side]
+            for name, o in outs.items():
+                if o.get("tm") != t["abbr"]: continue
+                try:
+                    if datetime.fromisoformat(o["kick"].replace("Z", "+00:00")) < now: continue
+                except Exception: continue
+                cur = next((i for i in t.get("inj") or [] if i["n"] == name), None)
+                if cur and not any(k in (cur.get("s") or "").lower() for k in ("questionable", "doubtful")): continue   # ESPN has moved on
+                if cur: cur.update({"s": "Out", "d": (cur.get("d") or "") + " (ruled out in the news)"})
+                else: t.setdefault("inj", []).append({"n": name, "p": o.get("pos", ""), "s": "Out", "t": "", "d": "ruled out in the news", "r": None})
+
+
 def parse_game(ev, summ, week):
     c = ev["competitions"][0]
     side = {x["homeAway"]: x for x in c["competitors"]}
@@ -651,6 +672,7 @@ def main():
     with ThreadPoolExecutor(8) as pool:
         sums = list(pool.map(summary, [e for e, _ in events]))
     games = [parse_game(e, s, w) for (e, w), s in zip(events, sums)]
+    news_outs(games)
     weather(games)
     odds_meta = multibook(games, cfg)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")

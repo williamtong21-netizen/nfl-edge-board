@@ -6,6 +6,8 @@ headline about him says he's ruled out, inactive, activated, starting, benched o
 "Matters" = a starting QB or lead back, or anyone with a 25%+ anytime-TD chance in this week's props. Out / Doubtful / IR
 and "cleared" always alert; Questionable only for QBs and 40%+ TD scorers within 48 hours of kickoff (midweek practice noise).
 State (what was already sent, last status seen) lives in state/news_state.json. Same quiet hours as alerts.py.
+A headline that rules a key player out is saved under "outs" (sync.news_outs marks him Out before ESPN's status catches up)
+and asks the workflow to start a full sync right away (state/.dispatch_sync).
 Run:  python news.py        (EDGE_OUT = the published data folder, EDGE_DATA = the state folder)
 """
 import glob, json, os, re, sys
@@ -21,6 +23,7 @@ DOWN = ("Questionable", "Doubtful", "Out", "Injured Reserve", "Suspended")
 RANK = {"Active": 0, "Questionable": 1, "Doubtful": 2, "Out": 3, "Injured Reserve": 4, "Suspended": 4}
 WORDS = re.compile(r"\b(ruled out|won't play|will not play|inactive|out for|placed on (?:ir|injured reserve)|activated|will start|to start|benched|suspended|questionable|doubtful|week-to-week|season-ending|torn|carted)\b", re.I)
 MAX_PER_RUN = 3
+OUT_WORDS = re.compile(r"\b(ruled out|won't play|will not play|inactive|out for (?:sunday|monday|thursday|saturday|the game|week))\b", re.I)
 
 
 def get(url):
@@ -96,6 +99,9 @@ def candidates(keys, st):
         hit = next(((aid, v) for nm, (aid, v) in names.items() if nm in hl.lower()), None)
         if not hit: continue
         aid, v = hit
+        if OUT_WORDS.search(hl) and v["n"] not in st.setdefault("outs", {}):   # ruled out in the news: tell the next sync, and start one now
+            st["outs"][v["n"]] = {"tm": v["team"], "kick": v["kick"], "pos": v.get("pos"), "why": hl[:160], "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+            st["dispatch"] = True
         link = ((a.get("links") or {}).get("web") or {}).get("href")
         out.append((2, f'news:{a.get("id") or hl}', f'{v["n"]} news', f'{hl}. {v["game"]}.', "newspaper", link))
     return out
@@ -130,6 +136,11 @@ def main():
         elif not first: continue
         sent.add(key)
     st["sent"] = sorted(sent)[-3000:]
+    # drop "ruled out" notes once the game has started; ask the workflow to run a full sync when there's a new one
+    now = datetime.now(timezone.utc)
+    st["outs"] = {k: v for k, v in (st.get("outs") or {}).items() if datetime.fromisoformat(v["kick"].replace("Z", "+00:00")) > now}
+    if st.pop("dispatch", False):
+        with open(os.path.join(DATA, ".dispatch_sync"), "w") as fh: fh.write(now.isoformat())
     with open(path, "w", encoding="utf-8") as f: json.dump(st, f)
     print(json.dumps({"key_players": len(keys), "sent": n, "first": first, "quiet": quiet}))
 

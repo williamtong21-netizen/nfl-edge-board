@@ -1343,7 +1343,7 @@ function renderSpot() {
   box.innerHTML = `<div class="spot">
       <div class="spot-top"><span class="${isLive ? 'live' : ''}">${isLive ? '<span class="livedot"></span>Live now' : 'Up next'}</span><span>${esc(g.venue || '')}${g.indoor ? ' · Indoors' : g.wx ? ` · ${Math.round(g.wx.temp)}°F, wind ${Math.round(g.wx.wind)} mph` : ''}</span></div>
       <div class="spot-main">${side(A, 'away')}${mid}${side(H, 'home')}</div>
-      ${o ? `<div class="pills">${fav ? `<span class="pill"><i>Favorite</i>${esc(fav)}</span>` : ''}${o.t != null ? `<span class="pill"><i>Total</i>${o.t} pts</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected score</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}${g.proj ? `<span class="pill"><i>Our line</i>${esc(ourLine(g))} · ${g.proj.total.toFixed(1)}</span>` : ''}${CFB && g.ours ? `<span class="pill" title="Info only: matched Vegas in 2023–25 tests but didn't beat it"><i>Our number</i>${Math.abs(g.ours.m) < 0.5 ? 'Pick ’em' : `${esc((g.ours.m >= 0 ? H : A).abbr)} by ${(Math.round(Math.abs(g.ours.m) * 2) / 2).toFixed(1)}`} · ${(Math.round(g.ours.t * 2) / 2).toFixed(1)}</span>` : ''}</div>` : ''}
+      ${o ? `<div class="pills">${fav ? `<span class="pill"><i>Favorite</i>${esc(fav)}</span>` : ''}${o.t != null ? `<span class="pill"><i>Total</i>${o.t} pts</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected score</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}${CFB && g.ours ? `<span class="pill" title="Info only: matched Vegas in 2023–25 tests but didn't beat it"><i>Our number</i>${Math.abs(g.ours.m) < 0.5 ? 'Pick ’em' : `${esc((g.ours.m >= 0 ? H : A).abbr)} by ${(Math.round(Math.abs(g.ours.m) * 2) / 2).toFixed(1)}`} · ${(Math.round(g.ours.t * 2) / 2).toFixed(1)}</span>` : ''}</div>` : ''}
       ${wp != null ? `<div class="wplab"><span>${esc(A.abbr)} ${Math.round((1 - wp) * 100)}%</span><span>${wpLabel}</span><span>${esc(H.abbr)} ${Math.round(wp * 100)}%</span></div>
         <div class="wpbar"><i style="width:${(1 - wp) * 100}%;background:${esc(teamColor(A))}"></i><i style="flex:1;background:${esc(teamColor(H))}"></i></div>` : ''}
       ${isLive && L?.last ? `<div class="lastplay"><b>Last play</b>${esc(L.last)}</div>` : ''}
@@ -1844,8 +1844,8 @@ function renderPicks() {
       : `<p class="note tdhonest">No touchdown prices beat our numbers right now. New prices land Thursday morning and refresh through the week.</p>`}
     <div id="trapMount"></div>
     <details class="leans"${PK.leans ? ' open' : ''}><summary>Our model's leans</summary>
-    <p class="honest">Backtests on 2024–26 games and this season's props found these leans hit about 50% against the closing lines, so treat them as information, not edges.</p>
-    ${sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, nS).map(pickCard).join('')}</div>
+    <p class="honest">Player-prop leans. Game sides and totals are left out: over 600+ games (2024–26) our team model never beat the closing line, so the app uses the market's number for games.</p>
+    ${false && sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, nS).map(pickCard).join('')}</div>
     ${PK.allSides ? `<button class="showmore" data-pk="allSides">Show fewer game picks</button>` : sides.length > nS ? `<button class="showmore" data-pk="allSides">Show all ${Math.min(12, sides.length)} game picks</button>` : ''}` : ''}
     <div id="trapMount"></div>
     ${props.length ? `<h2 style="margin-top:22px">Player props</h2><div class="picks">${props.slice(0, nP).map(pickCard).join('')}</div>
@@ -3332,7 +3332,7 @@ function card(g) {
     else { const mine = +score(t, home), theirs = +score(home ? A : H, !home); right = `<span></span><span class="score ${mine >= theirs ? 'win' : 'lose'}">${esc(score(t, home) ?? '')}</span>`; }
     return `<div class="gteam">${logo(t.abbr, 36)}<div class="nm"><b>${esc(nick(t))}</b><small>${esc(t.rec)} · ${home ? 'home ' + esc(t.homeRec) : 'road ' + esc(t.roadRec)} ${styleTag(t.abbr)}</small></div>${right}</div>`;
   };
-  const totals = o && pre ? `<div class="row" style="padding:0 12px 10px;gap:6px">${o.t != null ? `<span class="pill"><i>Total</i>${o.t}${mv(o.to, o.t)}</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}${g.proj ? `<span class="ourline">Our line ${esc(ourLine(g))} · total ${g.proj.total.toFixed(1)}</span>` : ''}</div>` : '';
+  const totals = o && pre ? `<div class="row" style="padding:0 12px 10px;gap:6px">${o.t != null ? `<span class="pill"><i>Total</i>${o.t}${mv(o.to, o.t)}</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}</div>` : '';
   // college: our own number, shown as info only (backtested even with the closing line, so it never makes picks)
   const cfbOurs = CFB && pre && g.ours ? (() => { const m = g.ours.m, fav = m >= 0 ? H : A, half = x => (Math.round(x * 2) / 2).toFixed(1);
     const book = o?.hs != null ? ` · book ${esc((o.hs <= 0 ? H : A).abbr)} ${fmtLine(-Math.abs(o.hs))}${o.t != null ? ', ' + o.t : ''}` : '';
@@ -3349,7 +3349,6 @@ function card(g) {
     if (out.length) badges.push(`<span class="b ${qb ? 'r' : 'y'}">${esc(t.abbr)}: ${out.length} out${qb ? ', including the starting QB' : ''}</span>`);
   }
   if (CFB && pre) for (const side of ['away', 'home']) { const q = g.qb?.[side]; if (q) badges.push(`<span class="b y" title="${esc(q.new)} started last game; ${esc(q.old)} started ${q.starts} of ${q.games}. College has no injury feed, so this is based on who actually played.">${esc(g[side].abbr)}: new QB ${esc(q.new)}</span>`); }
-  if (pre && g.edgeH != null && Math.abs(g.edgeH) >= EDGE_MIN) badges.push(`<span class="b g">Model likes ${esc((g.edgeH > 0 ? H : A).abbr)}</span>`);
   if (g.shop) badges.push(`<span class="b">${g.shop.books.length} books compared</span>`);
   const open = S.open.has(g.id);
   return `<article class="card${open ? ' open' : ''}" id="g${g.id}" style="--ta:${teamColor(A)};--th:${teamColor(H)}">

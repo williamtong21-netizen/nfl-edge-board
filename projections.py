@@ -112,6 +112,14 @@ def team_projections(games, an):
             mid, half = (h + a) / 2, (h - a) / 2 * 0.9
             h, a = mid + half, mid - half
         g["proj"].update({"h": round(h, 1), "a": round(a, 1), "margin": round(h - a, 1), "total": round(h + a, 1), "pHome": round(phi((h - a) / MARGIN_SD), 3)})
+        # the game itself follows the market: over 600+ games (2024-26) the closing line alone was the most accurate, and every
+        # share of our team model made the margin and total worse (game_backtest.py). Ours is kept as mModel / tModel for reference.
+        o = g.get("odds") or {}
+        if GAME_MKT_W and o.get("hs") is not None and o.get("t") is not None:
+            mm, mt = -o["hs"], o["t"]
+            m = GAME_MKT_W * mm + (1 - GAME_MKT_W) * (h - a); t = GAME_MKT_W * mt + (1 - GAME_MKT_W) * (h + a)
+            g["proj"].update({"mModel": round(h - a, 1), "tModel": round(h + a, 1), "h": round((t + m) / 2, 1), "a": round((t - m) / 2, 1),
+                              "margin": round(m, 1), "total": round(t, 1), "pHome": round(phi(m / MARGIN_SD), 3), "mkt": True})
 
 
 # ---------------------------------------------------------------- props
@@ -169,6 +177,7 @@ MKT_PROP_W = 0.6  # yardage / reception props: weight on the market's chance (ou
 # (accuracy kept improving as they were pulled toward 50/50), and 85% market beat 60% on rush yds and rush+rec
 # passing yards too, after the full 2025 replay (weeks 5-18): our pass-yds leans hit 46%; 85% market beat 60% (0.2446 vs 0.2476)
 MKT_PROP_W_BY = {"Rush yds": 0.85, "Carries": 0.85, "Rush+rec yds": 0.85, "Pass yds": 0.85, "Pass+rush yds": 0.85}
+GAME_MKT_W = 1.0  # game margin / total: weight on the market line (our team model added nothing over 2024-26; see game_backtest.py)
 MKT_TD_W = 0.6    # TD chance: weight on the market's own chance; 0.6 tested best on weeks 1-4 of 2026 (td_backtest.py)
 # the model's own TD chance, recalibrated: over 2025 weeks 1-11 it read long shots too low (said 7%, they scored 10%)
 # and 45-60% players too high (said 51%, scored 43%). logit(p') = A + B x logit(p), fit on 2025, and it also improved
