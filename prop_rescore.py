@@ -20,7 +20,9 @@ POS_EFF = {"ypt": {"WR": 8.2, "TE": 7.2, "RB": 5.8}, "cr": {"WR": 0.63, "TE": 0.
 K = {"tgt": 50, "car": 80, "att": 200}        # sample size (targets / carries / attempts) at which his own rate gets half the weight
 QB_YPC = 5.0                                  # prior yards per carry for a quarterback's runs
 SCRIPT = 0.012                                # pass share change per point of expected margin (trailing teams throw)
-DECAY = 0.85                                  # weight per game back in a player's history (shares and volumes)
+DECAY = 0.95                                  # weight per game back in a player's history (shares and volumes); 0.95 since
+                                              # 2026-10-14: the model overreacted to hot / cold streaks, and flatter weighting
+                                              # helped exactly those props (2025 replay) at no cost overall
 RUN_SCRIPT = 1.0                              # how strongly game script moves the run game (1 = mirror of the pass side)
 PASS_SCRIPT = 0.0                             # passing / receiving volume: no extra game-script shift. The book line we anchor to
                                               # already prices the expected script; adding ours double-counted it (2025 wks 5-18 and
