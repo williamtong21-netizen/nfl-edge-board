@@ -461,6 +461,20 @@ details.nerd .usage{border-bottom:0}
 .ffwhy{display:flex;flex-wrap:wrap;gap:6px 14px;padding:4px 14px 10px 46px;font-size:13px}.ffwhy small{flex-basis:100%;color:var(--muted);font-size:11.5px}
 #ff-q{background:var(--surface);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:6px 12px;font:inherit;min-width:0;max-width:200px}
 .ffnote{margin:0 0 10px}
+.lgcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 14px;display:flex;flex-direction:column;gap:8px}
+.lgcard h3,.lgcard h4{margin:0}.lgcard h4{margin-top:6px}
+.lgform{display:flex;gap:8px;flex-wrap:wrap}.lgform input{flex:1;min-width:0;max-width:260px;background:var(--bg);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:7px 12px;font:inherit}
+.lghead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.lghead small{color:var(--muted);flex:1;min-width:0}
+.lgstr{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.lgpos{display:flex;flex-direction:column;align-items:center;gap:1px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 4px;color:var(--ink);cursor:pointer;font:inherit}
+.lgpos span{font:800 17px var(--f-display)}.lgpos small{color:var(--muted);font-size:11px}
+.lgpos.good span{color:var(--good)}.lgpos.bad span{color:var(--bad)}.lgpos[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.lglu summary{cursor:pointer;color:var(--muted);font-size:13px}.lgp{display:flex;gap:8px;align-items:baseline;padding:3px 0;font-size:13.5px}.lgp i{font-style:normal;color:var(--muted);width:44px;font-size:11.5px}
+.lgp small,.lgside small{color:var(--muted);font-size:11.5px}
+.lgtrades{display:flex;flex-direction:column;gap:8px}
+.lgtr{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--bg)}
+.lgside{min-width:0;font-size:13.5px;line-height:1.35}.lgside .lbl{display:block;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.lgmeta{grid-column:1/-1;font-size:12.5px;color:var(--muted)}.lgmeta .pos{color:var(--good);font-weight:700}.lgmeta .neg{font-weight:700}
 .pcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:0}
 .pcard-h{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
 .pcard-h .logo{width:24px;height:24px}
@@ -886,6 +900,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
       <div class="row" id="ff-pos"></div>
       <input id="ff-q" type="search" placeholder="Find a player" aria-label="Find a player" autocomplete="off">
     </div>
+    <div id="ffleague"></div>
     <p class="note ffnote" id="ff-note"></p>
     <div id="fantasy"></div>
   </div>
@@ -3604,6 +3619,7 @@ function ffPlayer(pl) {
 }
 function renderFantasy() {
   const box = $('#fantasy'); if (!box || CFB) return;
+  if (!$('#view-fantasy').hidden) lgBoot();
   $('#ff-score').innerHTML = Object.entries(FF_SCORING).map(([k, [lbl]]) => `<button class="chip" data-ffscore="${k}" aria-pressed="${k === FF.score}">${lbl}</button>`).join('');
   $('#ff-pos').innerHTML = FF_POS.map(p => `<button class="chip" data-ffpos="${p}" aria-pressed="${p === FF.pos}">${p || 'All'}</button>`).join('');
   $('#ff-note').textContent = NBA ? "Projected fantasy points from the betting lines (points, rebounds, assists, threes) blended with our model. No steals, blocks or turnovers: books don't post those."
@@ -3639,6 +3655,133 @@ document.addEventListener('click', e => {
   const op = e.target.closest('[data-ffopen]'); if (op) { const k = op.dataset.ffopen; FF.open.has(k) ? FF.open.delete(k) : FF.open.add(k); renderFantasy(); }
 });
 document.addEventListener('input', e => { if (e.target.id === 'ff-q') { FF.q = e.target.value; renderFantasy(); } });
+
+// ------------------------------------------------------------ my league (Sleeper) + trade finder
+// Sleeper's API is public: a username (no password) finds the leagues, rosters and owners. Player values come from the
+// sync's ff_values.json (rest-of-season points per game, split into non-reception points "s" and receptions "r" so the
+// league's own PPR setting applies). Teams are shown by their owner's Sleeper handle, never the custom team name.
+const SLP = 'https://api.sleeper.app/v1/';
+const LG = { user: store.get('edge-slp-user') || '', league: store.get('edge-slp-league') || '', leagues: null, data: null, err: '', busy: false, need: '', open: false };
+const lgName = l => /nig/i.test(l.name || '') ? 'GSO League' : l.name || 'League';   // league names with slurs never shown
+const slp = p => fetch(SLP + p).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const FLEX_OK = { FLEX: ['RB', 'WR', 'TE'], SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'], REC_FLEX: ['WR', 'TE'], WRRB_FLEX: ['RB', 'WR'] };
+async function lgConnect(name) {
+  LG.busy = true; LG.err = ''; renderLeague();
+  try {
+    const u = await slp('user/' + encodeURIComponent(name.trim()));
+    if (!u?.user_id) throw new Error('No Sleeper user called "' + name + '"');
+    const season = S.slate?.season || new Date().getFullYear();
+    LG.leagues = (await slp(`user/${u.user_id}/leagues/nfl/${season}`)) || [];
+    LG.user = u.display_name || name; LG.uid = u.user_id; store.set('edge-slp-user', name.trim()); store.set('edge-slp-uid', u.user_id);
+    if (!LG.leagues.length) throw new Error(`No ${season} NFL leagues for ${LG.user} on Sleeper`);
+    if (!LG.leagues.some(l => l.league_id === LG.league)) LG.league = LG.leagues.length === 1 ? LG.leagues[0].league_id : '';
+    if (LG.league) await lgLoad(LG.league);
+  } catch (e) { LG.err = e.message === '404' ? 'Sleeper didn\'t find that username.' : e.message; }
+  LG.busy = false; renderLeague();
+}
+async function lgLoad(id) {
+  LG.busy = true; renderLeague();
+  try {
+    const [league, rosters, users, vals] = await Promise.all([slp('league/' + id), slp(`league/${id}/rosters`), slp(`league/${id}/users`),
+      fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null)]);
+    if (!vals) throw new Error('Player values aren\'t ready yet; they come with the next data sync.');
+    LG.league = id; store.set('edge-slp-league', id);
+    const sc = league.scoring_settings || {}, V = vals.players;
+    const ppg = pid => { const v = V[pid]; return v ? v.s + v.r * ((sc.rec ?? 0) + (v.pos === 'TE' ? sc.bonus_rec_te || 0 : 0)) + (v.pos === 'QB' ? 0 : 0) : 0; };
+    const slots = (league.roster_positions || []).filter(x => ['QB', 'RB', 'WR', 'TE'].includes(x) || FLEX_OK[x]);
+    const handle = Object.fromEntries(users.map(u => [u.user_id, u.display_name || 'Team']));
+    const teams = rosters.map(r => ({ id: r.roster_id, owner: r.owner_id, name: handle[r.owner_id] || `Team ${r.roster_id}`, players: (r.players || []).filter(pid => V[pid]) }));
+    // replacement level: the best player nobody would start in a league this size
+    const cnt = { QB: 0, RB: 0, WR: 0, TE: 0 };
+    for (const x of slots) if (cnt[x] != null) cnt[x]++; else { const ok = FLEX_OK[x]; for (const ps of ok) cnt[ps] += ps === 'TE' ? 0.1 : ps === 'QB' ? 0.8 : (1 - (ok.includes('TE') ? 0.1 : 0) - (ok.includes('QB') ? 0.8 : 0)) / ok.filter(q => q === 'RB' || q === 'WR').length; }
+    const repl = {};
+    for (const pos of Object.keys(cnt)) { const xs = Object.keys(V).filter(k => V[k].pos === pos).map(ppg).sort((a, b) => b - a); repl[pos] = xs[Math.round(teams.length * cnt[pos])] ?? 0; }
+    LG.data = { league, teams, V, ppg, slots, repl, me: teams.find(t => t.owner === (LG.uid || store.get('edge-slp-uid'))), week: vals.week };
+    if (!LG.leagues) LG.leagues = [league];
+  } catch (e) { LG.err = e.message; LG.data = null; }
+  LG.busy = false; renderLeague();
+}
+// best starting lineup for a roster: fixed slots first, then flex slots, each taking the best eligible player left
+function lgLineup(pids, D) {
+  const left = pids.map(pid => ({ pid, pos: D.V[pid].pos, p: D.ppg(pid) })).sort((a, b) => b.p - a.p), out = [];
+  for (const sl of [...D.slots.filter(x => !FLEX_OK[x]), ...D.slots.filter(x => FLEX_OK[x])]) {
+    const ok = FLEX_OK[sl] || [sl], i = left.findIndex(x => ok.includes(x.pos));
+    if (i >= 0) out.push({ slot: sl, ...left.splice(i, 1)[0] });
+  }
+  return { pts: out.reduce((a, x) => a + x.p, 0), out };
+}
+const lgVal = (pid, D) => Math.max(0, D.ppg(pid) - (D.repl[D.V[pid].pos] || 0));
+function lgStrength(D) {   // each team's starting points at each position, ranked across the league
+  const rows = D.teams.map(t => { const lu = lgLineup(t.players, D), by = {}; for (const x of lu.out) by[x.pos] = (by[x.pos] || 0) + x.p; return { t, by, pts: lu.pts }; });
+  const rank = {}; for (const pos of ['QB', 'RB', 'WR', 'TE']) rows.slice().sort((a, b) => (b.by[pos] || 0) - (a.by[pos] || 0)).forEach((r, i) => { (rank[r.t.id] ||= {})[pos] = i + 1; });
+  return { rows, rank };
+}
+function lgTrades(D, pos) {
+  const me = D.me, base = lgLineup(me.players, D).pts, out = [];
+  const mine = me.players.filter(pid => D.ppg(pid) > 0);
+  const gives = [...mine.map(a => [a]), ...mine.flatMap((a, i) => mine.slice(i + 1).map(b => [a, b]))];
+  for (const t of D.teams) {
+    if (t.id === me.id) continue;
+    const tBase = lgLineup(t.players, D).pts;
+    for (const get of t.players.filter(pid => D.V[pid].pos === pos && D.ppg(pid) > 0)) {
+      const vGet = lgVal(get, D);
+      for (const give of gives) {
+        if (give.some(pid => D.V[pid].pos === pos) && give.length === 1) continue;
+        const vGive = give.reduce((a, pid) => a + lgVal(pid, D), 0);
+        if (vGive < vGet * 0.85 || vGive > vGet * 1.6 + 1) continue;   // roughly fair by rest-of-season value
+        const myNew = me.players.filter(x => !give.includes(x)).concat(get), thNew = t.players.filter(x => x !== get).concat(give);
+        const dMe = lgLineup(myNew, D).pts - base, dThem = lgLineup(thNew, D).pts - tBase;
+        if (dMe < 0.5 || dThem < -1.0) continue;   // helps you, and they don't lose much of their weekly lineup
+        out.push({ t, get, give, dMe, dThem, vGet, vGive, score: dMe + 0.6 * Math.min(dThem, 2) - 0.15 * (give.length - 1) });
+      }
+    }
+  }
+  out.sort((a, b) => b.score - a.score);
+  const seen = new Set(), per = {}, keep = [];   // at most two offers for any one player, so the list covers more targets
+  for (const x of out) { const k = x.get + '|' + x.give.slice().sort().join(','); if (seen.has(k) || (per[x.get] || 0) >= 2) continue;
+    seen.add(k); per[x.get] = (per[x.get] || 0) + 1; keep.push(x); if (keep.length >= 10) break; }
+  return keep;
+}
+function renderLeague() {
+  const box = $('#ffleague'); if (!box) return;
+  if (NBA || CFB) { box.innerHTML = ''; return; }
+  const D = LG.data;
+  if (!D) {
+    box.innerHTML = `<section class="lgcard"><h3>Your league</h3><p class="note">Connect your Sleeper league to see your team's strengths and a trade finder. Just your Sleeper username: no password.</p>
+      <form id="lgForm" class="lgform"><input id="lgUser" placeholder="Sleeper username" autocomplete="off" value="${esc(LG.user)}"><button class="btn primary" ${LG.busy ? 'disabled' : ''}>${LG.busy ? 'Loading…' : 'Connect'}</button></form>
+      ${LG.leagues?.length > 1 ? `<div class="row">${LG.leagues.map(l => `<button class="chip" data-lgpick="${l.league_id}">${esc(lgName(l))} · ${l.total_rosters} teams</button>`).join('')}</div>` : ''}
+      ${LG.err ? `<p class="neg">${esc(LG.err)}</p>` : ''}<p class="note">Yahoo leagues: coming next.</p></section>`;
+    return;
+  }
+  if (!D.me) { box.innerHTML = `<section class="lgcard"><h3>Your league</h3><p class="neg">You don't own a team in this league.</p><button class="btn small" data-lgout>Switch account</button></section>`; return; }
+  const { rows, rank } = lgStrength(D), n = D.teams.length, my = rank[D.me.id];
+  const weakest = ['RB', 'WR', 'TE', 'QB'].sort((a, b) => my[b] - my[a])[0];
+  const need = LG.need || weakest, trades = lgTrades(D, need);
+  const tag = r => r <= Math.ceil(n / 3) ? 'good' : r > n - Math.ceil(n / 3) ? 'bad' : '';
+  const pl = pid => { const v = D.V[pid]; return `<b>${esc(v.n)}</b> <small>${esc(v.pos)} · ${esc(v.tm || 'FA')} · ${D.ppg(pid).toFixed(1)}/wk${v.inj ? ` · <span class="neg">${esc(v.inj)}</span>` : ''}</small>`; };
+  const lu = lgLineup(D.me.players, D), myRow = rows.find(r => r.t.id === D.me.id), lgRank = rows.slice().sort((a, b) => b.pts - a.pts).findIndex(r => r.t.id === D.me.id) + 1;
+  box.innerHTML = `<section class="lgcard">
+    <div class="lghead"><h3>${esc(D.me.name)}</h3><small>${n}-team league · ${(D.league.scoring_settings?.rec ?? 0) === 1 ? 'PPR' : (D.league.scoring_settings?.rec ?? 0) === 0.5 ? 'Half PPR' : 'Standard'} · best lineup ${myRow.pts.toFixed(1)} pts/wk (${lgRank} of ${n})</small>
+      <button class="btn small" data-lgout>Switch</button></div>
+    <div class="lgstr">${['QB', 'RB', 'WR', 'TE'].map(pos => `<button class="lgpos ${tag(my[pos])}" data-lgneed="${pos}" aria-pressed="${pos === need}"><b>${pos}</b><span>${my[pos]}${['th', 'st', 'nd', 'rd'][my[pos] % 10 > 3 || [11, 12, 13].includes(my[pos]) ? 0 : my[pos] % 10]}</span><small>${(myRow.by[pos] || 0).toFixed(1)} pts</small></button>`).join('')}</div>
+    <details class="lglu"${LG.open ? ' open' : ''}><summary>Your best lineup</summary>${lu.out.map(x => `<div class="lgp"><i>${esc(x.slot === 'SUPER_FLEX' ? 'SF' : x.slot)}</i>${pl(x.pid)}</div>`).join('')}</details>
+    <h4>Trade finder: get a ${esc(need)}</h4>
+    <p class="note">Trades that raise your weekly lineup without gutting theirs, roughly even on rest-of-season value. Tap a position above to search another one.</p>
+    ${trades.length ? `<div class="lgtrades">${trades.map(x => `<div class="lgtr"><div class="lgside"><span class="lbl">You get</span>${pl(x.get)}</div>
+      <div class="lgside"><span class="lbl">You give</span>${x.give.map(pl).join('<br>')}</div>
+      <div class="lgmeta">with <b>${esc(x.t.name)}</b> · your lineup <span class="pos">+${x.dMe.toFixed(1)}</span>/wk · theirs <span class="${x.dThem >= 0 ? 'pos' : 'neg'}">${x.dThem >= 0 ? '+' : ''}${x.dThem.toFixed(1)}</span>/wk</div></div>`).join('')}</div>`
+      : `<p class="note">No fair ${esc(need)} trades found right now: nobody deep at ${esc(need)} needs what you have to spare.</p>`}
+    <p class="note">Values: points per game this season (recent games count more) blended with this week's prop lines; injured players count less. Week ${D.week} data.</p>
+  </section>`;
+}
+document.addEventListener('submit', e => { if (e.target.id === 'lgForm') { e.preventDefault(); const v = $('#lgUser').value; if (v.trim()) lgConnect(v); } });
+document.addEventListener('click', e => {
+  const pk = e.target.closest('[data-lgpick]'); if (pk) { lgLoad(pk.dataset.lgpick); return; }
+  const nd = e.target.closest('[data-lgneed]'); if (nd) { LG.need = nd.dataset.lgneed; LG.open = !!document.querySelector('.lglu[open]'); renderLeague(); return; }
+  if (e.target.closest('[data-lgout]')) { LG.data = null; LG.league = ''; LG.leagues = null; store.set('edge-slp-league', ''); renderLeague(); }
+});
+let lgBooted = false;
+function lgBoot() { if (lgBooted || NBA || CFB) return; lgBooted = true; renderLeague(); if (LG.user) lgConnect(LG.user); }
 
 // ------------------------------------------------------------ props
 const PROP_STATS = { 'Pass yds': ['passingYards'], 'Pass TD': ['passingTouchdowns'], 'Completions': ['completions'], 'Pass att': ['passingAttempts'],
@@ -4334,6 +4477,7 @@ function setTab(t) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
   for (const v of ['live', 'picks', 'board', 'lineups', 'props', 'fantasy', 'players', 'teams', 'shop', 'tds', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
   store.set('edge-tab', t);
+  if (t === 'fantasy') lgBoot();
   if (t === 'tds') renderTD();   // props may have loaded since it last drew
   if (t === 'parlay') renderSGP();
 }

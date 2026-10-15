@@ -874,6 +874,9 @@ def main():
     save(os.path.join(OUT, "manifest.json"), manifest)
 
     for g in games: g.pop("city", None)
+    try:   # rest-of-season fantasy values (Sleeper ids) for the Fantasy tab's league connect + trade finder
+        import fantasy; fantasy.build(props, season, week, OUT, DATA)
+    except Exception as e: print("fantasy values failed", e, file=sys.stderr)
     try:   # price gaps across books and Kalshi (arbitrage), each leg with how old its price is
         import arbs; gaps = arbs.find(games, props, (odds_meta or {}).get("at"))
     except Exception as e: print("arbs failed", e, file=sys.stderr); gaps = []
