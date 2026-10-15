@@ -464,9 +464,36 @@ details.nerd .usage{border-bottom:0}
 .ffviews .chip{font-weight:800}
 .ffmu{font-size:10.5px;font-weight:800;padding:0 6px;border-radius:999px;margin-left:4px}.ffmu.soft{color:var(--good);border:1px solid var(--good)}.ffmu.tough{color:var(--bad);border:1px solid var(--bad)}
 .ffnt{font-size:10.5px;font-weight:700;padding:0 6px;border-radius:999px;margin-left:4px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}.ffnt.up{color:var(--good);border-color:var(--good)}.ffnt.dn{color:var(--bad);border-color:var(--bad)}
-.ffwhyl{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}.ffwhyl .ffmu:first-child,.ffwhyl .ffnt:first-child{margin-left:0}
+.ffwhyl{display:flex;flex-wrap:wrap;gap:3px;font-size:11.5px;color:var(--muted);margin-top:3px;min-width:0}.ffwhyl .ffnt,.ffwhyl .ffmu{margin-left:0}.ffwhyl .ffmu:first-child,.ffwhyl .ffnt:first-child{margin-left:0}
 .ffnx{margin-left:6px}.ffnx i{font-style:normal;font-weight:700}.ffnx i.soft{color:var(--good)}.ffnx i.tough{color:var(--bad)}
 .lgp{flex-wrap:wrap}.lgp>b{margin-right:4px}
+body.ffmode nav,body.ffmode #alertBan{display:none}
+body.nflmode nav [data-tab="fantasy"]{display:none}
+body.ffmode #ff-tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;width:100%;border-bottom:1px solid var(--line);margin:0 0 4px}
+body.ffmode #view-fantasy>.toolbar:first-child h2{display:none}
+.fftab{background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);font:800 14px var(--f-display);letter-spacing:.8px;text-transform:uppercase;padding:10px 12px;cursor:pointer;white-space:nowrap}
+.fftab[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--good)}
+.cardlink{cursor:pointer}.cardlink:hover{text-decoration:underline}
+.rrbtn{width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);color:var(--ink);font:inherit;cursor:pointer}.roster .rrbtn:first-child{border-top:0}
+.guide.linkish{display:block;width:100%;text-align:left;cursor:pointer;color:var(--good);font:inherit;font-weight:700}
+.ffcardwrap{margin-top:12px}
+.ffcard{background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow)}
+.ffch{display:flex;gap:12px;align-items:center}.ffch>div{flex:1;min-width:0}.ffch h3{margin:0}.ffch small{color:var(--muted)}
+.ffstats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.ffstats>div{display:flex;flex-direction:column;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center}
+.ffstats small,.ffstats span{color:var(--muted);font-size:11px}.ffstats b{font:800 20px var(--f-display);font-variant-numeric:tabular-nums}
+@media (max-width:480px){.ffstats{grid-template-columns:repeat(2,1fr)}}
+.ffbars{display:flex;gap:8px;align-items:flex-end;height:104px}.ffbars>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px}
+.ffbars i{display:block;width:70%;background:var(--good);border-radius:4px 4px 0 0}.ffbars b{font-size:11.5px}.ffbars small{color:var(--muted);font-size:10.5px}
+.ffsch{display:flex;gap:6px;flex-wrap:wrap}.ffsch span{display:flex;flex-direction:column;align-items:center;border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-weight:700;font-size:13px}
+.ffsch span small{font-weight:400;font-size:10.5px;color:var(--muted)}.ffsch .soft{border-color:var(--good);color:var(--good)}.ffsch .tough{border-color:var(--bad);color:var(--bad)}
+.mtable{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+.mrow{display:grid;grid-template-columns:1fr 44px 1fr;align-items:center;border-top:1px solid var(--line)}.mrow:first-child{border-top:0}
+.mrow .rslot{margin:0 auto;width:40px}.mrow .rslot.win{box-shadow:0 0 0 2px var(--good)}.mrow .rslot.lose{box-shadow:0 0 0 2px var(--bad)}
+.mc{display:grid;grid-template-columns:1fr auto;gap:0 8px;padding:8px 10px;min-width:0}.mc b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13.5px}.mc small{color:var(--muted);font-size:11px;grid-column:1}
+.mc .mp{grid-row:1/3;grid-column:2;align-self:center;font:800 17px var(--f-display);font-variant-numeric:tabular-nums}.mc .mp.live{color:var(--good)}.mc .mp.final{color:var(--ink)}.mc .mp.proj{color:var(--muted)}
+.mc.r{text-align:right;grid-template-columns:auto 1fr}.mc.r b,.mc.r small{grid-column:2}.mc.r .mp{grid-column:1}
+.lgtable{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}.lgtable th{text-align:left;color:var(--muted);font-size:11px;letter-spacing:.6px;text-transform:uppercase;padding:6px}
+.lgtable td{padding:7px 6px;border-top:1px solid var(--line);vertical-align:top}.lgtable tr.me td{background:color-mix(in srgb,var(--good) 10%,transparent)}.lgtable td div{margin-top:2px}.lgtable .ffnt{margin-left:0;margin-right:4px}
 .teamrec{margin:-4px 0 0;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
 .mucard{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 .muside{display:flex;flex-direction:column;min-width:0}.muside.r{text-align:right}.muside small{color:var(--muted);font-size:11.5px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -767,7 +794,8 @@ details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[o
 .honest{margin:4px 0 12px;padding:8px 12px;border-radius:10px;background:var(--warn-soft);color:var(--ink);font-size:13px}
 .sportsw{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin-left:10px}
 .sportsw button{background:none;border:0;color:var(--muted);font:800 12.5px var(--f-display);letter-spacing:1px;padding:5px 11px;cursor:pointer}
-.sportsw .sm{display:none}@media (max-width:480px){.sportsw .sm{display:inline}.sportsw .lg{display:none}.sportsw button{padding:5px 8px;letter-spacing:.5px}}
+.sportsw .sm{display:none}@media (max-width:480px){.sportsw .sm{display:inline}.sportsw .lg{display:none}.sportsw button{padding:5px 7px;letter-spacing:.3px;font-size:11.5px}.sportsw{margin-left:4px;flex-shrink:0}#sportName{display:none}}
+@media (max-width:400px){.brand{font-size:18px !important}.hdr-btns .btn,.hdr-btns button{width:34px;height:34px}}
 .sportsw button[aria-pressed="true"]{background:var(--good);color:var(--on-good)}
 .rk{font:700 11px var(--f-display);color:var(--muted);margin-right:3px}
 /* college mode: tabs that need NFL-only data (player props, depth charts, nflverse analytics) are hidden */
@@ -856,7 +884,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 <header>
   <div class="bar">
     <p class="brand">Edge Board <small id="sportName">NFL</small></p>
-    <div class="sportsw" role="group" aria-label="Sport"><button data-sport="nfl">NFL</button><button data-sport="cfb"><span class="lg">College</span><span class="sm">CFB</span></button><button data-sport="nba">NBA</button></div>
+    <div class="sportsw" role="group" aria-label="Sport"><button data-sport="nfl">NFL</button><button data-sport="cfb"><span class="lg">College</span><span class="sm">CFB</span></button><button data-sport="nba">NBA</button><button data-sport="ff"><span class="lg">Fantasy</span><span class="sm">FF</span></button></div>
     <div class="sync"><span class="dot off" id="syncDot"></span><span id="syncText">Waiting for data…</span></div>
     <div class="hdr-btns"><button class="hdr-btn" id="fbBtn" aria-label="Send feedback" title="Something off? Tell us"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></button><button class="hdr-btn" id="helpBtn" aria-label="How the app works">?</button></div>
   </div>
@@ -1089,10 +1117,11 @@ const pct = p => p == null ? '–' : (p * 100).toFixed(1) + '%';
 const prob = a => a == null ? null : a < 0 ? -a / (-a + 100) : 100 / (a + 100);
 const dec = a => a < 0 ? 1 + 100 / -a : 1 + a / 100;
 const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
-const SPORT = (() => { try { const s = localStorage.getItem('edge-sport'); return ['cfb', 'nba'].includes(s) ? s : 'nfl'; } catch { return 'nfl'; } })();
-const CFB = SPORT === 'cfb', NBA = SPORT === 'nba';
+const SPORT = (() => { try { const s = localStorage.getItem('edge-sport'); return ['cfb', 'nba', 'ff'].includes(s) ? s : 'nfl'; } catch { return 'nfl'; } })();
+const CFB = SPORT === 'cfb', NBA = SPORT === 'nba', FFM = SPORT === 'ff';   // FFM: Fantasy mode, built on the NFL data
 // each sport keeps its own parlay, bets and per-sport picks; app-wide prefs (theme, easy mode, your book) are shared
-const SHARED_KEYS = new Set(['edge-sport', 'edge-easy', 'edge-welcomed', 'edge-alerts-seen', 'edge-mybook', 'edge-state', 'edge-altbook']);
+const SHARED_KEYS = new Set(['edge-sport', 'edge-easy', 'edge-welcomed', 'edge-alerts-seen', 'edge-mybook', 'edge-state', 'edge-altbook',
+  'edge-slp-user', 'edge-slp-uid', 'edge-slp-league', 'edge-lg-src', 'edge-yh-team', 'edge-ff-view', 'edge-ff-score']);   // your fantasy league follows you into Fantasy mode
 const skey = k => SPORT !== 'nfl' && !SHARED_KEYS.has(k) ? k + '-' + SPORT : k;
 const store = { get(k) { try { return localStorage.getItem(skey(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(skey(k), v); } catch {} } };
 function toast(msg) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 2200); }
@@ -1640,7 +1669,7 @@ const LocalDB = (() => {
   };
 })();
 
-const DATA_BASE = (window.__DATA_BASE || 'out/') + (SPORT === 'nfl' ? '' : SPORT + '/');
+const DATA_BASE = (window.__DATA_BASE || 'out/') + (SPORT === 'nfl' || FFM ? '' : SPORT + '/');
 // a game whose kickoff time has passed is not "upcoming", even if the last sync (up to a few hours old) still says so:
 // every pre-game list (props, TDs, picks, prices) filters on state === 'pre', so flip it here
 function markStarted() {
@@ -3642,7 +3671,7 @@ const FF_POS = NBA ? ['', 'G', 'F', 'C'] : ['', 'QB', 'RB', 'WR', 'TE', 'FLEX', 
 const FF_START = NBA ? { G: 40, F: 40, C: 20 } : { QB: 12, RB: 24, WR: 30, TE: 12, K: 12, DEF: 12 };   // a 12-team league's starters
 const FF_SD = { QB: 0.35, RB: 0.5, WR: 0.55, TE: 0.6, K: 0.45, DEF: 0.7, G: 0.3, F: 0.3, C: 0.3 };   // week-to-week spread, share of the mean
 const FF = { score: (() => { const v = store.get('edge-ff-score'); return v && FF_SCORING[v] ? v : Object.keys(FF_SCORING)[0]; })(), pos: '', q: '', open: new Set(),
-  view: NBA ? 'rank' : ['team', 'trades', 'rank'].includes(store.get('edge-ff-view')) ? store.get('edge-ff-view') : 'team' };
+  view: NBA ? 'rank' : ['team', 'matchup', 'rank', 'trades', 'waivers', 'league'].includes(store.get('edge-ff-view')) ? store.get('edge-ff-view') : 'team', wpos: '' };
 const ffMean = pr => {
   if (pr.m === 'Anytime TD') return pr.pOver != null ? -Math.log(1 - Math.min(0.95, pr.pOver)) : 0;
   return pr.proj > 0 ? 0.6 * pr.l + 0.4 * pr.proj : pr.l;
@@ -3661,8 +3690,40 @@ function ffPlayer(pl, ppr) {
   if (!pyd && !ryd && !recy && !td) return null;
   const pts = pyd * 0.04 + ptd * 4 - int * 2 + (ryd + recy) * 0.1 + rec * ppr + td * 6;
   const parts = qb ? [['pass yds', pyd], ['pass TD', ptd], ['INT', int], ['rush yds', ryd], ['TD', td]] : [['rec', rec], ['rec yds', recy], ['rush yds', ryd], ['TD', td]];
-  return { pts, rec, parts: parts.filter(([, v]) => v > 0.05) };
+  return { pts, rec, e: { pyd, ptd, int, ryd, recy, rec, td }, parts: parts.filter(([, v]) => v > 0.05) };
 }
+// a league's scoring: per-TD / INT values and yardage bonuses (bonus marks stack: 200 yards pays the 100 and the 200 bonus)
+const BZ_MKT = { pass: 'Pass yds', rush: 'Rush yds', rec: 'Rec yds', rr: 'Rush+rec yds' };
+function lgScoring(ss) {   // from Sleeper scoring_settings
+  const b = [];
+  for (const [k, v] of Object.entries(ss || {})) { const m = k.match(/^bonus_(pass|rush|rec|rush_rec)_yd_(\d+)$/); if (m && v) b.push([m[1] === 'rush_rec' ? 'rr' : m[1], +m[2], v]); }
+  return { ptd: ss?.pass_td ?? 4, int: ss?.pass_int ?? -2, b };
+}
+// this week's points under a league's scoring: the props projection re-scored, plus each bonus x the chance he gets there
+function lgPts(x, sc) {
+  if (!x?.e) return { pts: x?.pts || 0, bon: 0, bz: [] };
+  const e = x.e, pts = e.pyd * 0.04 + e.ptd * (sc.ptd ?? 4) + e.int * (sc.int ?? -2) + (e.ryd + e.recy) * 0.1 + e.rec * (sc.rec + (x.pos === 'TE' ? sc.te || 0 : 0)) + e.td * 6;
+  let bon = 0; const bz = [];
+  for (const [kind, yds, val] of sc.b || []) {
+    let pr = x.pl.props.find(p => p.m === BZ_MKT[kind]);
+    if (!pr && kind === 'rr') pr = x.pl.props.find(p => p.m === (x.pos === 'RB' ? 'Rush yds' : 'Rec yds'));
+    if (!pr || pr.l == null || (kind === 'pass' && x.pos !== 'QB')) continue;
+    const c = bonusChance(pr, yds - 0.5);
+    if (c < 0.01) continue;
+    bon += c * val; bz.push([kind, yds, val, c]);
+  }
+  return { pts: pts + bon, bon, bz };
+}
+// chance of clearing a bonus mark: Kalshi's ladder when it covers that yardage, else a lognormal around the blended
+// projection (no squeeze toward 50%, so a QB's 200-yard rushing game really is ~0%)
+function bonusChance(pr, L) {
+  const pts = ladderCurve(pr);
+  if (pts.length >= 3 && L >= pts[0].l && L <= pts[pts.length - 1].l) return curveAt(pts, L);
+  const d = DISTJS[pr.m] || ['ln', 0.5], mu = ffMean(pr); if (!(mu > 0)) return 0;
+  const cv = d[0] === 'ln' ? d[1] : 0.5, s2 = Math.log(1 + cv * cv);
+  return 1 - normCdf((Math.log(L) - (Math.log(mu) - s2 / 2)) / Math.sqrt(s2));
+}
+const BZ_LBL = { pass: 'pass yds', rush: 'rush yds', rec: 'rec yds', rr: 'rush+rec yds' };
 // implied team points from the spread and total; kicker and defense points from them
 const ffImplied = g => { const o = g.odds || {}; return o.t == null || o.hs == null ? null : { home: (o.t - o.hs) / 2, away: (o.t + o.hs) / 2 }; };
 const ffKicker = imp => imp / 7 * 0.95 + 0.07 * imp * 3.3;            // extra points + ~0.07 field goals per team point
@@ -3700,9 +3761,10 @@ function ffMatchup(x) {   // the opponent's rank against this position (1 = give
 function renderFantasy() {
   const box = $('#fantasy'); if (!box || CFB) return;
   if (!$('#view-fantasy').hidden) lgBoot();
-  $('#ff-tabs').innerHTML = NBA ? '' : [['team', 'My team'], ['trades', 'Trades'], ['rank', 'Rankings']].map(([k, l]) => `<button class="chip" data-ffview="${k}" aria-pressed="${k === FF.view}">${l}</button>`).join('');
+  $('#ff-tabs').innerHTML = NBA ? '' : [['team', 'Team'], ['matchup', 'Matchup'], ['rank', 'Players'], ['trades', 'Trades'], ['waivers', 'Waivers'], ['league', 'League']]
+    .map(([k, l]) => `<button class="${FFM ? 'fftab' : 'chip'}" data-ffview="${k}" aria-pressed="${k === FF.view}">${l}</button>`).join('');
   const rank = FF.view === 'rank';
-  $('#ff-rankctl').hidden = !rank; $('#ff-note').hidden = !rank;
+  $('#ff-rankctl').style.display = rank ? '' : 'none'; $('#ff-note').style.display = rank ? '' : 'none';
   renderLeague();
   if (!rank) { box.innerHTML = ''; return; }
   $('#ff-score').innerHTML = Object.entries(FF_SCORING).map(([k, [lbl]]) => `<button class="chip" data-ffscore="${k}" aria-pressed="${k === FF.score}">${lbl}</button>`).join('');
@@ -3715,6 +3777,8 @@ function renderFantasy() {
   for (const [pos, xs] of Object.entries(byPos)) xs.forEach((x, i) => { x.rk = i + 1; x.tier = i < FF_START[pos] ? 'start' : !NBA && ['RB', 'WR', 'TE'].includes(pos) && i < FF_START[pos] * 1.5 ? 'flex' : 'sit'; });
   const q = FF.q.trim().toLowerCase();
   const rows = all.filter(x => (FF.pos ? (FF.pos === 'FLEX' ? ['RB', 'WR', 'TE'].includes(x.pos) : x.pos === FF.pos) : !['K', 'DEF'].includes(x.pos)) && (!q || x.n.toLowerCase().includes(q)));
+  const V = LG.vals?.players, sid = x => V && !x.est ? Object.keys(V).find(k => ffKey(V[k].n) === ffKey(x.n) && V[k].pos === x.pos) : null;
+  const extra = q.length >= 3 && V ? Object.keys(V).filter(k => V[k].n.toLowerCase().includes(q) && !rows.some(x => ffKey(x.n) === ffKey(V[k].n))).slice(0, 8) : [];
   if (!rows.length) { box.innerHTML = `<div class="empty"><b>No players match</b>Try another position or name.</div>`; return; }
   const fmt = v => v >= 10 ? v.toFixed(0) : v.toFixed(1), tierLbl = { start: 'Start', flex: 'Flex', sit: 'Sit' };
   box.innerHTML = `<div class="fflist">${rows.slice(0, 150).map((x, i) => { const k = x.id + '|' + x.g.id, open = FF.open.has(k), sd = x.pts * FF_SD[x.pos];
@@ -3723,11 +3787,12 @@ function renderFantasy() {
       <span class="ffn"><b>${esc(x.n)}</b><small>${esc(x.pos)}${x.rk} · ${x.est ? 'vs' : x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${esc(kick(x.g))}${x.inj ? ` · <span class="neg">${esc(x.inj.s)}</span>` : ''}</small>
         <small>range ${fmt(Math.max(0, x.pts - 0.84 * sd))}–${fmt(x.pts + 0.84 * sd)} ${ffNotes(x) || ffMatchup(x)}</small></span>
       <span class="fftier ${x.tier}">${tierLbl[x.tier]}</span><span class="ffpts">${x.pts.toFixed(1)}</span></button>
-      ${open ? `<div class="ffwhy">${x.parts.map(([n, v]) => `<span><b>${fmt(v)}</b> ${esc(NBA ? n.toLowerCase() : n)}</span>`).join('')}<small>${x.est ? 'Estimated from the betting lines\' implied team points.' : `${NBA ? '' : 'TD = expected touchdowns from the anytime-TD price. '}Each number blends the market's line (60%) with our projection (40%).`}</small></div>` : ''}`; }).join('')}</div>
+      ${open ? `<div class="ffwhy">${x.parts.map(([n, v]) => `<span><b>${fmt(v)}</b> ${esc(NBA ? n.toLowerCase() : n)}</span>`).join('')}<small>${x.est ? 'Estimated from the betting lines\' implied team points.' : `${NBA ? '' : 'TD = expected touchdowns from the anytime-TD price. '}Each number blends the market's line (60%) with our projection (40%).`}</small>${!NBA && sid(x) ? `<button class="btn small" data-ffcard="${sid(x)}">Player card →</button>` : ''}</div>` : ''}`; }).join('')}</div>
+    ${extra.length ? `<h4 class="rhead">No betting lines this week</h4><div class="roster">${extra.map(k => `<button class="rr rrbtn" data-ffcard="${k}"><span class="rslot s-${esc(V[k].pos)}">${esc(V[k].pos)}</span>${logo(SLP_TM[V[k].tm] || V[k].tm, 26)}<span class="rn"><b>${esc(V[k].n)}</b><small>${esc(V[k].tm || 'FA')}${V[k].inj ? ' · ' + esc(V[k].inj) : ''}</small></span><span class="rpts"><b>${ffRos(V[k]).toFixed(1)}</b><small>/wk ROS</small></span></button>`).join('')}</div>` : ''}
     ${rows.length > 150 ? `<p class="note">Showing 150 of ${rows.length}. Pick a position or search a name.</p>` : ''}`;
 }
 document.addEventListener('click', e => {
-  const vw = e.target.closest('[data-ffview]'); if (vw) { FF.view = vw.dataset.ffview; store.set('edge-ff-view', FF.view); renderFantasy(); return; }
+  const vw = e.target.closest('[data-ffview]'); if (vw) { FF.view = vw.dataset.ffview; FF.card = null; store.set('edge-ff-view', FF.view); renderFantasy(); window.scrollTo({ top: 0 }); return; }
   const sc = e.target.closest('[data-ffscore]'); if (sc) { FF.score = sc.dataset.ffscore; store.set('edge-ff-score', FF.score); renderFantasy(); return; }
   const ps = e.target.closest('[data-ffpos]'); if (ps) { FF.pos = ps.dataset.ffpos; renderFantasy(); return; }
   const op = e.target.closest('[data-ffopen]'); if (op) { const k = op.dataset.ffopen; FF.open.has(k) ? FF.open.delete(k) : FF.open.add(k); renderFantasy(); }
@@ -3762,17 +3827,23 @@ async function lgConnect(name) {
 const ffVals = () => fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null);
 async function lgLoad(id) {
   LG.busy = true; renderLeague();
+  if (FF.liveTimer) clearInterval(FF.liveTimer);
   try {
     const [league, rosters, users, vals, state] = await Promise.all([slp('league/' + id), slp(`league/${id}/rosters`), slp(`league/${id}/users`), ffVals(), slp('state/nfl').catch(() => null)]);
     const wkNow = state?.week || vals?.week, mus = wkNow ? await slp(`league/${id}/matchups/${wkNow}`).catch(() => []) : [];
     if (!vals) throw new Error('Player values aren\'t ready yet; they come with the next data sync.');
     LG.league = id; store.set('edge-slp-league', id); LG.src = 'sleeper'; store.set('edge-lg-src', 'sleeper');
     const handle = Object.fromEntries(users.map(u => [u.user_id, u.display_name || 'Team']));
-    LG.data = lgBuild({ rec: league.scoring_settings?.rec ?? 0, te: league.scoring_settings?.bonus_rec_te || 0, n: league.total_rosters },
+    LG.data = lgBuild({ rec: league.scoring_settings?.rec ?? 0, te: league.scoring_settings?.bonus_rec_te || 0, n: league.total_rosters, ...lgScoring(league.scoring_settings) },
       league.roster_positions || [], rosters.map(r => ({ id: r.roster_id, owner: r.owner_id, name: handle[r.owner_id] || `Team ${r.roster_id}`, players: r.players || [], starters: r.starters || [],
         reserve: r.reserve || [], rec: { w: r.settings?.wins || 0, l: r.settings?.losses || 0, t: r.settings?.ties || 0, pf: (r.settings?.fpts || 0) + (r.settings?.fpts_decimal || 0) / 100 } })),
       vals, t => t.owner === (LG.uid || store.get('edge-slp-uid')));
     LG.data.positions = league.roster_positions || [];
+    LG.data.settings = league.settings || {};
+    const last = (league.settings?.playoff_week_start || 15) - 1;
+    if (wkNow) LG.data.future = (await Promise.all(Array.from({ length: Math.max(0, last - wkNow + 1) }, (_, i) => wkNow + i)
+      .map(w => slp(`league/${id}/matchups/${w}`).then(ms => [w, ms]).catch(() => [w, []])))).map(([w, ms]) => {
+        const by = {}; for (const m of ms) (by[m.matchup_id] ||= []).push(m.roster_id); return [w, Object.values(by).filter(p => p.length === 2)]; });
     const mine = mus.find(m => m.roster_id === LG.data.me?.id), opp = mine && mus.find(m => m.matchup_id === mine.matchup_id && m.roster_id !== mine.roster_id);
     if (mine) LG.data.mu = { week: wkNow, opp: opp?.roster_id, pts: { ...(mine.players_points || {}), ...(opp?.players_points || {}) }, mine: mine.points, theirs: opp?.points,
       oppStarters: opp?.starters || [] };
@@ -3788,7 +3859,7 @@ async function lgYahoo() {
     if (!yl || !vals) throw new Error('The Yahoo league hasn\'t synced yet.');
     LG.src = 'yahoo'; store.set('edge-lg-src', 'yahoo');
     const mine = store.get('edge-yh-team');
-    LG.data = lgBuild({ rec: yl.league.rec || 0, te: 0, n: yl.league.num_teams }, yl.league.slots, yl.teams, vals, t => String(t.id) === mine);
+    LG.data = lgBuild({ rec: yl.league.rec || 0, te: 0, n: yl.league.num_teams, ptd: yl.league.score?.ptd ?? 4, int: yl.league.score?.int ?? -2, b: yl.league.score?.b || [] }, yl.league.slots, yl.teams, vals, t => String(t.id) === mine);
     LG.data.yahoo = true; LG.data.positions = yl.league.positions || yl.league.slots;
     const pair = (yl.league.matchups || []).find(m => m.map(String).includes(mine)), oppId = pair && pair.map(String).find(x => x !== mine);
     const ot = oppId && LG.data.teams.find(t => String(t.id) === oppId);
@@ -3799,7 +3870,11 @@ async function lgYahoo() {
 function lgBuild(sc, positions, rawTeams, vals, isMe) {
   const V = vals.players;
   // rest-of-season points per game: his rate x how soft his remaining opponents are at his position (schedule strength)
-  const ppg = pid => { const v = V[pid]; return v ? (v.s + v.r * (sc.rec + (v.pos === 'TE' ? sc.te : 0))) * (v.sf || 1) : 0; };
+  const BK = { pass: 'pass', rush: 'rush', rec: 'rec', rr: 'rr' };
+  const bonusEv = v => (sc.b || []).reduce((a, [k, y, val]) => a + val * ((v.bz || {})[BK[k] + y] || 0), 0);
+  const ppg = pid => { const v = V[pid]; if (!v) return 0;
+    const tdint = v.pos === 'QB' ? ((sc.ptd ?? 4) - 4) * (v.pt || 0) + ((sc.int ?? -2) + 2) * (v.it || 0) : 0;
+    return (v.s + tdint + v.r * (sc.rec + (v.pos === 'TE' ? sc.te : 0)) + bonusEv(v)) * (v.sf || 1); };
   const maxGl = Math.max(1, ...Object.values(V).map(v => v.gl || 0));
   const slots = positions.filter(x => ['QB', 'RB', 'WR', 'TE'].includes(x) || FLEX_OK[x]);
   const teams = rawTeams.map(t => ({ ...t, raw: t.players || [], players: (t.players || []).filter(pid => V[pid] && V[pid].pos !== 'K') }));
@@ -3840,12 +3915,14 @@ function lgStrength(D) {   // each team's starting points at each position, rank
 // this week's points for every rostered player: his props projection; else bye / already played / out; else his season rate
 function lgWeek(D) {
   const byKey = {}; for (const x of ffRows(D.sc.rec)) if (x.pl) byKey[ffKey(x.n) + '|' + x.pos] = x;
+  const lp = {};
   const playing = new Set(), done = new Set();
   for (const g of S.slate?.games || []) for (const t of [g.home.abbr, g.away.abbr]) (g.state === 'pre' ? playing : done).add(t);
   const W = {};
-  for (const t of D.teams) for (const pid of t.players) {
-    const v = D.V[pid], tm = SLP_TM[v.tm] || v.tm, x = byKey[ffKey(v.n) + '|' + v.pos];
-    W[pid] = x ? { pts: x.pts + (v.pos === 'TE' ? D.sc.te * (x.rec || 0) : 0), tag: '', x }
+  for (const pid of Object.keys(D.V)) {
+    const v = D.V[pid]; if (v.pos === 'K') continue;
+    const tm = SLP_TM[v.tm] || v.tm, x = byKey[ffKey(v.n) + '|' + v.pos];
+    W[pid] = x ? (lp[pid] = lgPts(x, D.sc), { pts: lp[pid].pts, bon: lp[pid].bon, bz: lp[pid].bz, tag: '', x })
       : done.has(tm) ? { pts: 0, tag: 'played' } : !playing.has(tm) ? { pts: 0, tag: 'bye' }
       : /out|ir|sus|pup/i.test(v.inj || '') ? { pts: 0, tag: 'out' } : { pts: D.ppg(pid), tag: 'est' };
   }
@@ -3897,7 +3974,7 @@ function lgPl(pid, D, wk) {
   const tag = w?.tag === 'bye' ? ' · <span class="neg">bye</span>' : w?.tag === 'out' ? ' · <span class="neg">out</span>' : w?.tag === 'played' ? ' · played' : '';
   const extra = w ? (w.x ? `${w.x.pl.side === 'home' ? 'vs' : '@'} ${esc(w.x.opp.abbr)} ${ffNotes(w.x)}` : '')
     : `${lgSched(v)}${v.nx?.length ? `<span class="ffnx">next: ${v.nx.map(([wk, o, f]) => `<i class="${f >= 1.05 ? 'soft' : f <= 0.95 ? 'tough' : ''}">${esc(o)}</i>`).join(' ')}</span>` : ''}`;
-  return `<b>${esc(v.n)}</b> <small>${esc(v.pos)} · ${esc(v.tm || 'FA')} · ${w ? `${w.pts.toFixed(1)} this wk${w.tag === 'est' ? '*' : ''}` : `${D.ppg(pid).toFixed(1)}/wk rest of season`}${v.inj && w?.tag !== 'out' ? ` · <span class="neg">${esc(v.inj)}</span>` : ''}${tag}</small>${extra ? `<span class="ffwhyl">${extra}</span>` : ''}`;
+  return `<b data-ffcard="${pid}" class="cardlink">${esc(v.n)}</b> <small>${esc(v.pos)} · ${esc(v.tm || 'FA')} · ${w ? `${w.pts.toFixed(1)} this wk${w.tag === 'est' ? '*' : ''}` : `${D.ppg(pid).toFixed(1)}/wk rest of season`}${v.inj && w?.tag !== 'out' ? ` · <span class="neg">${esc(v.inj)}</span>` : ''}${tag}</small>${extra ? `<span class="ffwhyl">${extra}</span>` : ''}`;
 }
 // this week's number for anyone on a roster, including kickers (team's implied points) and defenses (Sleeper ids are team codes)
 function lgWk(pid, D, W, kd) {
@@ -3918,9 +3995,9 @@ function lgRow(pid, slot, D, w, flag) {
   return `<div class="rr${flag ? ' ' + flag.k : ''}">
     <span class="rslot s-${esc(lgPos(pid, D) || slot)}">${esc(SLOT_LBL[slot] || slot)}</span>
     ${tm ? logo(SLP_TM[tm] || tm, 26) : '<span class="rlogo"></span>'}
-    <span class="rn"><b>${esc(lgNm(pid, D))}</b>${v?.inj ? ` <span class="rinj">${esc(v.inj === 'Questionable' ? 'Q' : v.inj === 'Doubtful' ? 'D' : v.inj)}</span>` : ''}
+    <span class="rn"><b ${D.V[pid] ? `data-ffcard="${pid}" class="cardlink"` : ''}>${esc(lgNm(pid, D))}</b>${v?.inj ? ` <span class="rinj">${esc(v.inj === 'Questionable' ? 'Q' : v.inj === 'Doubtful' ? 'D' : v.inj)}</span>` : ''}
       <small>${esc(lgPos(pid, D))}${tm ? ' · ' + esc(tm) : ''}${opp ? ' · ' + opp : ''}</small>
-      ${x && !x.est ? `<span class="ffwhyl">${ffNotes(x)}</span>` : ''}${flag ? `<span class="rflag">${flag.t}</span>` : ''}</span>
+      ${x && !x.est ? `<span class="ffwhyl">${ffNotes(x)}${w?.bon >= 0.5 ? `<span class="ffnt up">+${w.bon.toFixed(1)} bonus</span>` : ''}</span>` : ''}${flag ? `<span class="rflag">${flag.t}</span>` : ''}</span>
     <span class="rpts">${actual != null && w?.tag === 'played' ? `<b>${actual.toFixed(1)}</b><small>final</small>` : `<b>${w ? w.pts.toFixed(1) : '–'}</b><small>proj${w?.tag === 'est' ? '*' : ''}</small>`}</span>
   </div>`;
 }
@@ -3965,9 +4042,7 @@ function lgTeamView(D) {
     <div class="roster">${(cur.size ? bench : me.players.filter(pid => !bestSet.has(pid))).sort((a, b) => wk(b).pts - wk(a).pts).map(pid => lgRow(pid, 'BN', D, wk(pid), flags[pid])).join('')}</div>
     ${(me.reserve || []).filter(pid => D.V[pid]).length ? `<h4 class="rhead">IR</h4><div class="roster">${me.reserve.filter(pid => D.V[pid]).map(pid => lgRow(pid, 'IR', D, wk(pid))).join('')}</div>` : ''}
     <p class="note">proj = this week's points from the betting lines + our model · * no lines for him this week: season rate. Tags: matchup, teammate out, game script, weather, TD chance.</p>
-    <h4 class="rhead">Waiver pickups</h4>
-    ${fa.length ? `<div class="roster">${fa.map(pid => `<div class="rr"><span class="rslot s-${esc(D.V[pid].pos)}">${esc(D.V[pid].pos)}</span>${logo(SLP_TM[D.V[pid].tm] || D.V[pid].tm, 26)}<span class="rn"><b>${esc(D.V[pid].n)}</b><small>${esc(D.V[pid].pos)} · ${esc(D.V[pid].tm || 'FA')} ${lgSched(D.V[pid])}</small></span><span class="rpts"><b>${D.ppg(pid).toFixed(1)}</b><small>/wk ROS</small></span></div>`).join('')}</div>${drop ? `<p class="note">Easiest drop: <b>${esc(lgNm(drop, D))}</b> (${D.ppg(drop).toFixed(1)}/wk)</p>` : ''}`
-      : '<p class="note">No free agent beats your weakest player at his position right now.</p>'}`;
+    ${fa.length ? `<button class="guide linkish" data-ffview="waivers">${fa.length} free agent${fa.length > 1 ? 's' : ''} beat${fa.length > 1 ? '' : 's'} your weakest player at his position →</button>` : ''}`;
 }
 function lgTradeView(D, rank, my, need) {
   const trades = lgTrades(D, need, rank, lgStrength(D).rows), A = LG.an;
@@ -3997,9 +4072,100 @@ function lgTradeView(D, rank, my, need) {
       <div><span class="lbl">You get</span><div class="row">${chips(other, A.get, 'data-anget')}</div></div></div>${verdict}` : ''}
     <p class="note">Values: points per game this season (recent games count more) blended with this week's prop lines, times schedule strength (how many points his remaining opponents allow to his position; green = soft, red = tough), scaled by games left. Injured players count less. Week ${D.week} data.</p>`;
 }
+// rest-of-season points per game for a player outside any league context (PPR, schedule-adjusted)
+const ffRos = (v, rec = 1) => (v.s + v.r * rec) * (v.sf || 1);
+const ffGamePts = (g, rec) => g[1] + g[2] * rec;
+const lgOwner = (pid, D) => D?.teams.find(t => (t.raw || t.players).includes(pid));
+// a player card: this week, rest of season, schedule, recent games, who has him, and what to do
+function ffCard(pid) {
+  const D = LG.data, V = D?.V || LG.vals?.players, v = V?.[pid]; if (!v) return '';
+  const rec = D?.sc.rec ?? 1, ros = D ? D.ppg(pid) : ffRos(v, rec), W = D ? lgWeek(D) : null, w = W?.[pid];
+  const x = w?.x || (() => { const r = ffRows(rec).find(r => r.pl && ffKey(r.n) === ffKey(v.n) && r.pos === v.pos); return r || null; })();
+  const games = (v.lg || []).map(g => [g[0], ffGamePts(g, rec)]), mx = Math.max(1, ...games.map(g => g[1]));
+  const season = (v.s + v.r * rec), last2 = games.slice(-2).reduce((a, g) => a + g[1], 0) / Math.max(1, Math.min(2, games.length));
+  const trend = games.length >= 3 ? last2 - season : 0;
+  const own = lgOwner(pid, D), mine = own && own.id === D?.me?.id;
+  let advice = '';
+  if (D?.me) {
+    if (mine) { const inBest = lgLineup(D.me.players, D, q => (W[q] || {}).pts || 0).out.some(o => o.pid === pid); advice = inBest ? `<b class="pos">Start him</b> this week: he's in our best lineup.` : `<b>Bench</b> this week: you have better options at his spots.`; }
+    else if (!own) { const worst = D.me.players.filter(q => D.V[q].pos === v.pos).sort((a, b) => D.ppg(a) - D.ppg(b))[0];
+      advice = worst && ros > D.ppg(worst) + 0.5 ? `<b class="pos">Pick him up</b>: ${ros.toFixed(1)}/wk beats ${esc(D.V[worst].n)} (${D.ppg(worst).toFixed(1)}).` : `Free agent, but not better than what you have at ${esc(v.pos)}.`; }
+    else advice = `On <b>${esc(own.name)}</b>. <button class="btn small" data-lgtarget="${esc(String(own.id))}|${pid}">Trade for him →</button>`;
+  }
+  return `<div class="ffcard"><div class="ffch">${logo(SLP_TM[v.tm] || v.tm, 40)}<div><h3>${esc(v.n)}</h3><small>${esc(v.pos)} · ${esc(v.tm || 'FA')}${v.inj ? ` · <span class="neg">${esc(v.inj)}</span>` : ''} · ${own ? (mine ? 'your team' : esc(own.name)) : D ? 'free agent' : ''}</small></div><button class="btn small" data-ffclose>✕</button></div>
+    ${advice ? `<p class="guide">${advice}</p>` : ''}
+    <div class="ffstats"><div><small>This week</small><b>${w && w.tag !== 'est' ? w.pts.toFixed(1) : x ? x.pts.toFixed(1) : '–'}</b><span>${x ? `${x.pl?.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)}` : w?.tag || ''}</span></div>
+      <div><small>Rest of season</small><b>${ros.toFixed(1)}</b><span>per game</span></div>
+      <div><small>Season avg</small><b>${season.toFixed(1)}</b><span>${v.g || 0} games</span></div>
+      <div><small>Trend</small><b class="${trend > 1 ? 'pos' : trend < -1 ? 'neg' : ''}">${trend > 0 ? '+' : ''}${trend.toFixed(1)}</b><span>last 2 vs season</span></div></div>
+    ${x?.parts ? `<div class="ffwhy">${x.parts.map(([n, q]) => `<span><b>${q >= 10 ? q.toFixed(0) : q.toFixed(1)}</b> ${esc(n)}</span>`).join('')}</div><div class="ffwhyl">${ffNotes(x)}</div>` : ''}
+    ${w?.bz?.length ? `<p class="note">League bonuses this week: ${w.bz.map(([k, y, val, c]) => `${y}+ ${BZ_LBL[k]} <b>${Math.round(c * 100)}%</b> (+${val})`).join(' · ')} → worth <b>+${w.bon.toFixed(1)}</b> in his projection.</p>` : ''}
+    ${D?.sc.b?.length && Object.keys(v.bz || {}).length ? `<p class="note">This season he's hit: ${(D.sc.b).filter(([k, y]) => (v.bz || {})[k + y]).map(([k, y]) => `${y}+ ${BZ_LBL[k]} ${Math.round(v.bz[k + y] * 100)}% of games`).join(' · ')}.</p>` : ''}
+    ${games.length ? `<h4 class="rhead">Recent games</h4><div class="ffbars">${games.map(([wk, q]) => `<div><i style="height:${Math.max(4, q / mx * 64)}px"></i><b>${q.toFixed(1)}</b><small>W${wk}</small></div>`).join('')}</div>` : ''}
+    ${v.nx?.length ? `<h4 class="rhead">Schedule ${lgSched(v)}</h4><div class="ffsch">${v.nx.map(([wk, o, f]) => `<span class="${f >= 1.05 ? 'soft' : f <= 0.95 ? 'tough' : ''}">W${wk} ${esc(o)}<small>${f >= 1.05 ? 'soft' : f <= 0.95 ? 'tough' : 'avg'}</small></span>`).join('')}</div><p class="note">Soft / tough = points that defense allows to ${esc(v.pos)}s this season vs the league.</p>` : ''}
+  </div>`;
+}
+function lgMatchupView(D) {
+  if (!D.mu?.opp) return '<p class="note">No matchup this week (bye or the season is over).</p>';
+  const W = lgWeek(D), kd = {}; for (const x of ffRows(D.sc.rec)) if (x.est) kd[x.id] = x;
+  const wk = pid => lgWk(pid, D, W, kd), ot = D.teams.find(t => t.id === D.mu.opp);
+  const mine = (D.me.starters || []).filter(Boolean), theirs = (D.mu.oppStarters || []).filter(Boolean);
+  const slots = (D.positions || []).filter(p => p !== 'BN' && p !== 'IR');
+  const val = pid => { const w = wk(pid), a = D.mu.pts?.[pid]; return w.tag === 'played' && a != null ? [a, 'final'] : D.mu.live && a != null && a > 0 ? [a, 'live'] : [w.pts, 'proj']; };
+  const tot = ids => ids.reduce((a, pid) => a + val(pid)[0], 0), A = tot(mine), B = tot(theirs), pw = normCdf((A - B) / 31);
+  const cell = (pid, side) => { if (!pid) return `<div class="mc ${side}"><small>Empty</small></div>`; const [q, k] = val(pid), w = wk(pid);
+    return `<div class="mc ${side}"><b data-ffcard="${D.V[pid] ? pid : ''}" class="${D.V[pid] ? 'cardlink' : ''}">${esc(lgNm(pid, D))}</b><small>${esc(lgPos(pid, D))} · ${w.x ? `${esc(w.x.opp.abbr)}` : w.tag === 'bye' ? 'BYE' : w.tag === 'played' ? 'Final' : ''}</small><span class="mp ${k}">${q.toFixed(1)}</span></div>`; };
+  const edge = slots.map((sl, i) => (val(mine[i] || '')[0] || 0) - (val(theirs[i] || '')[0] || 0));
+  const big = edge.map((d, i) => [d, i]).sort((a, b) => a[0] - b[0]);
+  return `<div class="mucard"><div class="muside"><small>You</small><b>${A.toFixed(1)}</b></div>
+      <div class="mumid"><small>Week ${D.mu.week} · projected${D.mu.live ? ' + live' : ''}</small><div class="mubar"><i style="width:${Math.round(pw * 100)}%"></i></div><span>${Math.round(pw * 100)}% to win</span></div>
+      <div class="muside r"><small>${esc(ot?.name || 'Opponent')}</small><b>${B.toFixed(1)}</b></div></div>
+    <div class="mtable">${slots.map((sl, i) => `<div class="mrow">${cell(mine[i], 'l')}<span class="rslot s-${esc(lgPos(mine[i] || theirs[i] || '', D) || sl)} ${edge[i] > 1 ? 'win' : edge[i] < -1 ? 'lose' : ''}">${esc(SLOT_LBL[sl] || sl)}</span>${cell(theirs[i], 'r')}</div>`).join('')}</div>
+    <p class="guide">${big[0][0] < -2 ? `Biggest gap against you: <b>${esc(SLOT_LBL[slots[big[0][1]]] || slots[big[0][1]])}</b> (${big[0][0].toFixed(1)}). ` : ''}${big[big.length - 1][0] > 2 ? `Your biggest edge: <b>${esc(SLOT_LBL[slots[big[big.length - 1][1]]] || slots[big[big.length - 1][1]])}</b> (+${big[big.length - 1][0].toFixed(1)}).` : ''}</p>
+    <p class="note">Projections = this week's betting lines + our model. ${D.yahoo ? 'Yahoo: no live points (read from the site).' : 'Live points update every minute during games.'}</p>`;
+}
+function lgWaiverView(D) {
+  const W = lgWeek(D), owned = new Set(D.teams.flatMap(t => t.raw || t.players));
+  const myWorst = {}; for (const pid of D.me.players) { const p = D.V[pid].pos; myWorst[p] = Math.min(myWorst[p] ?? 99, D.ppg(pid)); }
+  const fa = Object.keys(D.V).filter(pid => D.V[pid].pos !== 'K' && !owned.has(pid) && (!FF.wpos || D.V[pid].pos === FF.wpos) && !/ir|pup|sus/i.test(D.V[pid].inj || ''))
+    .sort((a, b) => (D.ppg(b) - (D.repl[D.V[b].pos] || 0)) - (D.ppg(a) - (D.repl[D.V[a].pos] || 0))).slice(0, 25);   // value over a replacement player, so positions mix fairly
+  const drop = D.me.players.filter(pid => !lgLineup(D.me.players, D).out.some(x => x.pid === pid)).sort((a, b) => lgVal(a, D) - lgVal(b, D) || D.ppg(a) - D.ppg(b))[0];
+  const tr = v => { const g = (v.lg || []).map(x => ffGamePts(x, D.sc.rec)); if (g.length < 3) return 0; return g.slice(-2).reduce((a, b) => a + b, 0) / 2 - (v.s + v.r * D.sc.rec); };
+  return `<div class="row">${['', 'QB', 'RB', 'WR', 'TE'].map(p => `<button class="chip" data-wpos="${p}" aria-pressed="${p === FF.wpos}">${p || 'All'}</button>`).join('')}</div>
+    <div class="roster">${fa.map(pid => { const v = D.V[pid], up = D.ppg(pid) > (myWorst[v.pos] ?? 0) + 0.5, t = tr(v), w = W[pid];
+      return `<button class="rr rrbtn${up ? ' up' : ''}" data-ffcard="${pid}"><span class="rslot s-${esc(v.pos)}">${esc(v.pos)}</span>${logo(SLP_TM[v.tm] || v.tm, 26)}
+        <span class="rn"><b>${esc(v.n)}</b>${v.inj ? ` <span class="rinj">${esc(v.inj === 'Questionable' ? 'Q' : v.inj)}</span>` : ''}<small>${esc(v.tm || 'FA')} · ${w ? `${w.pts.toFixed(1)} this wk` : ''} ${lgSched(v)}${Math.abs(t) >= 2 ? `<span class="ffnt ${t > 0 ? 'up' : 'dn'}">${t > 0 ? '▲ trending up' : '▼ cooling'}</span>` : ''}</small>
+        ${up ? '<span class="rflag">▲ Better than your weakest ' + esc(v.pos) + '</span>' : ''}</span>
+        <span class="rpts"><b>${D.ppg(pid).toFixed(1)}</b><small>/wk ROS</small></span></button>`; }).join('')}</div>
+    ${drop ? `<p class="guide">Easiest drop on your team: <b data-ffcard="${drop}" class="cardlink">${esc(lgNm(drop, D))}</b> (${D.ppg(drop).toFixed(1)}/wk rest of season).</p>` : ''}
+    <p class="note">Free agents in your league, most valuable first (rest-of-season points over a replacement-level player at his position) (season rate + this week's lines, schedule-adjusted). Trending = last 2 games vs his season average.</p>`;
+}
+// playoff odds: simulate the rest of the regular season (Sleeper schedule), each team's weekly score ~ its best lineup's
+// rest-of-season points with a 24-point spread; top N by wins (then points) make it
+function lgOdds(D) {
+  if (!D.future?.length) return null;
+  const strength = Object.fromEntries(D.teams.map(t => [t.id, lgLineup(t.players, D).pts])), N = D.settings?.playoff_teams || 6, made = {}, sims = 2000;
+  const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  for (let k = 0; k < sims; k++) {
+    const w = Object.fromEntries(D.teams.map(t => [t.id, t.rec?.w || 0])), pf = Object.fromEntries(D.teams.map(t => [t.id, t.rec?.pf || 0]));
+    for (const [, games] of D.future) for (const [a, b] of games) { const sa = strength[a] + 24 * gauss(), sb = strength[b] + 24 * gauss(); pf[a] += sa; pf[b] += sb; w[sa > sb ? a : b]++; }
+    D.teams.map(t => t.id).sort((a, b) => w[b] - w[a] || pf[b] - pf[a]).slice(0, N).forEach(id => { made[id] = (made[id] || 0) + 1; });
+  }
+  return Object.fromEntries(D.teams.map(t => [t.id, (made[t.id] || 0) / sims]));
+}
+function lgLeagueView(D) {
+  const { rows, rank } = lgStrength(D), n = D.teams.length, odds = LG.odds?.key === D.teams.map(t => t.id + ':' + (t.rec?.w || 0)).join() ? LG.odds.v : null;
+  if (!odds) { const v = lgOdds(D); LG.odds = { key: D.teams.map(t => t.id + ':' + (t.rec?.w || 0)).join(), v }; }
+  const od = LG.odds.v, power = rows.slice().sort((a, b) => b.pts - a.pts).map(r => r.t.id);
+  const stand = D.teams.slice().sort((a, b) => (b.rec?.w || 0) - (a.rec?.w || 0) || (b.rec?.pf || 0) - (a.rec?.pf || 0));
+  const bestWorst = t => { const r = rank[t.id], ps = ['QB', 'RB', 'WR', 'TE']; const b = ps.slice().sort((x, y) => r[x] - r[y])[0], w = ps.slice().sort((x, y) => r[y] - r[x])[0]; return `<span class="ffnt up">${b} ${ffOrd(r[b])}</span><span class="ffnt dn">${w} ${ffOrd(r[w])}</span>`; };
+  return `<div class="tbl"><table class="lgtable"><tr><th></th><th>Team</th><th>W-L</th>${stand.some(t => t.rec?.pf) ? '<th>PF</th>' : ''}<th>Power</th>${od ? '<th>Playoffs</th>' : ''}</tr>
+    ${stand.map((t, i) => `<tr class="${t.id === D.me.id ? 'me' : ''}"><td>${i + 1}</td><td><b>${esc(t.name)}</b><div>${bestWorst(t)}</div></td><td>${t.rec?.w || 0}-${t.rec?.l || 0}${t.rec?.t ? '-' + t.rec.t : ''}</td>${stand.some(q => q.rec?.pf) ? `<td>${(t.rec?.pf || 0).toFixed(0)}</td>` : ''}<td>${power.indexOf(t.id) + 1}</td>${od ? `<td>${Math.round(od[t.id] * 100)}%</td>` : ''}</tr>`).join('')}</table></div>
+    <p class="note">Power = rank by each roster's best lineup (rest-of-season points per week). Tags: each team's best and worst position.${od ? ` Playoffs: ${D.settings?.playoff_teams || 6} teams make it; 2,000 simulations of the remaining schedule.` : D.yahoo ? ' Playoff odds need the full schedule (Sleeper leagues only for now).' : ''}</p>`;
+}
 function renderLeague() {
   const box = $('#ffleague'); if (!box) return;
-  if (NBA || CFB || FF.view === 'rank') { box.innerHTML = ''; return; }
+  if (NBA || CFB || FF.view === 'rank') { box.innerHTML = FF.card ? `<div class="ffcardwrap">${ffCard(FF.card)}</div>` : ''; return; }
   const D = LG.data;
   if (!D) {
     box.innerHTML = `<section class="lgcard"><h3>Your league</h3><p class="note">Connect your Sleeper league to see your lineup, start/sit, waiver pickups and trades. Just your Sleeper username: no password.</p>
@@ -4014,16 +4180,21 @@ function renderLeague() {
   const need = LG.need || ['RB', 'WR', 'TE', 'QB'].sort((a, b) => my[b] - my[a])[0];
   const myRow = rows.find(r => r.t.id === D.me.id), lgRank = rows.slice().sort((a, b) => b.pts - a.pts).findIndex(r => r.t.id === D.me.id) + 1;
   box.innerHTML = `<section class="lgcard">
-    <div class="lghead"><h3>${esc(D.me.name)}</h3><small>${n}-team league · ${D.sc.rec === 1 ? 'PPR' : D.sc.rec === 0.5 ? 'Half PPR' : 'Standard'}${D.yahoo ? ' · Yahoo' : ''}${FF.view === 'trades' ? ` · roster strength ${ffOrd(lgRank)} of ${n} (${myRow.pts.toFixed(1)} pts/wk)` : ''}</small>
+    <div class="lghead"><h3>${esc(D.me.name)}</h3><small>${n}-team league · ${D.sc.rec === 1 ? 'PPR' : D.sc.rec === 0.5 ? 'Half PPR' : 'Standard'}${D.sc.ptd === 6 ? ' · 6-pt pass TD' : ''}${D.sc.b?.length ? ' · yardage bonuses' : ''}${D.yahoo ? ' · Yahoo' : ''}${FF.view === 'trades' ? ` · roster strength ${ffOrd(lgRank)} of ${n} (${myRow.pts.toFixed(1)} pts/wk)` : ''}</small>
       <button class="btn small" data-lgout>Switch</button></div>
-    ${FF.view === 'team' ? lgTeamView(D) : lgTradeView(D, rank, my, need)}
-  </section>`;
+    ${FF.view === 'team' ? lgTeamView(D) : FF.view === 'matchup' ? lgMatchupView(D) : FF.view === 'waivers' ? lgWaiverView(D) : FF.view === 'league' ? lgLeagueView(D) : lgTradeView(D, rank, my, need)}
+  </section>${FF.card ? `<div class="ffcardwrap">${ffCard(FF.card)}</div>` : ''}`;
+  if (FF.card) box.querySelector('.ffcardwrap')?.scrollIntoView({ block: 'nearest' });
 }
 document.addEventListener('submit', e => { if (e.target.id === 'lgForm') { e.preventDefault(); const v = $('#lgUser').value; if (v.trim()) lgConnect(v); } });
 document.addEventListener('change', e => { if (e.target.id === 'anTeam') { LG.an = { team: e.target.value, give: new Set(), get: new Set() }; renderLeague(); } });
 document.addEventListener('click', e => {
   const pk = e.target.closest('[data-lgpick]'); if (pk) { lgLoad(pk.dataset.lgpick); return; }
   if (e.target.closest('[data-lgstars]')) { LG.stars = !LG.stars; renderLeague(); return; }
+  if (e.target.closest('[data-ffclose]')) { FF.card = null; renderLeague(); return; }
+  const cd = e.target.closest('[data-ffcard]'); if (cd && cd.dataset.ffcard) { FF.card = cd.dataset.ffcard; renderLeague(); return; }
+  const wp = e.target.closest('[data-wpos]'); if (wp) { FF.wpos = wp.dataset.wpos; renderLeague(); return; }
+  const tg = e.target.closest('[data-lgtarget]'); if (tg) { const [t, pid] = tg.dataset.lgtarget.split('|'); LG.an = { team: t, get: new Set([pid]), give: new Set() }; FF.card = null; FF.view = 'trades'; store.set('edge-ff-view', 'trades'); renderFantasy(); $('#anTeam')?.scrollIntoView({ block: 'center' }); return; }
   const nd = e.target.closest('[data-lgneed]'); if (nd) { LG.need = nd.dataset.lgneed; renderLeague(); return; }
   const ag = e.target.closest('[data-angive],[data-anget]'); if (ag) { const set = ag.dataset.angive ? LG.an.give : LG.an.get, pid = ag.dataset.angive || ag.dataset.anget; set.has(pid) ? set.delete(pid) : set.add(pid); renderLeague(); return; }
   const tr = e.target.closest('[data-lgtry]'); if (tr) { const [t, get, give] = tr.dataset.lgtry.split('|'); LG.an = { team: t, get: new Set([get]), give: new Set(give.split(',')) }; renderLeague(); $('#anTeam')?.scrollIntoView({ block: 'center' }); return; }
@@ -4032,8 +4203,15 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-lgout]')) { LG.data = null; LG.league = ''; LG.leagues = null; LG.src = ''; store.set('edge-slp-league', ''); store.set('edge-lg-src', ''); renderLeague(); }
 });
 let lgBooted = false;
+async function lgLive() {   // Sleeper live points while any game is on (Matchup / Team pages)
+  const D = LG.data; if (!D || D.yahoo || !D.mu || !(S.slate?.games || []).some(g => g.state === 'in')) return;
+  try { const ms = await slp(`league/${LG.league}/matchups/${D.mu.week}`), a = ms.find(m => m.roster_id === D.me.id), b = ms.find(m => m.roster_id === D.mu.opp);
+    D.mu.pts = { ...(a?.players_points || {}), ...(b?.players_points || {}) }; D.mu.live = true; if (['matchup', 'team'].includes(FF.view)) renderLeague(); } catch {}
+}
 function lgBoot() {
   if (lgBooted || NBA || CFB) return; lgBooted = true; renderLeague();
+  ffVals().then(v => { LG.vals = v; if (FF.view === 'rank') renderFantasy(); }).catch(() => {});
+  FF.liveTimer = setInterval(lgLive, 60000);
   fetch(DATA_BASE + 'yahoo_league.json', { method: 'HEAD', cache: 'no-cache' }).then(r => { LG.hasYahoo = r.ok; if (!LG.data) renderLeague(); }).catch(() => {});
   if (store.get('edge-lg-src') === 'yahoo') lgYahoo(); else if (LG.user) lgConnect(LG.user);
 }
@@ -4715,9 +4893,10 @@ function loadSharedSlip() {
 
 // ------------------------------------------------------------ NFL / College switch
 queueMicrotask(() => {
-  document.body.classList.toggle('cfb', CFB); document.body.classList.toggle('nba', NBA);
-  $('#sportName').textContent = CFB ? 'College' : NBA ? 'NBA' : 'NFL';
-  document.title = CFB ? 'CFB Edge Board' : NBA ? 'NBA Edge Board' : document.title;
+  document.body.classList.toggle('cfb', CFB); document.body.classList.toggle('nba', NBA); document.body.classList.toggle('ffmode', FFM); document.body.classList.toggle('nflmode', SPORT === 'nfl');
+  $('#sportName').textContent = CFB ? 'College' : NBA ? 'NBA' : FFM ? 'Fantasy' : 'NFL';
+  document.title = CFB ? 'CFB Edge Board' : NBA ? 'NBA Edge Board' : FFM ? 'Fantasy · Edge Board' : document.title;
+  if (FFM) setTab('fantasy');
   if (NBA) $('#pf-pos').innerHTML = ['', 'G', 'F', 'C'].map(p => `<button class="chip" data-pos="${p}" aria-pressed="${!p}">${p || 'All'}</button>`).join('');
   for (const b of document.querySelectorAll('[data-sport]')) {
     b.setAttribute('aria-pressed', b.dataset.sport === SPORT);
@@ -4725,6 +4904,7 @@ queueMicrotask(() => {
   }
   if (CFB && ['props', 'tds', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
   if (NBA && ['tds', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
+  if (SPORT === 'nfl' && store.get('edge-tab') === 'fantasy') setTab('board');   // fantasy moved to its own mode
 });
 function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderFantasy(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
 

@@ -100,6 +100,23 @@ def build(props, season, week, out_dir, cache_dir):
         g = sorted(left.get(fix(team or ""), []))
         fs = [fac.get((o, pos), 1.0) for _, o in g]
         return {"sf": round(sum(fs) / len(fs), 3) if fs else 1.0, "gl": len(g), "nx": [[w, o, fac.get((o, pos), 1.0)] for w, o in g[:4]]}
+    # how often each player reaches the yardage bonus marks (shrunk toward his position's rate), plus passing TDs / INTs per game
+    # so the page can score any league's bonuses and TD / INT values
+    BZ = {"pass300": ("passing_yards", 300), "pass400": ("passing_yards", 400), "rush100": ("rushing_yards", 100), "rush200": ("rushing_yards", 200),
+          "rec100": ("receiving_yards", 100), "rec200": ("receiving_yards", 200), "rr100": ("rush_rec", 100), "rr200": ("rush_rec", 200)}
+    yd = lambda w, c: (f(w.get("rushing_yards")) or 0) + (f(w.get("receiving_yards")) or 0) if c == "rush_rec" else f(w.get(c)) or 0
+    pos_rate = defaultdict(lambda: [0, 0])
+    for gs in games.values():
+        for x in gs:
+            for k, (c, t) in BZ.items(): pr = pos_rate[(x[3]["position"], k)]; pr[0] += yd(x[3], c) >= t; pr[1] += 1
+    def bonus_rates(gs, pos):
+        out = {}
+        for k, (c, t) in BZ.items():
+            n, base = len(gs), pos_rate[(pos, k)]
+            prior = base[0] / base[1] if base[1] else 0
+            r = (sum(yd(x[3], c) >= t for x in gs) + 4 * prior) / (n + 4)
+            if r >= 0.005: out[k] = round(r, 3)
+        return out
     sp = sleeper_players(cache_dir)
     by_gsis = {v["gsis"]: k for k, v in sp.items() if v["gsis"]}
     by_name = {(norm(v["n"]), v["pos"]): k for k, v in sp.items()}
@@ -115,6 +132,10 @@ def build(props, season, week, out_dir, cache_dir):
         if tw: s, r = 0.5 * s + 0.5 * tw[0], 0.5 * r + 0.5 * tw[1]
         k = INJ_SCALE.get(sp[sid]["inj"] or "", 1.0)
         out[sid] = {"n": sp[sid]["n"], "pos": pos, "tm": sp[sid]["tm"], "s": round(s * k, 2), "r": round(r * k, 2), "g": len(gs), "inj": sp[sid]["inj"],
+                    "lg": [[x[0], round(x[1], 1), x[2]] for x in gs[:6][::-1]],   # last games: [week, non-reception points, receptions]
+                    "bz": bonus_rates(gs, pos),
+                    **({"pt": round(sum((f(x[3].get("passing_tds")) or 0) for x in gs) / len(gs), 2),
+                        "it": round(sum((f(x[3].get("passing_interceptions")) or 0) for x in gs) / len(gs), 2)} if pos == "QB" else {}),
                     **sched_of(sp[sid]["tm"] or w0.get("team"), pos)}
     # players with props this week but no games yet (rookies, returning from injury)
     for sid, v in sp.items():
