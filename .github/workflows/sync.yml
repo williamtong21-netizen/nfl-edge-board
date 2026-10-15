@@ -11,6 +11,7 @@ on:
     - cron: "15,45 19 * * 0,6"    #   3:15, 3:45 PM EDT
     - cron: "55 22 * * 0,1,4,6"   # Thu/Sat/Sun/Mon 6:55 PM EDT (5:55 EST): night games
     - cron: "25,55 23 * * 0,1,4,6" #   7:25, 7:55 PM EDT (6:25, 6:55 EST)
+    - cron: "50 22 * * 2,3,5"     # Tue/Wed/Fri 6:50 PM EDT: NBA injury reports before the 7:00-7:30 tips
   workflow_dispatch: {}
 permissions:
   contents: write
@@ -42,6 +43,12 @@ jobs:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
           ODDS_API_MIN_HOURS: "12"
         run: python cfb_sync.py
+      - name: NBA (separate data folder; free sources only)
+        continue-on-error: true
+        env:
+          EDGE_OUT: data/nba
+          EDGE_DATA: state/nba
+        run: python nba_sync.py
       - name: Publish the new data
         run: |
           git config user.name "edge-board-bot"

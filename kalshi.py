@@ -10,6 +10,7 @@ Player markets Kalshi lists that ESPN has no line for are added as new props (li
 projections and ladders too.
 """
 import json, os, re, sys, time
+from urllib.error import HTTPError
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 
@@ -19,12 +20,18 @@ PLAYER_SERIES = {"KXNFLPASSYDS": "Pass yds", "KXNFLRSHYDS": "Rush yds", "KXNFLRE
                  "KXNFLRSHATT": "Carries", "KXNFLPASSTDS": "Pass TD", "KXNFLTD": "Anytime TD"}
 GAME_SERIES = ("KXNFLGAME", "KXNFLSPREAD", "KXNFLTOTAL", "KXNFLTEAMTOTAL")
 TO_ESPN = {"WAS": "WSH", "JAC": "JAX", "LA": "LAR"}
+FIRST_TD = "KXNFLFIRSTTD"   # NBA mode (nba_sync) swaps these series names and sets this to None
 norm = lambda n: " ".join(w for w in "".join(c for c in (n or "").lower() if c.isalnum() or c == " ").split() if w not in ("jr", "sr", "ii", "iii", "iv", "v"))
 
 
-def _get(params):
+def _get(params, tries=4):
     req = Request(API + "?" + urlencode(params), headers={"User-Agent": "nfl-edge-board", "Accept": "application/json"})
-    with urlopen(req, timeout=30) as r: return json.loads(r.read().decode("utf-8"))
+    for n in range(tries):
+        try:
+            with urlopen(req, timeout=30) as r: return json.loads(r.read().decode("utf-8"))
+        except HTTPError as e:   # rate limited: back off and try again
+            if e.code != 429 or n == tries - 1: raise
+            time.sleep(2 * (n + 1))
 
 
 def markets(series):
@@ -103,16 +110,16 @@ def apply(games, props):
             p = _price(m)
             if not g or not p: continue
             k = g.setdefault("kalshi", {})
-            k.setdefault("url", {}).setdefault({"KXNFLGAME": "ml", "KXNFLTOTAL": "total", "KXNFLSPREAD": "spread"}.get(series, "tt"), page_url(series, m["event_ticker"]))
+            k.setdefault("url", {}).setdefault({GAME_SERIES[0]: "ml", GAME_SERIES[2]: "total", GAME_SERIES[1]: "spread"}.get(series, "tt"), page_url(series, m["event_ticker"]))
             suffix = m["ticker"].split("-")[-1]
-            if series == "KXNFLGAME":
+            if series == GAME_SERIES[0]:
                 t = _team(suffix, g)
                 if t: k.setdefault("ml", {})[t] = p; n += 1
-            elif series == "KXNFLTOTAL":
+            elif series == GAME_SERIES[2]:
                 k.setdefault("total", []).append({"l": m["floor_strike"], **p}); n += 1
             else:
                 t = _team("".join(c for c in suffix if c.isalpha()), g)
-                if t: k.setdefault("spread" if series == "KXNFLSPREAD" else "tt", {}).setdefault(t, []).append({"l": m["floor_strike"], **p}); n += 1
+                if t: k.setdefault("spread" if series == GAME_SERIES[1] else "tt", {}).setdefault(t, []).append({"l": m["floor_strike"], **p}); n += 1
     for g in pre:
         for v in (g.get("kalshi") or {}).values():
             for rungs in (v.values() if isinstance(v, dict) else [v]):
@@ -145,11 +152,11 @@ def apply(games, props):
                 pr["alt"] = rungs; n += len(rungs)
                 if urls.get(name): pr["kx"] = urls[name]
     # first touchdown scorer: one price per player, kept on the player (pl["ftk"])
-    try: ms = markets("KXNFLFIRSTTD")
+    try: ms = markets(FIRST_TD) if FIRST_TD else []
     except Exception as e: print("kalshi KXNFLFIRSTTD failed", e, file=sys.stderr); ms = []
     for m in ms:
         g = _game_for(m["event_ticker"], pre); p = _price(m)
         if not g or not p or g["id"] not in props or ":" not in m["title"]: continue
         pl = next((x for x in props[g["id"]] if norm(x["n"]) == norm(m["title"].split(":")[0])), None)
-        if pl: pl["ftk"] = {**p, "url": page_url("KXNFLFIRSTTD", m["event_ticker"])}; n += 1
+        if pl: pl["ftk"] = {**p, "url": page_url(FIRST_TD, m["event_ticker"])}; n += 1
     return n

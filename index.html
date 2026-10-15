@@ -711,6 +711,8 @@ details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[o
 .rk{font:700 11px var(--f-display);color:var(--muted);margin-right:3px}
 /* college mode: tabs that need NFL-only data (player props, depth charts, nflverse analytics) are hidden */
 body.cfb nav [data-tab="props"],body.cfb nav [data-tab="tds"],body.cfb nav [data-tab="lineups"],body.cfb nav [data-tab="players"],body.cfb nav [data-tab="teams"]{display:none}
+body.nba nav [data-tab="tds"],body.nba nav [data-tab="lineups"],body.nba nav [data-tab="players"],body.nba nav [data-tab="teams"]{display:none}
+body.nba #picks .sechead.tdsec,body.nba #picks .tdsec ~ .vgrid,body.nba #picks .tdsec + p,body.nba #picks .tdhonest,
 body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec ~ .vgrid,body.cfb #picks .tdsec + p,body.cfb #picks .tdhonest{display:none}
 .cfbours{display:flex;flex-direction:column;gap:3px;padding:2px 12px 10px}.cfbours small{color:var(--muted);font-size:11.5px}
 .fbkinds{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
@@ -793,7 +795,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 <header>
   <div class="bar">
     <p class="brand">Edge Board <small id="sportName">NFL</small></p>
-    <div class="sportsw" role="group" aria-label="Sport"><button data-sport="nfl">NFL</button><button data-sport="cfb">College</button></div>
+    <div class="sportsw" role="group" aria-label="Sport"><button data-sport="nfl">NFL</button><button data-sport="cfb">College</button><button data-sport="nba">NBA</button></div>
     <div class="sync"><span class="dot off" id="syncDot"></span><span id="syncText">Waiting for data…</span></div>
     <div class="hdr-btns"><button class="hdr-btn" id="fbBtn" aria-label="Send feedback" title="Something off? Tell us"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></button><button class="hdr-btn" id="helpBtn" aria-label="How the app works">?</button></div>
   </div>
@@ -1011,11 +1013,11 @@ const pct = p => p == null ? '–' : (p * 100).toFixed(1) + '%';
 const prob = a => a == null ? null : a < 0 ? -a / (-a + 100) : 100 / (a + 100);
 const dec = a => a < 0 ? 1 + 100 / -a : 1 + a / 100;
 const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
-const SPORT = (() => { try { return localStorage.getItem('edge-sport') === 'cfb' ? 'cfb' : 'nfl'; } catch { return 'nfl'; } })();
-const CFB = SPORT === 'cfb';
+const SPORT = (() => { try { const s = localStorage.getItem('edge-sport'); return ['cfb', 'nba'].includes(s) ? s : 'nfl'; } catch { return 'nfl'; } })();
+const CFB = SPORT === 'cfb', NBA = SPORT === 'nba';
 // each sport keeps its own parlay, bets and per-sport picks; app-wide prefs (theme, easy mode, your book) are shared
 const SHARED_KEYS = new Set(['edge-sport', 'edge-easy', 'edge-welcomed', 'edge-alerts-seen', 'edge-mybook', 'edge-state', 'edge-altbook']);
-const skey = k => CFB && !SHARED_KEYS.has(k) ? k + '-cfb' : k;
+const skey = k => SPORT !== 'nfl' && !SHARED_KEYS.has(k) ? k + '-' + SPORT : k;
 const store = { get(k) { try { return localStorage.getItem(skey(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(skey(k), v); } catch {} } };
 function toast(msg) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 2200); }
 const ago = iso => { const m = Math.max(0, (Date.now() - new Date(iso)) / 60000); return m < 1 ? 'just now' : m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
@@ -1337,7 +1339,7 @@ function renderSpot() {
   const side = (t, s) => `<div class="spot-team">${logo(t.abbr, 76)}<b>${esc(nick(t))}</b><small>${esc(t.rec)}${s ? ' · ' + s : ''}</small>${styleTag(t.abbr)}</div>`;
   const mid = isLive
     ? `<div class="spot-mid"><div class="big">${esc(L?.away.score ?? A.score)} – ${esc(L?.home.score ?? H.score)}</div><div class="sub live"><span class="livedot"></span>${esc(L?.detail || g.detail)}</div></div>`
-    : `<div class="spot-mid"><div class="sub">Kickoff in</div><div class="cd" data-cd="${esc(g.date)}">${countdown(g.date)}</div><div class="sub">${kick(g)}${g.tv ? ' · ' + esc(g.tv) : ''}</div></div>`;
+    : `<div class="spot-mid"><div class="sub">${NBA ? 'Tip-off in' : 'Kickoff in'}</div><div class="cd" data-cd="${esc(g.date)}">${countdown(g.date)}</div><div class="sub">${kick(g)}${g.tv ? ' · ' + esc(g.tv) : ''}</div></div>`;
   const wp = isLive && L?.wp != null ? L.wp : o?.hFair;
   const wpLabel = isLive && L?.wp != null ? 'Live win chance' : 'Win chance (betting market)';
   const fav = o?.hs != null ? (o.hs < 0 ? `${nick(H)} by ${-o.hs}` : o.hs > 0 ? `${nick(A)} by ${o.hs}` : 'Pick ’em') : null;
@@ -1421,13 +1423,14 @@ function dueRead(x) {
 const LIVE_STAT = { 'Pass yds': ['passingYards'], 'Pass TD': ['passingTouchdowns'], 'Completions': ['completions'], 'Pass att': ['passingAttempts'],
   'INT': ['interceptions'], 'Rush yds': ['rushingYards'], 'Carries': ['rushingAttempts'], 'Rec yds': ['receivingYards'], 'Receptions': ['receptions'],
   'Rush+rec yds': ['rushingYards', 'receivingYards'], 'Pass+rush yds': ['passingYards', 'rushingYards'], 'Long rec': ['longReception'],
-  'Anytime TD': ['rushingTouchdowns', 'receivingTouchdowns'] };
+  'Anytime TD': ['rushingTouchdowns', 'receivingTouchdowns'], Points: ['points'], Rebounds: ['rebounds'], Assists: ['assists'], Threes: ['threes'] };
 // minutes of game clock played, for pace projections
 function elapsed(L) {
   if (L.state === 'post') return 60;
   if (L.state !== 'in' || !L.period) return 0;
   const [mm, ss] = String(L.clock || '0:00').split(':').map(Number);
-  return Math.min(60, (Math.min(L.period, 4) - 1) * 15 + (15 - (mm || 0) - (ss || 0) / 60));
+  const q = NBA ? 12 : 15;   // quarter length; the result is always on a 60-minute scale so every pace formula works for both
+  return Math.min(60, ((Math.min(L.period, 4) - 1) * q + (q - (mm || 0) - (ss || 0) / 60)) * 15 / q);
 }
 function propLive(L, pl, pr) {
   const p = L.players?.[pl.id]; if (!p) return null;
@@ -1496,13 +1499,23 @@ function renderLive() {
 
 // ------------------------------------------------------------ local real-time mode (page served from your PC)
 // Same shape as live.py. Only runs when the page can reach ESPN directly, i.e. outside claude.ai.
-const ESPN_SB = `https://site.api.espn.com/apis/site/v2/sports/football/${CFB ? 'college-football' : 'nfl'}/scoreboard${CFB ? '?groups=80&limit=300' : ''}`;
-const ESPN_SUM = `https://site.web.api.espn.com/apis/site/v2/sports/football/${CFB ? 'college-football' : 'nfl'}/summary?event=`;
+const ESPN_PATH = NBA ? 'basketball/nba' : CFB ? 'football/college-football' : 'football/nfl';
+const ESPN_SB = `https://site.api.espn.com/apis/site/v2/sports/${ESPN_PATH}/scoreboard${CFB ? '?groups=80&limit=300' : ''}`;
+const ESPN_SUM = `https://site.web.api.espn.com/apis/site/v2/sports/${ESPN_PATH}/summary?event=`;
 const LIVE_COLS = ['passingYards', 'passingTouchdowns', 'interceptions', 'rushingAttempts', 'rushingYards', 'rushingTouchdowns', 'longRushing',
   'receptions', 'receivingYards', 'receivingTouchdowns', 'longReception', 'receivingTargets'];
 function parsePlayers(sum) {
   const out = {};
   for (const team of sum?.boxscore?.players || []) for (const cat of team.statistics || []) {
+    if (NBA) {   // one stat table per team: points, rebounds, assists, "3PM-3PA"
+      for (const a of cat.athletes || []) {
+        const p = out[a.athlete.id] ||= { n: a.athlete.displayName, tm: team.team.abbreviation, s: {} };
+        (cat.keys || []).forEach((k, i) => { const v = a.stats?.[i];
+          if (['points', 'rebounds', 'assists', 'minutes'].includes(k)) p.s[k] = isNaN(+v) ? null : +v;
+          else if (/^threePointFieldGoalsMade/.test(k)) p.s.threes = +String(v).split('-')[0] || 0; });
+      }
+      continue;
+    }
     if (!['passing', 'rushing', 'receiving'].includes(cat.name)) continue;
     for (const a of cat.athletes || []) {
       const p = out[a.athlete.id] ||= { n: a.athlete.displayName, tm: team.team.abbreviation, s: {} };
@@ -1534,7 +1547,7 @@ async function pollLocal() {
 }
 // Bets and settings for the standalone app: kept on this device, same calls as the hosted db.
 const LocalDB = (() => {
-  const KEY = CFB ? 'edge-board-db-cfb' : 'edge-board-db', subs = new Set();   // bets never mix between sports
+  const KEY = SPORT === 'nfl' ? 'edge-board-db' : 'edge-board-db-' + SPORT, subs = new Set();   // bets never mix between sports
   let data = {};
   try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {} queueMicrotask(() => subs.forEach(f => f())); };   // notify after the write, never mid-redraw
@@ -1551,7 +1564,7 @@ const LocalDB = (() => {
   };
 })();
 
-const DATA_BASE = (window.__DATA_BASE || 'out/') + (CFB ? 'cfb/' : '');
+const DATA_BASE = (window.__DATA_BASE || 'out/') + (SPORT === 'nfl' ? '' : SPORT + '/');
 // a game whose kickoff time has passed is not "upcoming", even if the last sync (up to a few hours old) still says so:
 // every pre-game list (props, TDs, picks, prices) filters on state === 'pre', so flip it here
 function markStarted() {
@@ -1902,7 +1915,7 @@ function propGames(p, propsRow, pr, g) {
   const keys = PAGE_STAT[pr.m];
   if (keys && p.last?.length) return p.last.map(r => ({ y: r.y, w: r.w, o: r.o, h: r.h, snap: r.snap, v: keys.reduce((s, k) => s + (r[k] || 0), 0) }));
   // stats nflverse doesn't track per game (longest reception): fall back to the ESPN log we have
-  return propRow(propsRow, pr, g).games.slice().reverse().map(x => ({ y: x.r.y, w: x.r.w, o: x.r.o, h: x.r.at === 'vs' ? 1 : 0, snap: x.r.us?.snap, v: x.v }));
+  return propRow(propsRow, pr, g).games.slice().reverse().map(x => ({ y: x.r.y, w: x.r.w, d: x.r.d, o: x.r.o, h: x.r.at === 'vs' ? 1 : 0, snap: x.r.us?.snap, min: x.r.s?.minutes, v: x.v }));
 }
 function propView(p, propsRow, pr, g) {
   const all = propGames(p, propsRow, pr, g), games = all.slice(0, PLY.n), td = pr.m === 'Anytime TD', line = td ? 0.5 : pr.l;
@@ -2393,9 +2406,10 @@ function trapBlock(g) {
 // ------------------------------------------------------------ alternate lines: one ladder, same columns, for every market
 // our chance at any line uses the same model and the same rule as projections.py, so main and alternate lines line up
 const DISTJS = { 'Pass yds': ['ln', .28], 'Pass+rush yds': ['ln', .27], 'Rush yds': ['ln', .55], 'Rec yds': ['ln', .65], 'Rush+rec yds': ['ln', .5],
-  'Long rec': ['ln', .55], 'Pass att': ['n', .16], 'Completions': ['n', .2], 'Receptions': ['po'], 'Carries': ['po'], 'Pass TD': ['po'], 'INT': ['po'] };
+  'Long rec': ['ln', .55], 'Pass att': ['n', .16], 'Completions': ['n', .2], 'Receptions': ['po'], 'Carries': ['po'], 'Pass TD': ['po'], 'INT': ['po'],
+  Points: ['n', .3], Rebounds: ['po'], Assists: ['po'], Threes: ['po'] };
 const ALT_STEP = { 'Pass yds': 25, 'Pass+rush yds': 25, 'Rush yds': 10, 'Rec yds': 10, 'Rush+rec yds': 15, 'Long rec': 5, 'Pass att': 2, 'Completions': 2,
-  'Receptions': 1, 'Carries': 2, 'Pass TD': 1, 'INT': 1, 'Anytime TD': 1 };
+  'Receptions': 1, 'Carries': 2, 'Pass TD': 1, 'INT': 1, 'Anytime TD': 1, Points: 5, Rebounds: 2, Assists: 2, Threes: 1 };
 const poissonAtLeast = (lam, k) => { let s = 0, t = Math.exp(-lam); for (let i = 0; i < k; i++) { s += t; t *= lam / (i + 1); } return 1 - s; };
 // With a Kalshi ladder, the market's own curve gives the shape (it prices blowout games far better than any formula);
 // we slide that curve by half the gap between our median and the market's. Without a ladder we use our distribution.
@@ -2863,7 +2877,7 @@ function renderTD() {
     const bars = g.map((r, i) => { const x0 = L + i * bw + bw * 0.18, w = bw * 0.64, h = r.n ? y(0) - y(r.n) : 3;
       return `<rect x="${x0.toFixed(1)}" y="${(y(0) - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${r.n ? 'var(--good)' : 'var(--line)'}"><title>${r.y} week ${r.w} vs ${esc(r.o || '')}: ${r.n} TD</title></rect>
         ${r.n ? `<text x="${(x0 + w / 2).toFixed(1)}" y="${(y(r.n) - 4).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">${r.n}</text>` : ''}
-        <text x="${(x0 + w / 2).toFixed(1)}" y="${H - B + 13}" text-anchor="middle" font-size="9" fill="var(--muted)">W${r.w}</text>
+        <text x="${(x0 + w / 2).toFixed(1)}" y="${H - B + 13}" text-anchor="middle" font-size="9" fill="var(--muted)">${r.d ? esc(r.d) : 'W' + r.w}</text>
         <text x="${(x0 + w / 2).toFixed(1)}" y="${H - B + 24}" text-anchor="middle" font-size="8.5" fill="var(--muted)">${esc(r.o || '')}</text>`; }).join('');
     const yr = g.findIndex((r, i) => i && r.y !== g[i - 1].y), split = yr > 0 ? L + yr * bw : null;
     const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Touchdowns in each of ${esc(x.pl.n)}'s last ${g.length} games">
@@ -2872,7 +2886,7 @@ function renderTD() {
       ${bars}</svg>`;
     const rec = x.pl.p !== 'RB' && x.pl.p !== 'QB';
     const cur = x.last[0]?.y;
-    const rows = x.last.map(r => `<tr><td>W${r.w} ${r.h ? 'vs' : '@'} ${esc(r.o || '')}${r.y !== cur ? ` <span class="note">'${String(r.y).slice(2)}</span>` : ''}</td><td class="${r.n ? 'td' : ''}">${r.n}</td>
+    const rows = x.last.map(r => `<tr><td>${r.d ? esc(r.d) : 'W' + r.w} ${r.h ? 'vs' : '@'} ${esc(r.o || '')}${r.y !== cur ? ` <span class="note">'${String(r.y).slice(2)}</span>` : ''}</td><td class="${r.n ? 'td' : ''}">${r.n}</td>
       ${rec ? `<td>${r.tgt ?? 0}</td><td>${r.rec ?? 0}</td><td>${r.yds ?? 0}</td>` : `<td>${r.car ?? 0}</td><td>${r.ryd ?? 0}</td><td>${r.rec ?? 0}</td>`}<td>${r.snap != null ? Math.round(r.snap * 100) + '%' : '–'}</td></tr>`).join('');
     const mm = x.pr.pModel != null && x.pr.pMkt != null ? `<p class="note" style="margin:0 0 6px">Our model <b>${Math.round(x.pr.pModel * 100)}%</b> · the books <b>${Math.round(x.pr.pMkt * 100)}%</b> · we show the blend, <b>${Math.round(x.p * 100)}%</b></p>` : '';
     return `<div class="tdlog">${mm}${mu(x, true)}${svg}<div class="tbl"><table><tr><th>Game</th><th>TD</th>${rec ? '<th>Tgt</th><th>Rec</th><th>Yds</th>' : '<th>Car</th><th>Yds</th><th>Rec</th>'}<th>Snap</th></tr>${rows}</table></div>
@@ -3544,8 +3558,8 @@ $('#view-lineups').addEventListener('click', e => {
 const PROP_STATS = { 'Pass yds': ['passingYards'], 'Pass TD': ['passingTouchdowns'], 'Completions': ['completions'], 'Pass att': ['passingAttempts'],
   'INT': ['interceptions'], 'Rush yds': ['rushingYards'], 'Carries': ['rushingAttempts'], 'Rec yds': ['receivingYards'], 'Receptions': ['receptions'],
   'Rush+rec yds': ['rushingYards', 'receivingYards'], 'Pass+rush yds': ['passingYards', 'rushingYards'], 'Long rec': ['longReception'],
-  'Anytime TD': ['rushingTouchdowns', 'receivingTouchdowns'] };
-const PROP_ORDER = Object.keys(PROP_STATS);
+  'Anytime TD': ['rushingTouchdowns', 'receivingTouchdowns'], Points: ['points'], Rebounds: ['rebounds'], Assists: ['assists'], Threes: ['threes'] };
+const PROP_ORDER = NBA ? ['Points', 'Rebounds', 'Assists', 'Threes'] : Object.keys(PROP_STATS).slice(0, 13);
 const OPP_STAT = m => /Rush yds|Carries/.test(m) ? ['rushingYardsPerGameAllowed', 'rush yds'] : /\+/.test(m) ? ['yardsPerGameAllowed', 'yds']
   : m === 'Anytime TD' ? ['totalPointsPerGameAllowed', 'pts'] : ['passingYardsPerGameAllowed', 'pass yds'];
 const PF = { lastN: 5, game: '', market: '', pos: '', sort: 'game', all: false, open: new Set(), games: new Set(), players: new Set() };
@@ -3564,7 +3578,7 @@ function propWhy(pl, pr, g, over, td) {
 function propDrop(pl, pr, g, over) {
   const page = S.players?.[pl.id], td = pr.m === 'Anytime TD', L = td ? 0.5 : pr.l;
   let games = [];
-  try { games = (page ? propGames(page, pl, pr, g) : propRow(pl, pr, g).games.slice().reverse().map(x => ({ y: x.r.y, w: x.r.w, o: x.r.o, h: x.r.at === 'vs' ? 1 : 0, snap: x.r.us?.snap, v: x.v }))).slice(0, 10); } catch (e) { games = []; }
+  try { games = (page ? propGames(page, pl, pr, g) : propRow(pl, pr, g).games.slice().reverse().map(x => ({ y: x.r.y, w: x.r.w, d: x.r.d, o: x.r.o, h: x.r.at === 'vs' ? 1 : 0, snap: x.r.us?.snap, min: x.r.s?.minutes, v: x.v }))).slice(0, 10); } catch (e) { games = []; }
   if (!games.length) return `<div class="tdlog pdrop"><p class="note">No game log yet for this stat.</p></div>`;
   // last 5 by default; 7 and 10 a tap away
   const have = games.length, nShow = Math.min(PF.lastN || 5, have);
@@ -3577,9 +3591,9 @@ function propDrop(pl, pr, g, over) {
   const ticks = []; for (let t = 0; t <= max; t += step) ticks.push(t);
   const fmt = v => Number.isInteger(v) ? v : v.toFixed(1);
   const bars = gs.map((r, i) => { const x0 = Lm + i * bw + bw * 0.16, w = bw * 0.68, h = r.v > 0 ? y(0) - y(r.v) : 2, ok = hitOf(r.v);
-    return `<rect x="${x0.toFixed(1)}" y="${(y(0) - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${ok ? 'var(--good)' : 'var(--line)'}"><title>${r.y} week ${r.w} vs ${esc(r.o || '')}: ${fmt(r.v)}</title></rect>
+    return `<rect x="${x0.toFixed(1)}" y="${(y(0) - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${ok ? 'var(--good)' : 'var(--line)'}"><title>${r.d ? esc(r.d) : `${r.y} week ${r.w}`} vs ${esc(r.o || '')}: ${fmt(r.v)}</title></rect>
       <text x="${(x0 + w / 2).toFixed(1)}" y="${(y(Math.max(r.v, 0)) - 4).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--ink)">${fmt(r.v)}</text>
-      <text x="${(x0 + w / 2).toFixed(1)}" y="${H - B + 13}" text-anchor="middle" font-size="9" fill="var(--muted)">W${r.w}</text>
+      <text x="${(x0 + w / 2).toFixed(1)}" y="${H - B + 13}" text-anchor="middle" font-size="9" fill="var(--muted)">${r.d ? esc(r.d) : 'W' + r.w}</text>
       <text x="${(x0 + w / 2).toFixed(1)}" y="${H - B + 24}" text-anchor="middle" font-size="8.5" fill="var(--muted)">${esc(r.o || '')}</text>`; }).join('');
   const yr = gs.findIndex((r, i) => i && r.y !== gs[i - 1].y), split = yr > 0 ? Lm + yr * bw : null;
   const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(pl.n)} ${esc(pr.m)} in his last ${gs.length} games against the line of ${L}">
@@ -3593,15 +3607,15 @@ function propDrop(pl, pr, g, over) {
   const lineOf = r => !td && r.y === season && then[r.w] != null ? then[r.w] : null;
   const vsThen = games.filter(r => lineOf(r) != null && r.v !== lineOf(r)), overThen = vsThen.filter(r => r.v > lineOf(r)).length;
   const rows = games.map(r => { const lt = lineOf(r), ref = lt ?? L;
-    return `<tr><td>W${r.w} ${r.h ? 'vs' : '@'} ${esc(r.o || '')}${r.y !== cur ? ` <span class="note">'${String(r.y).slice(2)}</span>` : ''}</td>
-    <td>${fmt(r.v)}</td>${td ? '' : `<td>${lt != null ? lt : `<span class="note" title="No saved line for this game; compared with today's line">${L}*</span>`}</td>`}<td class="${td ? (r.v > 0 ? 'hit' : 'miss') : (r.v > ref) === over ? 'hit' : r.v === ref ? '' : 'miss'}">${td ? (r.v > 0 ? 'Scored' : '–') : r.v === ref ? 'Push' : (r.v > ref ? 'Over' : 'Under')}</td><td>${r.snap != null ? Math.round(r.snap * 100) + '%' : '–'}</td></tr>`; }).join('');
+    return `<tr><td>${r.d ? esc(r.d) : 'W' + r.w} ${r.h ? 'vs' : '@'} ${esc(r.o || '')}${r.y !== cur ? ` <span class="note">'${String(r.y).slice(2)}</span>` : ''}</td>
+    <td>${fmt(r.v)}</td>${td ? '' : `<td>${lt != null ? lt : `<span class="note" title="No saved line for this game; compared with today's line">${L}*</span>`}</td>`}<td class="${td ? (r.v > 0 ? 'hit' : 'miss') : (r.v > ref) === over ? 'hit' : r.v === ref ? '' : 'miss'}">${td ? (r.v > 0 ? 'Scored' : '–') : r.v === ref ? 'Push' : (r.v > ref ? 'Over' : 'Under')}</td><td>${NBA ? (r.min != null ? Math.round(r.min) : '–') : r.snap != null ? Math.round(r.snap * 100) + '%' : '–'}</td></tr>`; }).join('');
   return `<div class="tdlog pdrop">${nPick}
     <p class="note" style="margin:0 0 4px"><b>${td ? (over ? 'Scored' : 'Held out') : over ? 'Over' : 'Under'} ${td ? '' : L + ' '}in ${nHit} of last ${games.length}</b>${pr.proj != null && !td ? ` · we project <b>${pr.proj}</b>` : ''}${pr.alt?.length ? ` · ${pr.alt.length} alt lines on the player page` : ''}</p>
     ${vsThen.length >= 2 ? `<p class="note" style="margin:2px 0 4px">Against the line he actually had: <b>over in ${overThen} of ${vsThen.length}</b> this season (the chart compares with today's line).</p>` : ''}
-    ${svg}<div class="tbl"><table><tr><th>Game</th><th>${esc(pr.m)}</th>${td ? '' : '<th>Line then</th>'}<th>Result</th><th>Snap</th></tr>${rows}</table></div>
+    ${svg}<div class="tbl"><table><tr><th>Game</th><th>${esc(pr.m)}</th>${td ? '' : '<th>Line then</th>'}<th>Result</th><th>${NBA ? 'Min' : 'Snap'}</th></tr>${rows}</table></div>
     ${propWhy(pl, pr, g, over, td)}
     <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${g.id}|prop|over|${esc(pl.id)}|${esc(pr.m)}">+ Parlay ${td ? 'Yes' : 'Over'}</button>${td ? '' : `<button class="addp" data-addleg="${g.id}|prop|under|${esc(pl.id)}|${esc(pr.m)}">+ Parlay Under</button>`}
-      <button class="btn small" data-player="${esc(pl.id)}" data-openprop="${esc(pr.m)}">Player page &amp; alt lines →</button></div></div>`;
+      ${NBA ? '' : `<button class="btn small" data-player="${esc(pl.id)}" data-openprop="${esc(pr.m)}">Player page &amp; alt lines →</button>`}</div></div>`;
 }
 
 function propRow(pl, pr, g) {
@@ -3632,8 +3646,8 @@ function bars(x) {
       return `<rect x="${bx}" y="${Math.min(by, base - 1)}" width="${bw}" height="${Math.max(1, base - by)}" rx="2" fill="${col}" opacity="${old ? .45 : 1}"/>
         <text class="v" x="${bx + bw / 2}" y="${Math.min(by, base - 1) - 3}" text-anchor="middle">${fmtV(g.v)}</text>
         <text x="${bx + bw / 2}" y="${base + 11}" text-anchor="middle">${esc(g.r.o || '')}</text>
-        <text x="${bx + bw / 2}" y="${base + 21}" text-anchor="middle">${old ? "'" + String(g.r.y).slice(2) : 'W' + esc(g.r.w ?? '')}</text>
-        <text class="sn" x="${bx + bw / 2}" y="${base + 32}" text-anchor="middle">${g.r.us?.snap != null ? Math.round(g.r.us.snap * 100) + '%' : '–'}</text>`; }).join('')}
+        <text x="${bx + bw / 2}" y="${base + 21}" text-anchor="middle">${g.r.d ? esc(g.r.d) : old ? "'" + String(g.r.y).slice(2) : 'W' + esc(g.r.w ?? '')}</text>
+        <text class="sn" x="${bx + bw / 2}" y="${base + 32}" text-anchor="middle">${NBA ? (g.r.s?.minutes != null ? Math.round(g.r.s.minutes) + 'm' : '–') : g.r.us?.snap != null ? Math.round(g.r.us.snap * 100) + '%' : '–'}</text>`; }).join('')}
   </svg>`;
 }
 
@@ -3645,10 +3659,10 @@ const propStrength = x => x.pr.m === 'Anytime TD' ? Math.max(0, (x.pr.pOver ?? 0
   : Math.abs((x.pr.pOver ?? 0.5) - 0.5) * (x.pr.m === 'Long rec' ? 0.5 : 1);
 function renderProps() {
   const box = $('#props'), sl = S.slate;
-  if (!sl || !S.props) { box.innerHTML = `<div class="empty"><b>No props yet</b>Player lines show up here after the sync picks them up. DraftKings usually posts yardage props midweek.</div>`; return; }
+  if (!sl || !S.props) { box.innerHTML = `<div class="empty"><b>No props yet</b>${NBA ? 'Player lines show up here once DraftKings posts them, usually the morning of the game. Preseason games have no props.' : 'Player lines show up here after the sync picks them up. DraftKings usually posts yardage props midweek.'}</div>`; return; }
   const games = sl.games.filter(g => g.state === 'pre' && S.props[g.id]?.length).sort((a, b) => new Date(a.date) - new Date(b.date));
   const gsel = $('#pf-game'), keep = PF.game;
-  gsel.innerHTML = `<option value="">All games</option>` + games.map(g => `<option value="${g.id}">Wk ${g.week} · ${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</option>`).join('');
+  gsel.innerHTML = `<option value="">All games</option>` + games.map(g => `<option value="${g.id}">${NBA ? new Date(g.date).toLocaleDateString([], { weekday: 'short' }) : 'Wk ' + g.week} · ${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</option>`).join('');
   gsel.value = games.some(g => g.id === keep) ? keep : '';
   PF.game = gsel.value;
   // a light day (Monday night, a lone Thursday game): when only 1-2 games kick off in the next 36 hours, show every
@@ -3689,7 +3703,7 @@ function renderProps() {
     lastGame = g.id;
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
     const inj = team.inj.find(i => i.n === pl.n), page = S.players?.[pl.id];
-    return `${head}<article class="pcard" style="--tc:${teamColor(team)}"><div class="pcard-h">${logo(team.abbr, 24)}<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button><span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${byGame ? '' : ` · ${kick(g)}`}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
+    return `${head}<article class="pcard" style="--tc:${teamColor(team)}"><div class="pcard-h">${logo(team.abbr, 24)}${NBA ? `<b class="plink">${esc(pl.n)}</b>` : `<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button>`}<span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${byGame ? '' : ` · ${kick(g)}`}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
       ${(PF.players.has(pl.id) ? props : props.slice().sort(PF.sort === 'move' && !byGame ? (a, b) => Math.abs(b.move) - Math.abs(a.move) : (a, b) => propStrength(b) - propStrength(a)).slice(0, 3)).map(x => {
         const td = x.pr.m === 'Anytime TD', has = x.pr.pOver != null && x.pr.proj > 0, over = td || (x.pr.pOver ?? 0.5) >= 0.5, pct = Math.round((over ? x.pr.pOver : 1 - x.pr.pOver) * 100);
         const ten = page?.last?.length && PAGE_STAT[x.pr.m] ? page.last.map(r => PAGE_STAT[x.pr.m].reduce((a, k) => a + (r[k] || 0), 0)) : null;
@@ -3700,7 +3714,8 @@ function renderProps() {
         return `<button class="prow2" data-propdrop="${esc(dropKey)}" aria-expanded="${isOpen}">
           <span class="m">${esc(x.pr.m)} <span>${td ? '' : x.pr.l}</span>${!td && x.pr.o != null && x.pr.o !== x.pr.l ? ` <i>${x.move > 0 ? '▲' : '▼'}${Math.abs(x.move).toFixed(1).replace(/\.0$/, '')}</i>` : ''}</span>
           <span class="lean ${has ? (td ? (x.pr.pOver >= 0.33 ? 'o' : '') : over ? 'o' : 'u') : ''}">${has ? `${td ? 'Scores' : over ? 'O' : 'U'} ${pct}%` : '–'}</span>
-          <span class="meta"><span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span class="sec">proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
+          <span class="meta">${x.n > 5 ? (() => { const hit = z => over ? z.v > x.pr.l : z.v < x.pr.l, l5 = x.games.slice(-5);
+              return `<span>L5 <b>${l5.filter(hit).length}/5</b></span>${ten ? '' : `<span>L${x.n} <b>${x.games.filter(hit).length}/${x.n}</b></span>`}`; })() : `<span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>`}${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span class="sec">proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
             ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
             ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide games ▴' : `Last ${PF.lastN || 5} ▾`}</span></span>
         </button>${isOpen ? propDrop(pl, x.pr, g, has ? over : true) : ''}`;
@@ -4028,7 +4043,7 @@ function fbContext() {
   const tab = document.querySelector('nav [aria-selected="true"]')?.textContent || '';
   const open = [...(S.open || [])].map(id => S.slate?.games?.find(g => g.id === id)).filter(Boolean).map(g => `${g.away.abbr} @ ${g.home.abbr}`);
   const legs = (PAR?.legs || []).map(l => l.label);
-  return [`Edge Board · ${CFB ? 'College' : 'NFL'} · ${tab} tab`, open.length ? `Open games: ${open.join(', ')}` : '', legs.length ? `Parlay: ${legs.join(' + ')}` : '',
+  return [`Edge Board · ${CFB ? 'College' : NBA ? 'NBA' : 'NFL'} · ${tab} tab`, open.length ? `Open games: ${open.join(', ')}` : '', legs.length ? `Parlay: ${legs.join(' + ')}` : '',
     `Data from ${S.slate?.updatedAt ? new Date(S.slate.updatedAt).toLocaleString() : 'unknown'} · ${innerWidth}x${innerHeight}${$('body').classList.contains('easy') ? ' · easy mode' : ''}`].filter(Boolean).join('\n');
 }
 const fbBody = () => `[${FB.kind}] ${$('#fbText').value.trim()}\n\n${fbContext()}`;
@@ -4071,7 +4086,7 @@ queueMicrotask(() => {
     catch { const r = document.createRange(); r.selectNodeContents($('#alTopic')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); $('#alMsg').textContent = 'Selected: copy it, then paste it into ntfy.'; }
   };
   // a one-time banner on Picks until it's dismissed or opened
-  if (!CFB && !store.get('edge-alerts-seen')) $('#alertBan').hidden = false;
+  if (SPORT === 'nfl' && !store.get('edge-alerts-seen')) $('#alertBan').hidden = false;
   const seen = () => { store.set('edge-alerts-seen', '1'); $('#alertBan').hidden = true; };
   $('#alertBanX').onclick = seen;
   $('#alertBan').querySelector('[data-alerts]').addEventListener('click', seen);
@@ -4216,14 +4231,16 @@ function loadSharedSlip() {
 
 // ------------------------------------------------------------ NFL / College switch
 queueMicrotask(() => {
-  document.body.classList.toggle('cfb', CFB);
-  $('#sportName').textContent = CFB ? 'College' : 'NFL';
-  document.title = CFB ? 'CFB Edge Board' : document.title;
+  document.body.classList.toggle('cfb', CFB); document.body.classList.toggle('nba', NBA);
+  $('#sportName').textContent = CFB ? 'College' : NBA ? 'NBA' : 'NFL';
+  document.title = CFB ? 'CFB Edge Board' : NBA ? 'NBA Edge Board' : document.title;
+  if (NBA) $('#pf-pos').innerHTML = ['', 'G', 'F', 'C'].map(p => `<button class="chip" data-pos="${p}" aria-pressed="${!p}">${p || 'All'}</button>`).join('');
   for (const b of document.querySelectorAll('[data-sport]')) {
     b.setAttribute('aria-pressed', b.dataset.sport === SPORT);
     b.onclick = () => { if (b.dataset.sport === SPORT) return; try { localStorage.setItem('edge-sport', b.dataset.sport); } catch {} location.reload(); };
   }
   if (CFB && ['props', 'tds', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
+  if (NBA && ['tds', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
 });
 function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
 
