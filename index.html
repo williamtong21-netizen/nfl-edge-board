@@ -467,6 +467,24 @@ details.nerd .usage{border-bottom:0}
 .ffwhyl{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}.ffwhyl .ffmu:first-child,.ffwhyl .ffnt:first-child{margin-left:0}
 .ffnx{margin-left:6px}.ffnx i{font-style:normal;font-weight:700}.ffnx i.soft{color:var(--good)}.ffnx i.tough{color:var(--bad)}
 .lgp{flex-wrap:wrap}.lgp>b{margin-right:4px}
+.teamrec{margin:-4px 0 0;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.mucard{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.muside{display:flex;flex-direction:column;min-width:0}.muside.r{text-align:right}.muside small{color:var(--muted);font-size:11.5px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.muside b{font:800 24px var(--f-display);font-variant-numeric:tabular-nums}
+.mumid{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--muted)}.mumid span{color:var(--ink);font-weight:700}
+.mubar{width:100%;height:6px;border-radius:999px;background:var(--line);overflow:hidden}.mubar i{display:block;height:100%;background:var(--good)}
+.guide{margin:0;font-size:13px;padding:7px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}.guide.warn{border-color:var(--accent)}.guide.ok{border-color:var(--good)}
+.rhead{margin:6px 0 0;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.roster{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+.rr{display:grid;grid-template-columns:40px 26px 1fr auto;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid var(--line)}.rr:first-child{border-top:0}
+.rr.up{box-shadow:inset 3px 0 0 var(--good)}.rr.dn{box-shadow:inset 3px 0 0 var(--bad)}
+.rslot{font-size:11px;font-weight:800;text-align:center;padding:4px 0;border-radius:6px;background:var(--surface);border:1px solid var(--line)}
+.rslot.s-QB{color:#e5677a}.rslot.s-RB{color:#2bb5a0}.rslot.s-WR{color:#5aa7e6}.rslot.s-TE{color:#e59a4b}.rslot.s-K{color:#a98be0}.rslot.s-DEF{color:#9aa3ad}
+.rlogo{width:26px}
+.rn{min-width:0;display:flex;flex-direction:column}.rn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rn small{color:var(--muted);font-size:11.5px}
+.rinj{font-size:10px;font-weight:800;color:var(--bad);margin-left:2px}
+.rflag{font-size:11.5px;font-weight:700;margin-top:2px}.rr.up .rflag{color:var(--good)}.rr.dn .rflag{color:var(--bad)}
+.rpts{display:flex;flex-direction:column;align-items:flex-end}.rpts b{font:800 17px var(--f-display);font-variant-numeric:tabular-nums}.rpts small{color:var(--muted);font-size:10.5px}
 .lgswaps{display:flex;flex-direction:column;gap:6px}
 .lgswap{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg);font-size:13.5px}
 .lgswap .lbl{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}.lgswap .lbl.start{color:var(--good)}
@@ -3745,13 +3763,19 @@ const ffVals = () => fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).
 async function lgLoad(id) {
   LG.busy = true; renderLeague();
   try {
-    const [league, rosters, users, vals] = await Promise.all([slp('league/' + id), slp(`league/${id}/rosters`), slp(`league/${id}/users`), ffVals()]);
+    const [league, rosters, users, vals, state] = await Promise.all([slp('league/' + id), slp(`league/${id}/rosters`), slp(`league/${id}/users`), ffVals(), slp('state/nfl').catch(() => null)]);
+    const wkNow = state?.week || vals?.week, mus = wkNow ? await slp(`league/${id}/matchups/${wkNow}`).catch(() => []) : [];
     if (!vals) throw new Error('Player values aren\'t ready yet; they come with the next data sync.');
     LG.league = id; store.set('edge-slp-league', id); LG.src = 'sleeper'; store.set('edge-lg-src', 'sleeper');
     const handle = Object.fromEntries(users.map(u => [u.user_id, u.display_name || 'Team']));
     LG.data = lgBuild({ rec: league.scoring_settings?.rec ?? 0, te: league.scoring_settings?.bonus_rec_te || 0, n: league.total_rosters },
-      league.roster_positions || [], rosters.map(r => ({ id: r.roster_id, owner: r.owner_id, name: handle[r.owner_id] || `Team ${r.roster_id}`, players: r.players || [], starters: r.starters || [] })),
+      league.roster_positions || [], rosters.map(r => ({ id: r.roster_id, owner: r.owner_id, name: handle[r.owner_id] || `Team ${r.roster_id}`, players: r.players || [], starters: r.starters || [],
+        reserve: r.reserve || [], rec: { w: r.settings?.wins || 0, l: r.settings?.losses || 0, t: r.settings?.ties || 0, pf: (r.settings?.fpts || 0) + (r.settings?.fpts_decimal || 0) / 100 } })),
       vals, t => t.owner === (LG.uid || store.get('edge-slp-uid')));
+    LG.data.positions = league.roster_positions || [];
+    const mine = mus.find(m => m.roster_id === LG.data.me?.id), opp = mine && mus.find(m => m.matchup_id === mine.matchup_id && m.roster_id !== mine.roster_id);
+    if (mine) LG.data.mu = { week: wkNow, opp: opp?.roster_id, pts: { ...(mine.players_points || {}), ...(opp?.players_points || {}) }, mine: mine.points, theirs: opp?.points,
+      oppStarters: opp?.starters || [] };
     if (!LG.leagues) LG.leagues = [league];
   } catch (e) { LG.err = e.message; LG.data = null; }
   LG.busy = false; renderLeague();
@@ -3775,7 +3799,7 @@ function lgBuild(sc, positions, rawTeams, vals, isMe) {
   const ppg = pid => { const v = V[pid]; return v ? (v.s + v.r * (sc.rec + (v.pos === 'TE' ? sc.te : 0))) * (v.sf || 1) : 0; };
   const maxGl = Math.max(1, ...Object.values(V).map(v => v.gl || 0));
   const slots = positions.filter(x => ['QB', 'RB', 'WR', 'TE'].includes(x) || FLEX_OK[x]);
-  const teams = rawTeams.map(t => ({ ...t, players: (t.players || []).filter(pid => V[pid]) }));
+  const teams = rawTeams.map(t => ({ ...t, raw: t.players || [], players: (t.players || []).filter(pid => V[pid] && V[pid].pos !== 'K') }));
   // replacement level: the best player nobody would start in a league this size
   const cnt = { QB: 0, RB: 0, WR: 0, TE: 0 };
   for (const x of slots) if (cnt[x] != null) cnt[x]++; else { const ok = FLEX_OK[x]; for (const ps of ok) cnt[ps] += ps === 'TE' ? 0.1 : ps === 'QB' ? 0.8 : (1 - (ok.includes('TE') ? 0.1 : 0) - (ok.includes('QB') ? 0.8 : 0)) / ok.filter(q => q === 'RB' || q === 'WR').length; }
@@ -3872,28 +3896,74 @@ function lgPl(pid, D, wk) {
     : `${lgSched(v)}${v.nx?.length ? `<span class="ffnx">next: ${v.nx.map(([wk, o, f]) => `<i class="${f >= 1.05 ? 'soft' : f <= 0.95 ? 'tough' : ''}">${esc(o)}</i>`).join(' ')}</span>` : ''}`;
   return `<b>${esc(v.n)}</b> <small>${esc(v.pos)} · ${esc(v.tm || 'FA')} · ${w ? `${w.pts.toFixed(1)} this wk${w.tag === 'est' ? '*' : ''}` : `${D.ppg(pid).toFixed(1)}/wk rest of season`}${v.inj && w?.tag !== 'out' ? ` · <span class="neg">${esc(v.inj)}</span>` : ''}${tag}</small>${extra ? `<span class="ffwhyl">${extra}</span>` : ''}`;
 }
+// this week's number for anyone on a roster, including kickers (team's implied points) and defenses (Sleeper ids are team codes)
+function lgWk(pid, D, W, kd) {
+  if (W[pid]) return W[pid];
+  const v = D.V[pid], team = v ? SLP_TM[v.tm] || v.tm : SLP_TM[pid] || pid, x = kd[(v?.pos === 'K' ? 'K-' : 'D-') + team];
+  if (x) return { pts: x.pts, tag: '', x };
+  const played = (S.slate?.games || []).some(g => g.state !== 'pre' && [g.home.abbr, g.away.abbr].includes(team));
+  return { pts: 0, tag: played ? 'played' : 'bye' };
+}
+const lgNm = (pid, D) => D.V[pid]?.n || (/^[A-Z]{2,3}$/.test(pid) ? pid + ' D/ST' : 'Empty');
+const lgPos = (pid, D) => D.V[pid]?.pos || (/^[A-Z]{2,3}$/.test(pid) ? 'DEF' : '');
+const SLOT_LBL = { SUPER_FLEX: 'SF', REC_FLEX: 'W/T', WRRB_FLEX: 'W/R', IDP_FLEX: 'IDP', BN: 'BN', IR: 'IR' };
+function lgRow(pid, slot, D, w, flag) {
+  const v = D.V[pid], x = w?.x, actual = D.mu?.pts?.[pid];
+  const opp = x ? `${x.est ? '' : x.pl?.side === 'home' ? 'vs ' : '@ '}${x.est ? (x.g.home.abbr === x.team.abbr ? 'vs ' : '@ ') : ''}${esc(x.opp.abbr)} · ${esc(new Date(x.g.date).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }))}`
+    : w?.tag === 'bye' ? '<span class="neg">BYE</span>' : w?.tag === 'played' ? 'Final' : w?.tag === 'out' ? '<span class="neg">OUT</span>' : '';
+  const tm = v?.tm || (lgPos(pid, D) === 'DEF' ? pid : '');
+  return `<div class="rr${flag ? ' ' + flag.k : ''}">
+    <span class="rslot s-${esc(lgPos(pid, D) || slot)}">${esc(SLOT_LBL[slot] || slot)}</span>
+    ${tm ? logo(SLP_TM[tm] || tm, 26) : '<span class="rlogo"></span>'}
+    <span class="rn"><b>${esc(lgNm(pid, D))}</b>${v?.inj ? ` <span class="rinj">${esc(v.inj === 'Questionable' ? 'Q' : v.inj === 'Doubtful' ? 'D' : v.inj)}</span>` : ''}
+      <small>${esc(lgPos(pid, D))}${tm ? ' · ' + esc(tm) : ''}${opp ? ' · ' + opp : ''}</small>
+      ${x && !x.est ? `<span class="ffwhyl">${ffNotes(x)}</span>` : ''}${flag ? `<span class="rflag">${flag.t}</span>` : ''}</span>
+    <span class="rpts">${actual != null && w?.tag === 'played' ? `<b>${actual.toFixed(1)}</b><small>final</small>` : `<b>${w ? w.pts.toFixed(1) : '–'}</b><small>proj${w?.tag === 'est' ? '*' : ''}</small>`}</span>
+  </div>`;
+}
 function lgTeamView(D) {
-  const W = lgWeek(D), mine = D.me.players, cur = new Set((D.me.starters || []).filter(pid => D.V[pid]));
-  const live = pid => W[pid].tag !== 'played';
-  const best = lgLineup(mine, D, pid => W[pid].pts), bestSet = new Set(best.out.map(x => x.pid));
-  // start / sit: players the best lineup starts that you don't, paired with your starters it benches (games not played yet)
-  const ins = best.out.filter(x => cur.size && !cur.has(x.pid) && live(x.pid)), outs = [...cur].filter(pid => !bestSet.has(pid) && live(pid));
-  const swaps = ins.map((x, i) => outs[i] ? { in: x.pid, out: outs[i], d: W[x.pid].pts - W[outs[i]].pts } : null).filter(s => s && s.d >= 0.5);
-  const curPts = [...cur].reduce((a, pid) => a + W[pid].pts, 0);
-  // waivers: free agents better than your weakest player at the position
+  const W = lgWeek(D), kd = {}; for (const x of ffRows(D.sc.rec)) if (x.est) kd[x.id] = x;
+  const wk = pid => lgWk(pid, D, W, kd), me = D.me, n = D.teams.length;
+  const nonBn = (D.positions || []).filter(p => p !== 'BN' && p !== 'IR'), starters = (me.starters || []).filter(Boolean);
+  const cur = new Set(starters.filter(pid => D.V[pid]));
+  const live = pid => wk(pid).tag !== 'played';
+  // the model's best lineup (QB / RB / WR / TE / flex slots) vs the one you set
+  const best = lgLineup(me.players, D, pid => wk(pid).pts), bestSet = new Set(best.out.map(x => x.pid));
+  const ins = cur.size ? best.out.filter(x => !cur.has(x.pid) && live(x.pid)) : [], outs = [...cur].filter(pid => !bestSet.has(pid) && live(pid));
+  const flags = {};
+  ins.forEach((x, i) => { const o = outs[i]; if (!o) return; const d = wk(x.pid).pts - wk(o).pts; if (d < 0.5) return;
+    flags[x.pid] = { k: 'up', t: `▲ Start over ${esc(lgNm(o, D))} (+${d.toFixed(1)})` }; flags[o] = { k: 'dn', t: `▼ Bench for ${esc(lgNm(x.pid, D))}` }; });
+  for (const pid of starters) { const w = wk(pid); if (!flags[pid] && (w.tag === 'bye' || w.tag === 'out')) flags[pid] = { k: 'dn', t: w.tag === 'bye' ? '▼ On bye: swap him out' : '▼ Ruled out: swap him out' }; }
+  const sum = ids => ids.reduce((a, pid) => a + (wk(pid).tag === 'played' && D.mu?.pts?.[pid] != null ? D.mu.pts[pid] : wk(pid).pts), 0);
+  // record + standing
+  const stand = D.teams.slice().sort((a, b) => (b.rec?.w || 0) - (a.rec?.w || 0) || (b.rec?.pf || 0) - (a.rec?.pf || 0)), place = stand.findIndex(t => t.id === me.id) + 1;
+  // matchup
+  let mu = '';
+  if (D.mu?.opp != null) {
+    const ot = D.teams.find(t => t.id === D.mu.opp), a = sum(starters), b = sum((D.mu.oppStarters || []).filter(Boolean)), pw = normCdf((a - b) / 31);
+    mu = `<div class="mucard"><div class="muside"><small>You</small><b>${a.toFixed(1)}</b></div>
+      <div class="mumid"><small>Week ${D.mu.week} · projected</small><div class="mubar"><i style="width:${Math.round(pw * 100)}%"></i></div><span>${Math.round(pw * 100)}% to win</span></div>
+      <div class="muside r"><small>${esc(ot?.name || 'Opponent')}</small><b>${b.toFixed(1)}</b></div></div>`;
+  }
+  const order = starters.map((pid, i) => [pid, nonBn[i] || lgPos(pid, D)]);
+  const bench = (me.raw || me.players).filter(pid => !starters.includes(pid) && !(me.reserve || []).includes(pid));
   const owned = new Set(D.teams.flatMap(t => t.players));
-  const myWorst = {}; for (const pid of mine) { const p = D.V[pid].pos; myWorst[p] = Math.min(myWorst[p] ?? 99, D.ppg(pid)); }
-  const fa = Object.keys(D.V).filter(pid => !owned.has(pid) && !/ir|out|sus|pup/i.test(D.V[pid].inj || '') && D.ppg(pid) > (myWorst[D.V[pid].pos] ?? 0) + 0.5)
-    .sort((a, b) => D.ppg(b) - D.ppg(a)).slice(0, 6);
-  const drop = mine.filter(pid => !lgLineup(mine, D).out.some(x => x.pid === pid)).sort((a, b) => lgVal(a, D) - lgVal(b, D) || D.ppg(a) - D.ppg(b))[0];
-  return `<h4>This week</h4>
-    ${cur.size ? `<p class="note">Your set lineup: <b>${curPts.toFixed(1)}</b> projected · best possible: <b>${best.pts.toFixed(1)}</b></p>` : `<p class="note">Best lineup: <b>${best.pts.toFixed(1)}</b> projected points${D.yahoo ? ' (Yahoo doesn\'t share your set lineup)' : ''}</p>`}
-    ${swaps.length ? `<div class="lgswaps">${swaps.map(s => `<div class="lgswap"><span class="lbl start">Start</span>${lgPl(s.in, D, W)}<span class="lbl sit">over</span>${lgPl(s.out, D, W)}<span class="pos">+${s.d.toFixed(1)}</span></div>`).join('')}</div>`
-      : cur.size ? (best.pts - curPts >= 0.05 ? `<p class="note">Your lineup is within ${(best.pts - curPts).toFixed(1)} pts of the best one: the players marked "new" are coin flips.</p>` : '<p class="note pos">Your lineup is already the best one we see.</p>') : ''}
-    <div class="lglu">${best.out.map(x => `<div class="lgp"><i>${esc(x.slot === 'SUPER_FLEX' ? 'SF' : x.slot)}</i>${lgPl(x.pid, D, W)}${cur.size && !cur.has(x.pid) ? ' <span class="lgnew">new</span>' : ''}</div>`).join('')}</div>
-    <p class="note">* no betting lines for him this week: season rate.</p>
-    <h4>Waiver pickups</h4>
-    ${fa.length ? `<div class="lglu">${fa.map(pid => `<div class="lgp"><i>${esc(D.V[pid].pos)}</i>${lgPl(pid, D)}</div>`).join('')}</div>${drop ? `<p class="note">Easiest drop: ${lgPl(drop, D)}</p>` : ''}`
+  const myWorst = {}; for (const pid of me.players) { const p = D.V[pid].pos; myWorst[p] = Math.min(myWorst[p] ?? 99, D.ppg(pid)); }
+  const fa = Object.keys(D.V).filter(pid => D.V[pid].pos !== 'K' && !owned.has(pid) && !/ir|out|sus|pup/i.test(D.V[pid].inj || '') && D.ppg(pid) > (myWorst[D.V[pid].pos] ?? 0) + 0.5)
+    .sort((a, b) => D.ppg(b) - D.ppg(a)).slice(0, 5);
+  const drop = me.players.filter(pid => !lgLineup(me.players, D).out.some(x => x.pid === pid)).sort((a, b) => lgVal(a, D) - lgVal(b, D) || D.ppg(a) - D.ppg(b))[0];
+  const gain = best.pts - [...cur].reduce((a, pid) => a + wk(pid).pts, 0);
+  return `${me.rec ? `<p class="teamrec">${me.rec.w}-${me.rec.l}${me.rec.t ? '-' + me.rec.t : ''} · ${ffOrd(place)} of ${n} · ${me.rec.pf.toFixed(1)} PF</p>` : ''}${mu}
+    ${cur.size ? `<p class="guide ${gain >= 0.5 ? 'warn' : 'ok'}">${gain >= 0.5 ? `Our lineup projects <b>+${gain.toFixed(1)}</b>: see the ▲ / ▼ flags.` : 'Your lineup matches our projections. Nice.'}</p>`
+      : `<p class="guide">Showing our best lineup${D.yahoo ? ' (Yahoo doesn\'t share the one you set)' : ''}.</p>`}
+    <h4 class="rhead">Starters</h4>
+    <div class="roster">${(cur.size ? order : best.out.map(x => [x.pid, x.slot])).map(([pid, slot]) => lgRow(pid, slot, D, wk(pid), flags[pid])).join('')}</div>
+    <h4 class="rhead">Bench</h4>
+    <div class="roster">${(cur.size ? bench : me.players.filter(pid => !bestSet.has(pid))).sort((a, b) => wk(b).pts - wk(a).pts).map(pid => lgRow(pid, 'BN', D, wk(pid), flags[pid])).join('')}</div>
+    ${(me.reserve || []).length ? `<h4 class="rhead">IR</h4><div class="roster">${me.reserve.map(pid => lgRow(pid, 'IR', D, wk(pid))).join('')}</div>` : ''}
+    <p class="note">proj = this week's points from the betting lines + our model · * no lines for him this week: season rate. Tags: matchup, teammate out, game script, weather, TD chance.</p>
+    <h4 class="rhead">Waiver pickups</h4>
+    ${fa.length ? `<div class="roster">${fa.map(pid => `<div class="rr"><span class="rslot s-${esc(D.V[pid].pos)}">${esc(D.V[pid].pos)}</span>${logo(SLP_TM[D.V[pid].tm] || D.V[pid].tm, 26)}<span class="rn"><b>${esc(D.V[pid].n)}</b><small>${esc(D.V[pid].tm || 'FA')} · ${lgSched(D.V[pid])}</small></span><span class="rpts"><b>${D.ppg(pid).toFixed(1)}</b><small>/wk ROS</small></span></div>`).join('')}</div>${drop ? `<p class="note">Easiest drop: <b>${esc(lgNm(drop, D))}</b> (${D.ppg(drop).toFixed(1)}/wk)</p>` : ''}`
       : '<p class="note">No free agent beats your weakest player at his position right now.</p>'}`;
 }
 function lgTradeView(D, rank, my, need) {
@@ -3941,7 +4011,7 @@ function renderLeague() {
   const need = LG.need || ['RB', 'WR', 'TE', 'QB'].sort((a, b) => my[b] - my[a])[0];
   const myRow = rows.find(r => r.t.id === D.me.id), lgRank = rows.slice().sort((a, b) => b.pts - a.pts).findIndex(r => r.t.id === D.me.id) + 1;
   box.innerHTML = `<section class="lgcard">
-    <div class="lghead"><h3>${esc(D.me.name)}</h3><small>${n}-team league · ${D.sc.rec === 1 ? 'PPR' : D.sc.rec === 0.5 ? 'Half PPR' : 'Standard'}${D.yahoo ? ' · Yahoo' : ''} · roster strength ${ffOrd(lgRank)} of ${n} (${myRow.pts.toFixed(1)} pts/wk)</small>
+    <div class="lghead"><h3>${esc(D.me.name)}</h3><small>${n}-team league · ${D.sc.rec === 1 ? 'PPR' : D.sc.rec === 0.5 ? 'Half PPR' : 'Standard'}${D.yahoo ? ' · Yahoo' : ''}${FF.view === 'trades' ? ` · roster strength ${ffOrd(lgRank)} of ${n} (${myRow.pts.toFixed(1)} pts/wk)` : ''}</small>
       <button class="btn small" data-lgout>Switch</button></div>
     ${FF.view === 'team' ? lgTeamView(D) : lgTradeView(D, rank, my, need)}
   </section>`;

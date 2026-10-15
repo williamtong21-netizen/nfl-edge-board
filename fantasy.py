@@ -45,13 +45,13 @@ def prop_points(pl):
 
 
 def sleeper_players(cache_dir):
-    p = os.path.join(cache_dir, "sleeper_players_nfl2.json")
+    p = os.path.join(cache_dir, "sleeper_players_nfl3.json")
     if os.path.exists(p) and time.time() - os.path.getmtime(p) < 20 * 3600:
         return json.load(open(p, encoding="utf-8"))
     with urlopen(Request("https://api.sleeper.app/v1/players/nfl", headers={"User-Agent": "edge-board"}), timeout=120) as r: d = json.loads(r.read())
     slim = {k: {"n": v.get("full_name") or f'{v.get("first_name", "")} {v.get("last_name", "")}'.strip(), "pos": v.get("position"), "tm": v.get("team"),
                 "gsis": (v.get("gsis_id") or "").strip() or None, "inj": v.get("injury_status"), "yid": str(v["yahoo_id"]) if v.get("yahoo_id") else None}
-            for k, v in d.items() if v.get("position") in ("QB", "RB", "WR", "TE") and v.get("active")}
+            for k, v in d.items() if v.get("position") in ("QB", "RB", "WR", "TE", "K") and v.get("active")}
     json.dump(slim, open(p, "w", encoding="utf-8"))
     return slim
 
@@ -121,6 +121,9 @@ def build(props, season, week, out_dir, cache_dir):
         if sid in out or not v["tm"]: continue
         tw = this_week.get((norm(v["n"]), v["tm"]))
         if tw: out[sid] = {"n": v["n"], "pos": v["pos"], "tm": v["tm"], "s": round(tw[0], 2), "r": round(tw[1], 2), "g": 0, "inj": v["inj"], **sched_of(v["tm"], v["pos"])}
+    # kickers: names and teams only (the page projects them from team totals)
+    for sid, v in sp.items():
+        if v["pos"] == "K" and v["tm"]: out[sid] = {"n": v["n"], "pos": "K", "tm": v["tm"], "s": 0, "r": 0, "g": 0, "inj": v["inj"]}
     doc = {"season": season, "week": week, "players": out}
     with open(os.path.join(out_dir, "ff_values.json"), "w", encoding="utf-8") as fh: json.dump(doc, fh, separators=(",", ":"))
     return len(out)
