@@ -79,6 +79,26 @@ def parse_team(c):
             "inj": [], "stats": None, "form": []}
 
 
+def past_lines(props, rd, season):
+    """Each player's prop line in past games and what he did, so streaks are judged against the line he actually had then
+    (books move lines every week). Weeks 1-4 were seeded from Kalshi's line priced nearest 50/50; from week 5 on, the book
+    line frozen at kickoff (readings) is added every sync. Attached as pl["past"][market] = [[week, line, actual], ...]."""
+    from analytics import norm
+    path = os.path.join(DATA, f"past_lines_{season}.json")
+    pl_all = load(f"past_lines_{season}.json", {"season": season, "players": {}}).get("players", {})
+    for r in (rd.get("games") or {}).values():
+        wk = r.get("w")
+        for x in r.get("props") or []:
+            if x.get("a") is None or x["m"] == "Anytime TD": continue
+            pl_all.setdefault(norm(x["n"]), {}).setdefault(x["m"], {})[str(wk)] = [x["l"], x["a"], "b"]   # book line beats the Kalshi stand-in
+    save(path, {"season": season, "players": pl_all})
+    for rows in props.values():
+        for pl in rows:
+            mine = pl_all.get(norm(pl["n"])) or {}
+            past = {m: sorted(([int(w), v[0], v[1]] for w, v in mine[m].items()), reverse=True)[:6] for m in {pr["m"] for pr in pl["props"]} if m in mine}
+            if past: pl["past"] = past
+
+
 def news_outs(games):
     """Players a headline just ruled out (news.py, every 20 minutes) before ESPN's injury status caught up: mark them Out so
     the lineup model moves their targets / carries now. Only while ESPN still has them Questionable / Doubtful (or not
@@ -794,6 +814,8 @@ def main():
         graded = grades.grade(games, sums, rd)
         grades.freeze(games, props, rd)
         save(os.path.join(DATA, f"readings_{season}.json"), rd)
+        try: past_lines(props, rd, season)   # each player's line in past games (not today's line), for "over / under his line then"
+        except Exception as e: print("past lines failed", e, file=sys.stderr)
         report = grades.report(rd, res)
         # touchdown backtest: once a week is final, grade our TD model, Kalshi's prices and the app's blend (free, ~2 min a week)
         try:

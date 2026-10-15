@@ -749,6 +749,8 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 .sepwrap{overflow-x:auto}.sepwrap svg{width:100%;max-width:820px;min-width:560px;height:auto;display:block;margin:0 auto}
 .sepq{font:800 12px var(--f-display);letter-spacing:1px;fill:var(--muted)}.sept{font:10px var(--f-body);fill:var(--muted)}.sepl{font:600 11px var(--f-body);fill:var(--muted)}
 .sepn{font:600 9.5px var(--f-body);fill:var(--ink)}.sepdot[data-player]{cursor:pointer}.sepdot[data-player]:hover circle{r:6.5}
+.lastn{display:flex;gap:6px;margin:0 0 8px}.lastn button{border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;padding:4px 11px;font:700 12.5px var(--f-body);cursor:pointer}
+.lastn button[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:var(--on-good)}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1974,6 +1976,7 @@ function renderSepChart(box) {
     <div class="sepwrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Separation versus targets per snap">${quads}${axes}${dots}</svg></div>
     <p class="note">Separation is from the NFL's Next Gen Stats; targets per snap stands in for targets per route run (routes aren't in free data). ${open.length ? `Getting open without the volume: <b>${open.map(esc).join(', ')}</b>.` : ''} Heads up: tested on 2025, separation didn't predict props beyond what target share already says, so this is for reading the field, not a betting signal.</p>`;
 }
+document.addEventListener('click', e => { const b = e.target.closest('[data-lastn]'); if (b) { PF.lastN = +b.dataset.lastn; renderProps(); } });
 document.addEventListener('click', e => { const b = e.target.closest('[data-seppos]'); if (b) { SEP.pos = b.dataset.seppos; renderTeams(); } });
 function renderPlayers() {
   const box = $('#players'); if (!box) return;
@@ -3545,7 +3548,7 @@ const PROP_STATS = { 'Pass yds': ['passingYards'], 'Pass TD': ['passingTouchdown
 const PROP_ORDER = Object.keys(PROP_STATS);
 const OPP_STAT = m => /Rush yds|Carries/.test(m) ? ['rushingYardsPerGameAllowed', 'rush yds'] : /\+/.test(m) ? ['yardsPerGameAllowed', 'yds']
   : m === 'Anytime TD' ? ['totalPointsPerGameAllowed', 'pts'] : ['passingYardsPerGameAllowed', 'pass yds'];
-const PF = { game: '', market: '', pos: '', sort: 'game', all: false, open: new Set(), games: new Set(), players: new Set() };
+const PF = { lastN: 5, game: '', market: '', pos: '', sort: 'game', all: false, open: new Set(), games: new Set(), players: new Set() };
 // last-10 drop-down for a prop: bars for each game (oldest left), the line drawn across, and a game table
 // the reasons behind a prop read, for the drop-down's "Why" button: our number vs the market, then the same plus / minus
 // notes the parlay grader uses (matchup, game script, lineup changes, weather, recent form)
@@ -3563,6 +3566,10 @@ function propDrop(pl, pr, g, over) {
   let games = [];
   try { games = (page ? propGames(page, pl, pr, g) : propRow(pl, pr, g).games.slice().reverse().map(x => ({ y: x.r.y, w: x.r.w, o: x.r.o, h: x.r.at === 'vs' ? 1 : 0, snap: x.r.us?.snap, v: x.v }))).slice(0, 10); } catch (e) { games = []; }
   if (!games.length) return `<div class="tdlog pdrop"><p class="note">No game log yet for this stat.</p></div>`;
+  // last 5 by default; 7 and 10 a tap away
+  const have = games.length, nShow = Math.min(PF.lastN || 5, have);
+  games = games.slice(0, nShow);
+  const nPick = `<div class="lastn" role="group" aria-label="Games shown">${[5, 7, 10].filter(n => n <= Math.max(5, have)).map(n => `<button data-lastn="${n}" aria-pressed="${n === (PF.lastN || 5)}">Last ${n}</button>`).join('')}</div>`;
   const hitOf = v => over ? v > L : v < L, nHit = games.filter(r => hitOf(r.v)).length;
   const gs = [...games].reverse(), max = Math.max(L * 1.25, ...gs.map(r => r.v), 1);
   const W = 360, H = 156, Lm = 30, B = 32, T = 22, bw = (W - Lm - 8) / gs.length, y = v => T + (H - T - B) * (1 - Math.max(0, v) / max);
@@ -3581,11 +3588,17 @@ function propDrop(pl, pr, g, over) {
     ${bars}
     ${td ? '' : `<line x1="${Lm}" x2="${W - 4}" y1="${y(L).toFixed(1)}" y2="${y(L).toFixed(1)}" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="5 3"/><text x="${W - 6}" y="${(y(L) - 4).toFixed(1)}" text-anchor="end" font-size="10" font-weight="700" fill="var(--accent)">line ${L}</text>`}</svg>`;
   const cur = games[0]?.y;
-  const rows = games.map(r => `<tr><td>W${r.w} ${r.h ? 'vs' : '@'} ${esc(r.o || '')}${r.y !== cur ? ` <span class="note">'${String(r.y).slice(2)}</span>` : ''}</td>
-    <td>${fmt(r.v)}</td><td class="${hitOf(r.v) ? 'hit' : 'miss'}">${td ? (r.v > 0 ? 'Scored' : '–') : r.v === L ? 'Push' : (r.v > L ? 'Over' : 'Under')}</td><td>${r.snap != null ? Math.round(r.snap * 100) + '%' : '–'}</td></tr>`).join('');
-  return `<div class="tdlog pdrop">
+  // the line he actually had in each past game (books move lines every week); results are graded against that line
+  const then = Object.fromEntries((pl.past?.[pr.m] || []).map(x => [x[0], x[1]])), season = S.slate?.season;
+  const lineOf = r => !td && r.y === season && then[r.w] != null ? then[r.w] : null;
+  const vsThen = games.filter(r => lineOf(r) != null && r.v !== lineOf(r)), overThen = vsThen.filter(r => r.v > lineOf(r)).length;
+  const rows = games.map(r => { const lt = lineOf(r), ref = lt ?? L;
+    return `<tr><td>W${r.w} ${r.h ? 'vs' : '@'} ${esc(r.o || '')}${r.y !== cur ? ` <span class="note">'${String(r.y).slice(2)}</span>` : ''}</td>
+    <td>${fmt(r.v)}</td>${td ? '' : `<td>${lt != null ? lt : `<span class="note" title="No saved line for this game; compared with today's line">${L}*</span>`}</td>`}<td class="${td ? (r.v > 0 ? 'hit' : 'miss') : (r.v > ref) === over ? 'hit' : r.v === ref ? '' : 'miss'}">${td ? (r.v > 0 ? 'Scored' : '–') : r.v === ref ? 'Push' : (r.v > ref ? 'Over' : 'Under')}</td><td>${r.snap != null ? Math.round(r.snap * 100) + '%' : '–'}</td></tr>`; }).join('');
+  return `<div class="tdlog pdrop">${nPick}
     <p class="note" style="margin:0 0 4px"><b>${td ? (over ? 'Scored' : 'Held out') : over ? 'Over' : 'Under'} ${td ? '' : L + ' '}in ${nHit} of last ${games.length}</b>${pr.proj != null && !td ? ` · we project <b>${pr.proj}</b>` : ''}${pr.alt?.length ? ` · ${pr.alt.length} alt lines on the player page` : ''}</p>
-    ${svg}<div class="tbl"><table><tr><th>Game</th><th>${esc(pr.m)}</th><th>Result</th><th>Snap</th></tr>${rows}</table></div>
+    ${vsThen.length >= 2 ? `<p class="note" style="margin:2px 0 4px">Against the line he actually had: <b>over in ${overThen} of ${vsThen.length}</b> this season (the chart compares with today's line).</p>` : ''}
+    ${svg}<div class="tbl"><table><tr><th>Game</th><th>${esc(pr.m)}</th>${td ? '' : '<th>Line then</th>'}<th>Result</th><th>Snap</th></tr>${rows}</table></div>
     ${propWhy(pl, pr, g, over, td)}
     <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${g.id}|prop|over|${esc(pl.id)}|${esc(pr.m)}">+ Parlay ${td ? 'Yes' : 'Over'}</button>${td ? '' : `<button class="addp" data-addleg="${g.id}|prop|under|${esc(pl.id)}|${esc(pr.m)}">+ Parlay Under</button>`}
       <button class="btn small" data-player="${esc(pl.id)}" data-openprop="${esc(pr.m)}">Player page &amp; alt lines →</button></div></div>`;
@@ -3689,7 +3702,7 @@ function renderProps() {
           <span class="lean ${has ? (td ? (x.pr.pOver >= 0.33 ? 'o' : '') : over ? 'o' : 'u') : ''}">${has ? `${td ? 'Scores' : over ? 'O' : 'U'} ${pct}%` : '–'}</span>
           <span class="meta"><span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span class="sec">proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
             ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
-            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide last 10 ▴' : 'Last 10 ▾'}</span></span>
+            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide games ▴' : `Last ${PF.lastN || 5} ▾`}</span></span>
         </button>${isOpen ? propDrop(pl, x.pr, g, has ? over : true) : ''}`;
       }).join('')}
       ${props.length > 3 && !PF.players.has(pl.id) ? `<button class="showmore" data-pplayer="${esc(pl.id)}" style="margin:4px 10px 8px;width:auto">+${props.length - 3} more props</button>` : ''}
