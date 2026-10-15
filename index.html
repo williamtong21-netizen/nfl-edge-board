@@ -897,6 +897,52 @@ main>[id^="view-"]:not([hidden]){animation:edgein .22s ease-out}
 *{scrollbar-color:#253242 transparent}
 @media (prefers-reduced-motion:reduce){main>[id^="view-"]:not([hidden]),.ffcardwrap,.pdrop,.ffwhy,.livedot,.live-dot,.ldot{animation:none}.btn:active,.chip:active{transform:none}}
 
+/* ============================================================ sportsbook-pro, part 2: bottom tab bar, headshots, team colors */
+.hs{position:relative;flex:none;display:inline-block;border-radius:50%;background:radial-gradient(circle at 50% 30%,#2a3646,#121820);overflow:visible;box-shadow:0 0 0 1px rgba(255,255,255,.1),0 4px 10px rgba(0,0,0,.4)}
+.hs img{width:100%;height:100%;object-fit:cover;object-position:top;border-radius:50%}
+.hsb{position:absolute;right:-4px;bottom:-3px;border-radius:50%;background:#0b1016;padding:1px;box-shadow:0 0 0 1px rgba(255,255,255,.12);line-height:0}
+.hsb img{display:block}
+.hsdef{display:grid;place-items:center;background:rgba(255,255,255,.05)}
+.pcard-h{gap:10px!important;align-items:center}
+.rr{grid-template-columns:40px 40px 1fr auto!important}.drboard .rr{grid-template-columns:26px 54px 1fr auto!important}
+.mc{grid-template-columns:34px 1fr auto!important;gap:0 8px}.mc .hs{grid-row:1/3}.mc b,.mc small{grid-column:2}.mc .mp{grid-column:3!important}
+.mc.r{grid-template-columns:auto 1fr 34px!important}.mc.r .hs{grid-column:3}.mc.r b,.mc.r small{grid-column:2}.mc.r .mp{grid-column:1!important}
+.ffch .hs{box-shadow:0 0 0 2px rgba(46,220,132,.5),0 6px 16px rgba(0,0,0,.5)}
+/* team colors: every game card lit by its two teams, the spotlight gets a full backdrop */
+.card{border-top:0!important}
+.card-top{background:linear-gradient(90deg,color-mix(in srgb,var(--ta) 55%,transparent),transparent 40%,transparent 60%,color-mix(in srgb,var(--th) 55%,transparent))!important;color:#fff!important;padding-block:9px!important}
+.card::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--ta),var(--th));opacity:.9}
+.spot{position:relative}
+.spot::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(70% 60% at 0% 0%,color-mix(in srgb,var(--ta,#2edc84) 50%,transparent),transparent 72%),radial-gradient(70% 60% at 100% 0%,color-mix(in srgb,var(--th,#3ba7ff) 50%,transparent),transparent 72%)}
+.spot>*{position:relative}
+/* phones: a sportsbook-style bottom tab bar with icons */
+@media (max-width:760px){
+  header{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(5,8,12,.97)!important}   /* a blurred header would trap the fixed tab bar inside it */
+  nav[role="tablist"]{position:fixed!important;left:0;right:0;bottom:0;z-index:40;display:flex!important;gap:0!important;justify-content:flex-start;overflow-x:auto;scrollbar-width:none;
+    background:rgba(6,9,13,.86)!important;backdrop-filter:saturate(170%) blur(18px);-webkit-backdrop-filter:saturate(170%) blur(18px);border-top:1px solid rgba(255,255,255,.08);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))!important;margin:0!important;max-width:none!important}
+  nav[role="tablist"]::-webkit-scrollbar{display:none}
+  nav[role="tablist"] button{flex:0 0 auto;min-width:64px;display:flex!important;flex-direction:column;align-items:center;gap:3px;padding:6px 8px!important;font-size:10.5px!important;letter-spacing:.6px!important;
+    border:0!important;border-radius:12px!important;opacity:.7}
+  nav[role="tablist"] button::before{content:"";width:22px;height:22px;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
+  nav[role="tablist"] button[aria-selected="true"]{background:rgba(46,220,132,.14)!important;color:#2edc84!important;box-shadow:none!important;opacity:1}
+  nav[role="tablist"] .navsep{display:none}
+  main{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))!important}
+  .slipbtn{bottom:calc(86px + env(safe-area-inset-bottom,0px))!important}
+}
+nav [data-tab="picks"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l3 6.6 7.2.7-5.4 4.8 1.6 7.1L12 17.6 5.6 21.2l1.6-7.1L1.8 9.3 9 8.6z'/%3E%3C/svg%3E")}
+nav [data-tab="board"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 4h18v4H3zm0 6h18v4H3zm0 6h18v4H3z'/%3E%3C/svg%3E")}
+nav [data-tab="live"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 2a10 10 0 100 20 10 10 0 000-20zm0 2a8 8 0 110 16 8 8 0 010-16z'/%3E%3C/svg%3E")}
+nav [data-tab="props"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='7' r='4.5'/%3E%3Cpath d='M3 22c0-5 4-8 9-8s9 3 9 8z'/%3E%3C/svg%3E")}
+nav [data-tab="fantasy"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 2h12v3h4v3a5 5 0 01-5 5h-.5A6 6 0 0113 16.9V19h4v3H7v-3h4v-2.1A6 6 0 017.5 13H7a5 5 0 01-5-5V5h4zm0 5H4v1a3 3 0 002 2.8zm12 0v3.8A3 3 0 0020 8V7z'/%3E%3C/svg%3E")}
+nav [data-tab="tds"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20.5 3.5C14 2 6.9 4.3 4 9.5 2.6 12 2.8 16.4 3.5 20.5 7.6 21.2 12 21.4 14.5 20 19.7 17.1 22 10 20.5 3.5zM9 16.4l-1.4-1.4 7.4-7.4 1.4 1.4z'/%3E%3C/svg%3E")}
+nav [data-tab="parlay"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l10 5-10 5L2 7zm-7.6 8.8L12 14.6l7.6-3.8L22 12l-10 5L2 12zm0 5L12 19.6l7.6-3.8L22 17l-10 5L2 17z'/%3E%3C/svg%3E")}
+nav [data-tab="bets"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 6a2 2 0 012-2h14a2 2 0 012 2v3a3 3 0 000 6v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3a3 3 0 000-6zm6 1v2h2V7zm0 4v2h2v-2zm0 4v2h2v-2z'/%3E%3C/svg%3E")}
+nav [data-tab="shop"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 12V3h9l11 11-9 9zm5-6.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z'/%3E%3C/svg%3E")}
+nav [data-tab="lineups"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 3h18v18H3zm2 2v6h14V5zm0 8v6h14v-6zm6-6h2v2h-2zm0 8h2v2h-2z'/%3E%3C/svg%3E")}
+nav [data-tab="players"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='8' cy='8' r='3.5'/%3E%3Ccircle cx='17' cy='9' r='3'/%3E%3Cpath d='M1 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5zm14.5 0c0-2.2-.7-4-2-5.3 1.1-.5 2.3-.7 3.5-.7 3.6 0 6 2.2 6 6z'/%3E%3C/svg%3E")}
+nav [data-tab="teams"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l9 3v6c0 5.5-3.8 10-9 11-5.2-1-9-5.5-9-11V5z'/%3E%3C/svg%3E")}
+
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1506,7 +1552,7 @@ function renderSpot() {
   const wpLabel = isLive && L?.wp != null ? 'Live win chance' : 'Win chance (betting market)';
   const fav = o?.hs != null ? (o.hs < 0 ? `${nick(H)} by ${-o.hs}` : o.hs > 0 ? `${nick(A)} by ${o.hs}` : 'Pick ’em') : null;
   const top = g.flags.slice().sort((a, b) => b.w - a.w).slice(0, 3);
-  box.innerHTML = `<div class="spot">
+  box.innerHTML = `<div class="spot" style="--ta:${teamColor(A)};--th:${teamColor(H)}">
       <div class="spot-top"><span class="${isLive ? 'live' : ''}">${isLive ? '<span class="livedot"></span>Live now' : 'Up next'}</span><span>${esc(g.venue || '')}${g.indoor ? ' · Indoors' : g.wx ? ` · ${Math.round(g.wx.temp)}°F, wind ${Math.round(g.wx.wind)} mph` : ''}</span></div>
       <div class="spot-main">${side(A, 'away')}${mid}${side(H, 'home')}</div>
       ${o ? `<div class="pills">${fav ? `<span class="pill"><i>Favorite</i>${esc(fav)}</span>` : ''}${o.t != null ? `<span class="pill"><i>Total</i>${o.t} pts</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected score</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}${COL && g.ours ? `<span class="pill" title="Info only: matched Vegas in 2023–25 tests but didn't beat it"><i>Our number</i>${Math.abs(g.ours.m) < 0.5 ? 'Pick ’em' : `${esc((g.ours.m >= 0 ? H : A).abbr)} by ${(Math.round(Math.abs(g.ours.m) * 2) / 2).toFixed(1)}`} · ${(Math.round(g.ours.t * 2) / 2).toFixed(1)}</span>` : ''}</div>` : ''}
@@ -3852,7 +3898,7 @@ function renderFantasy() {
   const fmt = v => v >= 10 ? v.toFixed(0) : v.toFixed(1), tierLbl = { start: 'Start', flex: 'Flex', sit: 'Sit' };
   box.innerHTML = `<div class="fflist">${rows.slice(0, 150).map((x, i) => { const k = x.id + '|' + x.g.id, open = FF.open.has(k), sd = x.pts * FF_SD[x.pos];
     return `<button class="ffrow" data-ffopen="${esc(k)}" aria-expanded="${open}" style="--tc:${teamColor(x.team)}">
-      <span class="ffrk">${i + 1}</span>${logo(x.team.abbr, 22)}
+      <span class="ffrk">${i + 1}</span>${x.est ? logo(x.team.abbr, 34) : espnHead(x.id, x.team.abbr, 38)}
       <span class="ffn"><b>${esc(x.n)}</b><small>${esc(x.pos)}${x.rk} · ${x.est ? 'vs' : x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${esc(kick(x.g))}${x.inj ? ` · <span class="neg">${esc(x.inj.s)}</span>` : ''}</small>
         <small>range ${fmt(Math.max(0, x.pts - 0.84 * sd))}–${fmt(x.pts + 0.84 * sd)} ${ffNotes(x) || ffMatchup(x)}</small></span>
       <span class="fftier ${x.tier}">${tierLbl[x.tier]}</span><span class="ffpts">${x.pts.toFixed(1)}</span></button>
@@ -4113,7 +4159,7 @@ function lgRow(pid, slot, D, w, flag) {
   const tm = v?.tm || (lgPos(pid, D) === 'DEF' ? pid : '');
   return `<div class="rr${flag ? ' ' + flag.k : ''}">
     <span class="rslot s-${esc(lgPos(pid, D) || slot)}">${esc(SLOT_LBL[slot] || slot)}</span>
-    ${tm ? logo(SLP_TM[tm] || tm, 26) : '<span class="rlogo"></span>'}
+    ${slpHead(pid, SLP_TM[tm] || tm, 40)}
     <span class="rn"><b ${D.V[pid] ? `data-ffcard="${pid}" class="cardlink"` : ''}>${esc(lgNm(pid, D))}</b>${v?.inj ? ` <span class="rinj">${esc(v.inj === 'Questionable' ? 'Q' : v.inj === 'Doubtful' ? 'D' : v.inj)}</span>` : ''}
       <small>${esc(lgPos(pid, D))}${tm ? ' · ' + esc(tm) : ''}${opp ? ' · ' + opp : ''}</small>
       ${x && !x.est ? `<span class="ffwhyl">${ffNotes(x)}${w?.bon >= 0.5 ? `<span class="ffnt up">+${w.bon.toFixed(1)} bonus</span>` : ''}</span>` : ''}${flag ? `<span class="rflag">${flag.t}</span>` : ''}</span>
@@ -4211,7 +4257,7 @@ function ffCard(pid) {
       advice = worst && ros > D.ppg(worst) + 0.5 ? `<b class="pos">Pick him up</b>: ${ros.toFixed(1)}/wk beats ${esc(D.V[worst].n)} (${D.ppg(worst).toFixed(1)}).` : `Free agent, but not better than what you have at ${esc(v.pos)}.`; }
     else advice = `On <b>${esc(own.name)}</b>. <button class="btn small" data-lgtarget="${esc(String(own.id))}|${pid}">Trade for him →</button>`;
   }
-  return `<div class="ffcard"><div class="ffch">${logo(SLP_TM[v.tm] || v.tm, 40)}<div><h3>${esc(v.n)}</h3><small>${esc(v.pos)} · ${esc(v.tm || 'FA')}${v.inj ? ` · <span class="neg">${esc(v.inj)}</span>` : ''} · ${own ? (mine ? 'your team' : esc(own.name)) : D ? 'free agent' : ''}</small></div><button class="btn small" data-ffclose>✕</button></div>
+  return `<div class="ffcard"><div class="ffch">${slpHead(pid, SLP_TM[v.tm] || v.tm, 64)}<div><h3>${esc(v.n)}</h3><small>${esc(v.pos)} · ${esc(v.tm || 'FA')}${v.inj ? ` · <span class="neg">${esc(v.inj)}</span>` : ''} · ${own ? (mine ? 'your team' : esc(own.name)) : D ? 'free agent' : ''}</small></div><button class="btn small" data-ffclose>✕</button></div>
     ${advice ? `<p class="guide">${advice}</p>` : ''}
     <div class="ffstats"><div><small>This week</small><b>${w && w.tag !== 'est' ? w.pts.toFixed(1) : x ? x.pts.toFixed(1) : '–'}</b><span>${x ? `${x.pl?.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)}` : w?.tag || ''}</span></div>
       <div><small>Rest of season</small><b>${ros.toFixed(1)}</b><span>per game</span></div>
@@ -4233,7 +4279,7 @@ function lgMatchupView(D) {
   const val = pid => { const w = wk(pid), a = D.mu.pts?.[pid]; return w.tag === 'played' && a != null ? [a, 'final'] : D.mu.live && a != null && a > 0 ? [a, 'live'] : [w.pts, 'proj']; };
   const tot = ids => ids.reduce((a, pid) => a + val(pid)[0], 0), A = tot(mine), B = tot(theirs), pw = normCdf((A - B) / 31);
   const cell = (pid, side) => { if (!pid) return `<div class="mc ${side}"><small>Empty</small></div>`; const [q, k] = val(pid), w = wk(pid);
-    return `<div class="mc ${side}"><b data-ffcard="${D.V[pid] ? pid : ''}" class="${D.V[pid] ? 'cardlink' : ''}">${esc(lgNm(pid, D).replace(/^(\S)\S*\s+(?=\S)/, '$1. '))}</b><small>${esc(lgPos(pid, D))} · ${w.x ? `${esc(w.x.opp.abbr)}` : w.tag === 'bye' ? 'BYE' : w.tag === 'played' ? 'Final' : ''}</small><span class="mp ${k}">${q.toFixed(1)}</span></div>`; };
+    return `<div class="mc ${side}">${slpHead(pid, SLP_TM[D.V[pid]?.tm] || D.V[pid]?.tm, 34)}<b data-ffcard="${D.V[pid] ? pid : ''}" class="${D.V[pid] ? 'cardlink' : ''}">${esc(lgNm(pid, D).replace(/^(\S)\S*\s+(?=\S)/, '$1. '))}</b><small>${esc(lgPos(pid, D))} · ${w.x ? `${esc(w.x.opp.abbr)}` : w.tag === 'bye' ? 'BYE' : w.tag === 'played' ? 'Final' : ''}</small><span class="mp ${k}">${q.toFixed(1)}</span></div>`; };
   const edge = slots.map((sl, i) => (val(mine[i] || '')[0] || 0) - (val(theirs[i] || '')[0] || 0));
   const big = edge.map((d, i) => [d, i]).sort((a, b) => a[0] - b[0]);
   return `<div class="mucard"><div class="muside"><small>You</small><b>${A.toFixed(1)}</b></div>
@@ -4265,7 +4311,7 @@ function lgWaiverView(D) {
   if (FF.wpos === 'DEF') return `<div class="row">${['', 'QB', 'RB', 'WR', 'TE', 'DEF'].map(p => `<button class="chip" data-wpos="${p}" aria-pressed="${p === FF.wpos}">${p || 'All'}</button>`).join('')}</div>${lgDefStream(D, owned)}`;
   return `<div class="row">${['', 'QB', 'RB', 'WR', 'TE', 'DEF'].map(p => `<button class="chip" data-wpos="${p}" aria-pressed="${p === FF.wpos}">${p || 'All'}</button>`).join('')}</div>
     <div class="roster">${fa.map(pid => { const v = D.V[pid], up = D.ppg(pid) > (myWorst[v.pos] ?? 0) + 0.5, t = tr(v), w = W[pid];
-      return `<button class="rr rrbtn${up ? ' up' : ''}" data-ffcard="${pid}"><span class="rslot s-${esc(v.pos)}">${esc(v.pos)}</span>${logo(SLP_TM[v.tm] || v.tm, 26)}
+      return `<button class="rr rrbtn${up ? ' up' : ''}" data-ffcard="${pid}"><span class="rslot s-${esc(v.pos)}">${esc(v.pos)}</span>${slpHead(pid, SLP_TM[v.tm] || v.tm, 40)}
         <span class="rn"><b>${esc(v.n)}</b>${v.inj ? ` <span class="rinj">${esc(v.inj === 'Questionable' ? 'Q' : v.inj)}</span>` : ''}<small>${esc(v.tm || 'FA')} · ${w ? `${w.pts.toFixed(1)} this wk` : ''} ${lgSched(v)}${Math.abs(t) >= 2 ? `<span class="ffnt ${t > 0 ? 'up' : 'dn'}">${t > 0 ? '▲ trending up' : '▼ cooling'}</span>` : ''}</small>
         ${up ? '<span class="rflag">▲ Better than your weakest ' + esc(v.pos) + '</span>' : ''}</span>
         <span class="rpts"><b>${D.ppg(pid).toFixed(1)}</b><small>/wk ROS</small></span></button>`; }).join('')}</div>
@@ -4359,6 +4405,13 @@ function lgBoot() {
   fetch(DATA_BASE + 'yahoo_league.json', { method: 'HEAD', cache: 'no-cache' }).then(r => { LG.hasYahoo = r.ok; if (!LG.data) renderLeague(); }).catch(() => {});
   if (store.get('edge-lg-src') === 'yahoo') lgYahoo(); else if (LG.user) lgConnect(LG.user);
 }
+
+// player photos with the team logo as a small badge; a broken image just disappears
+const HS_SPORT = NBA ? 'nba' : 'nfl';
+const headshot = (url, abbr, px = 40) => `<span class="hs" style="width:${px}px;height:${px}px"><img src="${esc(url)}" alt="" loading="lazy" onerror="this.remove()">${abbr ? `<span class="hsb">${logo(abbr, Math.round(px * 0.42))}</span>` : ''}</span>`;
+const espnHead = (id, abbr, px) => headshot(`https://a.espncdn.com/combiner/i?img=/i/headshots/${HS_SPORT}/players/full/${encodeURIComponent(id)}.png&w=96&h=70&cb=1`, abbr, px);
+const slpHead = (pid, abbr, px) => /^[A-Z]{2,3}$/.test(pid) ? `<span class="hs hsdef" style="width:${px}px;height:${px}px">${logo(SLP_TM[pid] || pid, Math.round(px * 0.8))}</span>`
+  : headshot(`https://sleepercdn.com/content/nfl/players/thumb/${encodeURIComponent(pid)}.jpg`, abbr, px);
 
 // ------------------------------------------------------------ props
 const PROP_STATS = { 'Pass yds': ['passingYards'], 'Pass TD': ['passingTouchdowns'], 'Completions': ['completions'], 'Pass att': ['passingAttempts'],
@@ -4509,7 +4562,7 @@ function renderProps() {
     lastGame = g.id;
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
     const inj = team.inj.find(i => i.n === pl.n), page = S.players?.[pl.id];
-    return `${head}<article class="pcard" style="--tc:${teamColor(team)}"><div class="pcard-h">${logo(team.abbr, 24)}${NBA ? `<b class="plink">${esc(pl.n)}</b>` : `<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button>`}<span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${byGame ? '' : ` · ${kick(g)}`}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
+    return `${head}<article class="pcard" style="--tc:${teamColor(team)}"><div class="pcard-h">${espnHead(pl.id, team.abbr, 44)}${NBA ? `<b class="plink">${esc(pl.n)}</b>` : `<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button>`}<span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${byGame ? '' : ` · ${kick(g)}`}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
       ${(PF.players.has(pl.id) ? props : props.slice().sort(PF.sort === 'move' && !byGame ? (a, b) => Math.abs(b.move) - Math.abs(a.move) : (a, b) => propStrength(b) - propStrength(a)).slice(0, 3)).map(x => {
         const td = x.pr.m === 'Anytime TD', has = x.pr.pOver != null && x.pr.proj > 0, over = td || (x.pr.pOver ?? 0.5) >= 0.5, pct = Math.round((over ? x.pr.pOver : 1 - x.pr.pOver) * 100);
         const ten = page?.last?.length && PAGE_STAT[x.pr.m] ? page.last.map(r => PAGE_STAT[x.pr.m].reduce((a, k) => a + (r[k] || 0), 0)) : null;
