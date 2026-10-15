@@ -33,6 +33,9 @@ jobs:
           ODDS_API_PROPS: ${{ vars.ODDS_API_PROPS }}
           ODDS_API_TDS: ${{ vars.ODDS_API_TDS || '1' }}
           NTFY_TOPIC: edgeboard-gjmjta8ulgns
+          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
         run: python sync.py
       - name: College football (separate data folder)
         continue-on-error: true

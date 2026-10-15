@@ -42,12 +42,12 @@ def prop_points(pl):
 
 
 def sleeper_players(cache_dir):
-    p = os.path.join(cache_dir, "sleeper_players_nfl.json")
+    p = os.path.join(cache_dir, "sleeper_players_nfl2.json")
     if os.path.exists(p) and time.time() - os.path.getmtime(p) < 20 * 3600:
         return json.load(open(p, encoding="utf-8"))
     with urlopen(Request("https://api.sleeper.app/v1/players/nfl", headers={"User-Agent": "edge-board"}), timeout=120) as r: d = json.loads(r.read())
     slim = {k: {"n": v.get("full_name") or f'{v.get("first_name", "")} {v.get("last_name", "")}'.strip(), "pos": v.get("position"), "tm": v.get("team"),
-                "gsis": (v.get("gsis_id") or "").strip() or None, "inj": v.get("injury_status")}
+                "gsis": (v.get("gsis_id") or "").strip() or None, "inj": v.get("injury_status"), "yid": str(v["yahoo_id"]) if v.get("yahoo_id") else None}
             for k, v in d.items() if v.get("position") in ("QB", "RB", "WR", "TE") and v.get("active")}
     json.dump(slim, open(p, "w", encoding="utf-8"))
     return slim

@@ -877,6 +877,9 @@ def main():
     try:   # rest-of-season fantasy values (Sleeper ids) for the Fantasy tab's league connect + trade finder
         import fantasy; fantasy.build(props, season, week, OUT, DATA)
     except Exception as e: print("fantasy values failed", e, file=sys.stderr)
+    try:   # Yahoo league rosters (only when the Yahoo secrets are set)
+        import yahoo; yahoo.pull(OUT, DATA)
+    except Exception as e: print("yahoo league failed", e, file=sys.stderr)
     try:   # price gaps across books and Kalshi (arbitrage), each leg with how old its price is
         import arbs; gaps = arbs.find(games, props, (odds_meta or {}).get("at"))
     except Exception as e: print("arbs failed", e, file=sys.stderr); gaps = []

@@ -3686,20 +3686,39 @@ async function lgLoad(id) {
       fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null)]);
     if (!vals) throw new Error('Player values aren\'t ready yet; they come with the next data sync.');
     LG.league = id; store.set('edge-slp-league', id);
-    const sc = league.scoring_settings || {}, V = vals.players;
-    const ppg = pid => { const v = V[pid]; return v ? v.s + v.r * ((sc.rec ?? 0) + (v.pos === 'TE' ? sc.bonus_rec_te || 0 : 0)) + (v.pos === 'QB' ? 0 : 0) : 0; };
-    const slots = (league.roster_positions || []).filter(x => ['QB', 'RB', 'WR', 'TE'].includes(x) || FLEX_OK[x]);
     const handle = Object.fromEntries(users.map(u => [u.user_id, u.display_name || 'Team']));
-    const teams = rosters.map(r => ({ id: r.roster_id, owner: r.owner_id, name: handle[r.owner_id] || `Team ${r.roster_id}`, players: (r.players || []).filter(pid => V[pid]) }));
+    LG.data = lgBuild({ rec: league.scoring_settings?.rec ?? 0, te: league.scoring_settings?.bonus_rec_te || 0, n: league.total_rosters },
+      league.roster_positions || [], rosters.map(r => ({ id: r.roster_id, owner: r.owner_id, name: handle[r.owner_id] || `Team ${r.roster_id}`, players: r.players || [] })),
+      vals, t => t.owner === (LG.uid || store.get('edge-slp-uid')));
+    if (!LG.leagues) LG.leagues = [league];
+  } catch (e) { LG.err = e.message; LG.data = null; }
+  LG.busy = false; renderLeague();
+}
+// Yahoo: the sync pulls the league (yahoo_league.json); you pick your team once on this device
+async function lgYahoo() {
+  LG.busy = true; LG.err = ''; renderLeague();
+  try {
+    const [yl, vals] = await Promise.all([fetch(DATA_BASE + 'yahoo_league.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null),
+      fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null)]);
+    if (!yl || !vals) throw new Error('The Yahoo league hasn\'t synced yet.');
+    LG.src = 'yahoo'; store.set('edge-lg-src', 'yahoo');
+    const mine = store.get('edge-yh-team');
+    LG.data = lgBuild({ rec: yl.league.rec || 0, te: 0, n: yl.league.num_teams }, yl.league.slots, yl.teams, vals, t => String(t.id) === mine);
+    LG.data.yahoo = true;
+  } catch (e) { LG.err = e.message; LG.data = null; }
+  LG.busy = false; renderLeague();
+}
+function lgBuild(sc, positions, rawTeams, vals, isMe) {
+    const V = vals.players;
+    const ppg = pid => { const v = V[pid]; return v ? v.s + v.r * (sc.rec + (v.pos === 'TE' ? sc.te : 0)) : 0; };
+    const slots = positions.filter(x => ['QB', 'RB', 'WR', 'TE'].includes(x) || FLEX_OK[x]);
+    const teams = rawTeams.map(t => ({ ...t, players: (t.players || []).filter(pid => V[pid]) }));
     // replacement level: the best player nobody would start in a league this size
     const cnt = { QB: 0, RB: 0, WR: 0, TE: 0 };
     for (const x of slots) if (cnt[x] != null) cnt[x]++; else { const ok = FLEX_OK[x]; for (const ps of ok) cnt[ps] += ps === 'TE' ? 0.1 : ps === 'QB' ? 0.8 : (1 - (ok.includes('TE') ? 0.1 : 0) - (ok.includes('QB') ? 0.8 : 0)) / ok.filter(q => q === 'RB' || q === 'WR').length; }
     const repl = {};
     for (const pos of Object.keys(cnt)) { const xs = Object.keys(V).filter(k => V[k].pos === pos).map(ppg).sort((a, b) => b - a); repl[pos] = xs[Math.round(teams.length * cnt[pos])] ?? 0; }
-    LG.data = { league, teams, V, ppg, slots, repl, me: teams.find(t => t.owner === (LG.uid || store.get('edge-slp-uid'))), week: vals.week };
-    if (!LG.leagues) LG.leagues = [league];
-  } catch (e) { LG.err = e.message; LG.data = null; }
-  LG.busy = false; renderLeague();
+    return { sc, teams, V, ppg, slots, repl, me: teams.find(isMe), week: vals.week };
 }
 // best starting lineup for a roster: fixed slots first, then flex slots, each taking the best eligible player left
 function lgLineup(pids, D) {
@@ -3750,9 +3769,10 @@ function renderLeague() {
     box.innerHTML = `<section class="lgcard"><h3>Your league</h3><p class="note">Connect your Sleeper league to see your team's strengths and a trade finder. Just your Sleeper username: no password.</p>
       <form id="lgForm" class="lgform"><input id="lgUser" placeholder="Sleeper username" autocomplete="off" value="${esc(LG.user)}"><button class="btn primary" ${LG.busy ? 'disabled' : ''}>${LG.busy ? 'Loading…' : 'Connect'}</button></form>
       ${LG.leagues?.length > 1 ? `<div class="row">${LG.leagues.map(l => `<button class="chip" data-lgpick="${l.league_id}">${esc(lgName(l))} · ${l.total_rosters} teams</button>`).join('')}</div>` : ''}
-      ${LG.err ? `<p class="neg">${esc(LG.err)}</p>` : ''}<p class="note">Yahoo leagues: coming next.</p></section>`;
+      ${LG.err ? `<p class="neg">${esc(LG.err)}</p>` : ''}${LG.hasYahoo ? `<p class="note">Or your Yahoo league: <button class="btn small" data-lgyahoo>Fantasy Degens (Yahoo)</button></p>` : ''}</section>`;
     return;
   }
+  if (!D.me && D.yahoo) { box.innerHTML = `<section class="lgcard"><h3>Which team is yours?</h3><div class="row">${D.teams.map(t => `<button class="chip" data-yhteam="${esc(String(t.id))}">${esc(t.name)}</button>`).join('')}</div><button class="btn small" data-lgout>Back</button></section>`; return; }
   if (!D.me) { box.innerHTML = `<section class="lgcard"><h3>Your league</h3><p class="neg">You don't own a team in this league.</p><button class="btn small" data-lgout>Switch account</button></section>`; return; }
   const { rows, rank } = lgStrength(D), n = D.teams.length, my = rank[D.me.id];
   const weakest = ['RB', 'WR', 'TE', 'QB'].sort((a, b) => my[b] - my[a])[0];
@@ -3761,7 +3781,7 @@ function renderLeague() {
   const pl = pid => { const v = D.V[pid]; return `<b>${esc(v.n)}</b> <small>${esc(v.pos)} · ${esc(v.tm || 'FA')} · ${D.ppg(pid).toFixed(1)}/wk${v.inj ? ` · <span class="neg">${esc(v.inj)}</span>` : ''}</small>`; };
   const lu = lgLineup(D.me.players, D), myRow = rows.find(r => r.t.id === D.me.id), lgRank = rows.slice().sort((a, b) => b.pts - a.pts).findIndex(r => r.t.id === D.me.id) + 1;
   box.innerHTML = `<section class="lgcard">
-    <div class="lghead"><h3>${esc(D.me.name)}</h3><small>${n}-team league · ${(D.league.scoring_settings?.rec ?? 0) === 1 ? 'PPR' : (D.league.scoring_settings?.rec ?? 0) === 0.5 ? 'Half PPR' : 'Standard'} · best lineup ${myRow.pts.toFixed(1)} pts/wk (${lgRank} of ${n})</small>
+    <div class="lghead"><h3>${esc(D.me.name)}</h3><small>${n}-team league · ${D.sc.rec === 1 ? 'PPR' : D.sc.rec === 0.5 ? 'Half PPR' : 'Standard'}${D.yahoo ? ' · Yahoo' : ''} · best lineup ${myRow.pts.toFixed(1)} pts/wk (${lgRank} of ${n})</small>
       <button class="btn small" data-lgout>Switch</button></div>
     <div class="lgstr">${['QB', 'RB', 'WR', 'TE'].map(pos => `<button class="lgpos ${tag(my[pos])}" data-lgneed="${pos}" aria-pressed="${pos === need}"><b>${pos}</b><span>${my[pos]}${['th', 'st', 'nd', 'rd'][my[pos] % 10 > 3 || [11, 12, 13].includes(my[pos]) ? 0 : my[pos] % 10]}</span><small>${(myRow.by[pos] || 0).toFixed(1)} pts</small></button>`).join('')}</div>
     <details class="lglu"${LG.open ? ' open' : ''}><summary>Your best lineup</summary>${lu.out.map(x => `<div class="lgp"><i>${esc(x.slot === 'SUPER_FLEX' ? 'SF' : x.slot)}</i>${pl(x.pid)}</div>`).join('')}</details>
@@ -3778,10 +3798,16 @@ document.addEventListener('submit', e => { if (e.target.id === 'lgForm') { e.pre
 document.addEventListener('click', e => {
   const pk = e.target.closest('[data-lgpick]'); if (pk) { lgLoad(pk.dataset.lgpick); return; }
   const nd = e.target.closest('[data-lgneed]'); if (nd) { LG.need = nd.dataset.lgneed; LG.open = !!document.querySelector('.lglu[open]'); renderLeague(); return; }
-  if (e.target.closest('[data-lgout]')) { LG.data = null; LG.league = ''; LG.leagues = null; store.set('edge-slp-league', ''); renderLeague(); }
+  if (e.target.closest('[data-lgyahoo]')) { lgYahoo(); return; }
+  const yt = e.target.closest('[data-yhteam]'); if (yt) { store.set('edge-yh-team', yt.dataset.yhteam); lgYahoo(); return; }
+  if (e.target.closest('[data-lgout]')) { LG.data = null; LG.league = ''; LG.leagues = null; LG.src = ''; store.set('edge-slp-league', ''); store.set('edge-lg-src', ''); renderLeague(); }
 });
 let lgBooted = false;
-function lgBoot() { if (lgBooted || NBA || CFB) return; lgBooted = true; renderLeague(); if (LG.user) lgConnect(LG.user); }
+function lgBoot() {
+  if (lgBooted || NBA || CFB) return; lgBooted = true; renderLeague();
+  fetch(DATA_BASE + 'yahoo_league.json', { method: 'HEAD', cache: 'no-cache' }).then(r => { LG.hasYahoo = r.ok; if (!LG.data) renderLeague(); }).catch(() => {});
+  if (store.get('edge-lg-src') === 'yahoo') lgYahoo(); else if (LG.user) lgConnect(LG.user);
+}
 
 // ------------------------------------------------------------ props
 const PROP_STATS = { 'Pass yds': ['passingYards'], 'Pass TD': ['passingTouchdowns'], 'Completions': ['completions'], 'Pass att': ['passingAttempts'],
