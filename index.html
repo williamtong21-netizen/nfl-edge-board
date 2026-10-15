@@ -495,6 +495,13 @@ body.ffmode #view-fantasy>.toolbar:first-child h2{display:none}
 .ffsch small{display:block}.rn .ffsch{margin-top:4px;gap:4px}.rn .ffsch span{padding:2px 7px;font-size:11.5px}
 .lgtable{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}.lgtable th{text-align:left;color:var(--muted);font-size:11px;letter-spacing:.6px;text-transform:uppercase;padding:6px}
 .lgtable td{padding:7px 6px;border-top:1px solid var(--line);vertical-align:top}.lgtable tr.me td{background:color-mix(in srgb,var(--good) 10%,transparent)}.lgtable td div{margin-top:2px}.lgtable .ffnt{margin-left:0;margin-right:4px}
+.drbest{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.drbest>b{width:100%;font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.drbest .chip small{color:var(--muted);font-weight:400}
+.drtier{padding:6px 12px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);background:var(--surface);border-top:1px solid var(--line)}
+.drboard .rr{grid-template-columns:26px 54px 1fr auto}.drboard .rslot{font-size:10px}
+.drboard .dr-x{opacity:.45}.drboard .dr-me{box-shadow:inset 3px 0 0 var(--good)}
+.drmine{margin-top:4px;padding:2px 10px;font-size:11px}
+#dr-q{background:var(--surface);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:6px 12px;font:inherit;min-width:0;max-width:180px}
 .teamrec{margin:-4px 0 0;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
 .mucard{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 .muside{display:flex;flex-direction:column;min-width:0}.muside.r{text-align:right}.muside small{color:var(--muted);font-size:11.5px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -3675,7 +3682,7 @@ const FF_POS = NBA ? ['', 'G', 'F', 'C'] : ['', 'QB', 'RB', 'WR', 'TE', 'FLEX', 
 const FF_START = NBA ? { G: 40, F: 40, C: 20 } : { QB: 12, RB: 24, WR: 30, TE: 12, K: 12, DEF: 12 };   // a 12-team league's starters
 const FF_SD = { QB: 0.35, RB: 0.5, WR: 0.55, TE: 0.6, K: 0.45, DEF: 0.7, G: 0.3, F: 0.3, C: 0.3 };   // week-to-week spread, share of the mean
 const FF = { score: (() => { const v = store.get('edge-ff-score'); return v && FF_SCORING[v] ? v : Object.keys(FF_SCORING)[0]; })(), pos: '', q: '', open: new Set(),
-  view: NBA ? 'rank' : ['team', 'matchup', 'rank', 'trades', 'waivers', 'league'].includes(store.get('edge-ff-view')) ? store.get('edge-ff-view') : 'team', wpos: '' };
+  view: NBA ? (store.get('edge-ff-view') === 'rank' ? 'rank' : 'draft') : ['team', 'matchup', 'rank', 'trades', 'waivers', 'league'].includes(store.get('edge-ff-view')) ? store.get('edge-ff-view') : 'team', wpos: '' };
 const ffMean = pr => {
   if (pr.m === 'Anytime TD') return pr.pOver != null ? -Math.log(1 - Math.min(0.95, pr.pOver)) : 0;
   return pr.proj > 0 ? 0.6 * pr.l + 0.4 * pr.proj : pr.l;
@@ -3775,11 +3782,12 @@ function ffMatchup(x) {   // the opponent's rank against this position (1 = give
 function renderFantasy() {
   const box = $('#fantasy'); if (!box || COL) return;
   if (!$('#view-fantasy').hidden) lgBoot();
-  $('#ff-tabs').innerHTML = NBA ? '' : [['team', 'Team'], ['matchup', 'Matchup'], ['rank', 'Players'], ['trades', 'Trades'], ['waivers', 'Waivers'], ['league', 'League']]
+  $('#ff-tabs').innerHTML = NBA ? [['draft', 'Draft board'], ['rank', 'Tonight']].map(([k, l]) => `<button class="chip" data-ffview="${k}" aria-pressed="${k === FF.view}">${l}</button>`).join('') : [['team', 'Team'], ['matchup', 'Matchup'], ['rank', 'Players'], ['trades', 'Trades'], ['waivers', 'Waivers'], ['league', 'League']]
     .map(([k, l]) => `<button class="${FFM ? 'fftab' : 'chip'}" data-ffview="${k}" aria-pressed="${k === FF.view}">${l}</button>`).join('');
   const rank = FF.view === 'rank';
   $('#ff-rankctl').style.display = rank ? '' : 'none'; $('#ff-note').style.display = rank ? '' : 'none';
   renderLeague();
+  if (NBA && FF.view === 'draft') { renderDraft(box); return; }
   if (!rank) { box.innerHTML = ''; return; }
   $('#ff-score').innerHTML = Object.entries(FF_SCORING).map(([k, [lbl]]) => `<button class="chip" data-ffscore="${k}" aria-pressed="${k === FF.score}">${lbl}</button>`).join('');
   $('#ff-pos').innerHTML = FF_POS.map(p => `<button class="chip" data-ffpos="${p}" aria-pressed="${p === FF.pos}">${p || 'All'}</button>`).join('');
@@ -3812,6 +3820,57 @@ document.addEventListener('click', e => {
   const op = e.target.closest('[data-ffopen]'); if (op) { const k = op.dataset.ffopen; FF.open.has(k) ? FF.open.delete(k) : FF.open.add(k); renderFantasy(); }
 });
 document.addEventListener('input', e => { if (e.target.id === 'ff-q') { FF.q = e.target.value; renderFantasy(); } });
+
+// ------------------------------------------------------------ NBA draft board (season-points league)
+// draft.json from nba_draft.py: projected season points (per game x games, age curve), value over replacement, tiers and
+// sleeper / risk tags vs Yahoo's preseason rank. Tap a player when someone else drafts him; "Mine" for your picks; Undo
+// takes back the last mark (all saved on this device).
+const DR = { data: null, pos: '', q: '', hide: true, hist: [], marks: (() => { try { return JSON.parse(store.get('edge-draft') || '{}'); } catch { return {}; } })() };
+const DR_SLOTS = ['PG', 'SG', 'G', 'SF', 'PF', 'F', 'C', 'Util', 'Util', 'Util'];
+const drOk = (slot, pos) => { const ps = pos.split(','); return slot === 'Util' ? true : slot === 'G' ? ps.some(p => p === 'PG' || p === 'SG') : slot === 'F' ? ps.some(p => p === 'SF' || p === 'PF') : ps.includes(slot); };
+function drFill(players) {   // greedy: most restrictive slots first, best players first
+  const left = players.slice(), out = {};
+  for (const sl of ['C', 'PG', 'SG', 'SF', 'PF', 'G', 'F', 'Util', 'Util', 'Util']) { const i = left.findIndex(x => drOk(sl, x.pos)); if (i >= 0) (out[sl] ||= []).push(left.splice(i, 1)[0]); }
+  return { out, bench: left };
+}
+function renderDraft(box) {
+  if (!DR.data) { box.innerHTML = '<p class="note">Loading the draft board…</p>';
+    fetch(DATA_BASE + 'draft.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(d => { DR.data = d || { players: [] }; renderFantasy(); }); return; }
+  const P = DR.data.players || [], mk = n => DR.marks[n] || '';
+  const mine = P.filter(x => mk(x.n) === 'me'), taken = P.filter(x => mk(x.n)).length;
+  const fill = drFill(mine), open = DR_SLOTS.filter((sl, i) => !(fill.out[sl] || [])[DR_SLOTS.slice(0, i).filter(x => x === sl).length]);
+  const needC = !fill.out.C, needs = new Set(open.filter(x => x !== 'Util'));
+  const avail = P.filter(x => !mk(x.n));
+  const fitsNeed = x => [...needs].some(sl => drOk(sl, x.pos));
+  const best = avail.filter(x => x.val != null).slice(0, 12).sort((a, b) => (b.val + (fitsNeed(b) ? 60 : 0)) - (a.val + (fitsNeed(a) ? 60 : 0))).slice(0, 5);
+  const q = DR.q.trim().toLowerCase();
+  const rows = P.filter(x => (!DR.hide || !mk(x.n) || mk(x.n) === 'me') && (!DR.pos || x.pos.split(',').includes(DR.pos)) && (!q || x.n.toLowerCase().includes(q)));
+  let lastTier = null;
+  box.innerHTML = `<section class="lgcard"><div class="lghead"><h3>${esc(DR.data.league || 'Draft')}</h3><small>${DR.data.teams} teams · ${esc(DR.data.scoring || '')} · season points</small></div>
+      <p class="teamrec">Pick ${taken + 1} · round ${Math.floor(taken / (DR.data.teams || 8)) + 1} · your team: ${mine.length} player${mine.length === 1 ? '' : 's'}${open.length ? ` · still need ${[...new Set(open)].join(', ')}` : ''}</p>
+      ${best.length ? `<div class="drbest"><b>Best for you now</b>${best.map(x => `<button class="chip" data-drmine="${esc(x.n)}">${esc(x.n)} <small>${esc(x.pos)} · ${x.pts ?? '–'}${fitsNeed(x) ? ' · fills a need' : ''}</small></button>`).join('')}</div>` : ''}
+      ${mine.length ? `<details class="lglu"><summary>Your team (${mine.length})</summary>${mine.map(x => `<div class="lgp"><i>${esc(x.pos)}</i><b>${esc(x.n)}</b> <small>${x.pts ?? '–'} pts</small></div>`).join('')}</details>` : ''}
+    </section>
+    <div class="toolbar"><div class="row">${['', 'PG', 'SG', 'SF', 'PF', 'C'].map(p => `<button class="chip" data-drpos="${p}" aria-pressed="${p === DR.pos}">${p || 'All'}</button>`).join('')}</div>
+      <button class="chip" data-drhide aria-pressed="${DR.hide}">Hide taken</button><input id="dr-q" type="search" placeholder="Find a player" value="${esc(DR.q)}" autocomplete="off">
+      ${DR.hist.length ? '<button class="chip" data-drundo>↶ Undo</button>' : ''}${taken ? '<button class="chip" data-drreset>Reset board</button>' : ''}</div>
+    <p class="note">Tap a player when someone else drafts him; tap <b>Mine</b> for your picks (or a name under "Best for you now"). Undo takes back the last one. Projected season points = points per game × expected games, with an age curve. Value = points over the 81st-best player (8 teams × 10 starters).</p>
+    <div class="roster drboard">${rows.map(x => { const t = x.tier !== lastTier ? `<div class="drtier">Tier ${x.tier}</div>` : ''; lastTier = x.tier; const m = mk(x.n);
+      return `${t}<button class="rr rrbtn dr-${m || 'av'}" data-drmark="${esc(x.n)}"><span class="ffrk">${x.rk}</span><span class="rslot s-${esc(x.pos.split(',').pop())}">${esc(x.pos.replace(/,/g, '/'))}</span>
+        <span class="rn"><b>${esc(x.n)}</b>${m === 'me' ? ' <span class="lgnew">yours</span>' : m === 'x' ? ' <span class="rinj">taken</span>' : ''}<small>${esc(x.tm)}${x.age ? ' · ' + x.age : ''} · ${x.per != null ? `${x.per} × ${x.g} games` : 'no NBA stats'} · Yahoo #${x.yr}${x.note ? ' · ' + esc(x.note) : ''}</small>
+          ${x.tag ? `<span class="ffwhyl"><span class="ffnt ${x.tag === 'sleeper' ? 'up' : 'dn'}">${x.tag === 'sleeper' ? `▲ sleeper: Yahoo has him ${x.yr}th` : `▼ risk: Yahoo has him ${x.yr}th`}</span></span>` : ''}</span>
+        <span class="rpts"><b>${x.pts ?? '–'}</b><small>${x.val != null ? `+${x.val} value` : 'season pts'}</small>${m ? '' : `<span class="chip drmine" data-drmine="${esc(x.n)}">Mine</span>`}</span></button>`; }).join('')}</div>`;
+}
+document.addEventListener('click', e => {
+  const drSet = (n, v) => { DR.hist.push([n, DR.marks[n] || '']); if (v) DR.marks[n] = v; else delete DR.marks[n]; store.set('edge-draft', JSON.stringify(DR.marks)); renderFantasy(); };
+  const mn = e.target.closest('[data-drmine]'); if (mn) { e.stopPropagation(); drSet(mn.dataset.drmine, DR.marks[mn.dataset.drmine] === 'me' ? '' : 'me'); return; }
+  const m = e.target.closest('[data-drmark]'); if (m) { const n = m.dataset.drmark; drSet(n, DR.marks[n] ? '' : 'x'); return; }
+  if (e.target.closest('[data-drundo]')) { const [n, v] = DR.hist.pop() || []; if (n) { if (v) DR.marks[n] = v; else delete DR.marks[n]; store.set('edge-draft', JSON.stringify(DR.marks)); renderFantasy(); } return; }
+  const dp = e.target.closest('[data-drpos]'); if (dp) { DR.pos = dp.dataset.drpos; renderFantasy(); return; }
+  if (e.target.closest('[data-drhide]')) { DR.hide = !DR.hide; renderFantasy(); return; }
+  if (e.target.closest('[data-drreset]')) { if (DR.reset) { DR.marks = {}; store.set('edge-draft', '{}'); DR.reset = false; } else { DR.reset = true; toast('Tap Reset board again to clear every mark'); setTimeout(() => { DR.reset = false; }, 4000); return; } renderFantasy(); }
+});
+document.addEventListener('input', e => { if (e.target.id === 'dr-q') { DR.q = e.target.value; renderFantasy(); const el = $('#dr-q'); if (el) { el.focus(); el.setSelectionRange(DR.q.length, DR.q.length); } } });
 
 // ------------------------------------------------------------ my league (Sleeper or Yahoo)
 // Sleeper's API is public: a username (no password) finds the leagues, rosters, lineups and owners. Yahoo comes from the
