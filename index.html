@@ -3789,7 +3789,10 @@ async function lgYahoo() {
     LG.src = 'yahoo'; store.set('edge-lg-src', 'yahoo');
     const mine = store.get('edge-yh-team');
     LG.data = lgBuild({ rec: yl.league.rec || 0, te: 0, n: yl.league.num_teams }, yl.league.slots, yl.teams, vals, t => String(t.id) === mine);
-    LG.data.yahoo = true;
+    LG.data.yahoo = true; LG.data.positions = yl.league.positions || yl.league.slots;
+    const pair = (yl.league.matchups || []).find(m => m.map(String).includes(mine)), oppId = pair && pair.map(String).find(x => x !== mine);
+    const ot = oppId && LG.data.teams.find(t => String(t.id) === oppId);
+    if (ot) LG.data.mu = { week: yl.league.week, opp: ot.id, pts: {}, oppStarters: ot.starters || [] };
   } catch (e) { LG.err = e.message; LG.data = null; }
   LG.busy = false; renderLeague();
 }
@@ -3925,7 +3928,7 @@ function lgTeamView(D) {
   const W = lgWeek(D), kd = {}; for (const x of ffRows(D.sc.rec)) if (x.est) kd[x.id] = x;
   const wk = pid => lgWk(pid, D, W, kd), me = D.me, n = D.teams.length;
   const nonBn = (D.positions || []).filter(p => p !== 'BN' && p !== 'IR'), starters = (me.starters || []).filter(Boolean);
-  const cur = new Set(starters.filter(pid => D.V[pid]));
+  const cur = new Set(starters.filter(pid => D.V[pid] && D.V[pid].pos !== 'K'));
   const live = pid => wk(pid).tag !== 'played';
   // the model's best lineup (QB / RB / WR / TE / flex slots) vs the one you set
   const best = lgLineup(me.players, D, pid => wk(pid).pts), bestSet = new Set(best.out.map(x => x.pid));
@@ -3952,8 +3955,8 @@ function lgTeamView(D) {
   const fa = Object.keys(D.V).filter(pid => D.V[pid].pos !== 'K' && !owned.has(pid) && !/ir|out|sus|pup/i.test(D.V[pid].inj || '') && D.ppg(pid) > (myWorst[D.V[pid].pos] ?? 0) + 0.5)
     .sort((a, b) => D.ppg(b) - D.ppg(a)).slice(0, 5);
   const drop = me.players.filter(pid => !lgLineup(me.players, D).out.some(x => x.pid === pid)).sort((a, b) => lgVal(a, D) - lgVal(b, D) || D.ppg(a) - D.ppg(b))[0];
-  const gain = best.pts - [...cur].reduce((a, pid) => a + wk(pid).pts, 0);
-  return `${me.rec ? `<p class="teamrec">${me.rec.w}-${me.rec.l}${me.rec.t ? '-' + me.rec.t : ''} · ${ffOrd(place)} of ${n} · ${me.rec.pf.toFixed(1)} PF</p>` : ''}${mu}
+  const gain = best.pts - [...cur].filter(pid => D.V[pid].pos !== 'K').reduce((a, pid) => a + wk(pid).pts, 0);   // same slots as the best lineup (no K / DEF)
+  return `${me.rec ? `<p class="teamrec">${me.rec.w}-${me.rec.l}${me.rec.t ? '-' + me.rec.t : ''} · ${ffOrd(place)} of ${n} · ${me.rec.pf ? me.rec.pf.toFixed(1) + ' PF' : 'Yahoo'}</p>` : ''}${mu}
     ${cur.size ? `<p class="guide ${gain >= 0.5 ? 'warn' : 'ok'}">${gain >= 0.5 ? `Our lineup projects <b>+${gain.toFixed(1)}</b>: see the ▲ / ▼ flags.` : 'Your lineup matches our projections. Nice.'}</p>`
       : `<p class="guide">Showing our best lineup${D.yahoo ? ' (Yahoo doesn\'t share the one you set)' : ''}.</p>`}
     <h4 class="rhead">Starters</h4>

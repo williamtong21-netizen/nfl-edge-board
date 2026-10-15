@@ -103,7 +103,7 @@ if __name__ == "__main__":
     cid, sec, _ = creds()
     if len(sys.argv) > 1 and sys.argv[1] == "auth":
         if not (cid and sec): sys.exit("Add yahoo_client_id and yahoo_client_secret to config.json first.")
-        print(AUTH + "?" + urlencode({"client_id": cid, "redirect_uri": REDIRECT, "response_type": "code", "scope": "fspt-r", "language": "en-us"}))
+        print(AUTH + "?" + urlencode({"client_id": cid, "redirect_uri": REDIRECT, "response_type": "code", "scope": "openid fspt-r", "language": "en-us"}))
     elif len(sys.argv) > 2 and sys.argv[1] == "code":
         t = token({"grant_type": "authorization_code", "code": sys.argv[2].strip()})
         c = cfg(); c["yahoo_refresh_token"] = t["refresh_token"]
