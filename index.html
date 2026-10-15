@@ -899,7 +899,7 @@ main>[id^="view-"]:not([hidden]){animation:edgein .22s ease-out}
 
 /* ============================================================ sportsbook-pro, part 2: bottom tab bar, headshots, team colors */
 .hs{position:relative;flex:none;display:inline-block;border-radius:50%;background:radial-gradient(circle at 50% 30%,#2a3646,#121820);overflow:visible;box-shadow:0 0 0 1px rgba(255,255,255,.1),0 4px 10px rgba(0,0,0,.4)}
-.hs img{width:100%;height:100%;object-fit:cover;object-position:top;border-radius:50%}
+.hs>img{width:100%;height:100%;object-fit:cover;object-position:top;border-radius:50%}
 .hsb{position:absolute;right:-4px;bottom:-3px;border-radius:50%;background:#0b1016;padding:1px;box-shadow:0 0 0 1px rgba(255,255,255,.12);line-height:0}
 .hsb img{display:block}
 .hsdef{display:grid;place-items:center;background:rgba(255,255,255,.05)}
@@ -942,6 +942,25 @@ nav [data-tab="shop"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 nav [data-tab="lineups"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 3h18v18H3zm2 2v6h14V5zm0 8v6h14v-6zm6-6h2v2h-2zm0 8h2v2h-2z'/%3E%3C/svg%3E")}
 nav [data-tab="players"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='8' cy='8' r='3.5'/%3E%3Ccircle cx='17' cy='9' r='3'/%3E%3Cpath d='M1 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5zm14.5 0c0-2.2-.7-4-2-5.3 1.1-.5 2.3-.7 3.5-.7 3.6 0 6 2.2 6 6z'/%3E%3C/svg%3E")}
 nav [data-tab="teams"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l9 3v6c0 5.5-3.8 10-9 11-5.2-1-9-5.5-9-11V5z'/%3E%3C/svg%3E")}
+
+/* Fantasy mode on phones: its own tabs become the bottom bar (the NFL bar stays hidden) */
+body.ffmode nav[role="tablist"]{display:none!important}
+.fftab::before{content:"";display:none}
+@media (max-width:760px){
+  body.ffmode #ff-tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0!important;border:0!important;justify-content:space-around;gap:0!important;
+    background:rgba(6,9,13,.9);backdrop-filter:saturate(170%) blur(18px);-webkit-backdrop-filter:saturate(170%) blur(18px);border-top:1px solid rgba(255,255,255,.08)!important;
+    padding:6px 2px calc(6px + env(safe-area-inset-bottom,0px))}
+  body.ffmode .fftab{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px!important;font-size:10px!important;letter-spacing:.4px!important;border:0!important;border-radius:12px;color:var(--muted)}
+  body.ffmode .fftab::before{display:block;width:22px;height:22px;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
+  body.ffmode .fftab[aria-pressed="true"]{background:rgba(46,220,132,.14);color:#2edc84;text-shadow:none}
+  body.ffmode main{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))!important}
+}
+.fftab[data-ffview="team"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l9 3v6c0 5.5-3.8 10-9 11-5.2-1-9-5.5-9-11V5z'/%3E%3C/svg%3E")}
+.fftab[data-ffview="matchup"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 4h7v16H3zm11 0h7v16h-7zM11 11h2v2h-2z'/%3E%3C/svg%3E")}
+.fftab[data-ffview="rank"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='7' r='4.5'/%3E%3Cpath d='M3 22c0-5 4-8 9-8s9 3 9 8z'/%3E%3C/svg%3E")}
+.fftab[data-ffview="trades"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 3l-4 4 4 4V8h11V6H7zm10 10v3H6v2h11v3l4-4z'/%3E%3C/svg%3E")}
+.fftab[data-ffview="waivers"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z'/%3E%3C/svg%3E")}
+.fftab[data-ffview="league"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 2h12v3h4v3a5 5 0 01-5 5h-.5A6 6 0 0113 16.9V19h4v3H7v-3h4v-2.1A6 6 0 017.5 13H7a5 5 0 01-5-5V5h4zm0 5H4v1a3 3 0 002 2.8zm12 0v3.8A3 3 0 0020 8V7z'/%3E%3C/svg%3E")}
 
 </style>
 
