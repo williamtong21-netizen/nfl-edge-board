@@ -178,9 +178,18 @@ def main():
     try: nk = kalshi.apply(games, props)
     except Exception as ex: print("kalshi failed", ex, file=sys.stderr); nk = 0
     finish(props)
+    try:   # price gaps: DraftKings (ESPN) vs Kalshi on moneylines, spreads and totals
+        import arbs; gaps = arbs.find(games, props, None)
+    except Exception as ex: print("arbs failed", ex, file=sys.stderr); gaps = []
+    try:   # group alerts: line moves and fresh price gaps, same channel and rules as the NFL
+        import alerts
+        try: cfg = json.load(open(os.path.join(ROOT, "config.json"), encoding="utf-8"))
+        except (FileNotFoundError, ValueError): cfg = {}
+        alerts.run([g for g in games if not g.get("pre_season")], props, None, cfg, os.path.join(sync.DATA, "alerts_state.json"), label="NBA", gaps=gaps)
+    except Exception as ex: print("alerts failed", ex, file=sys.stderr)
     stamp = now.isoformat(timespec="seconds")
     slate = {"updatedAt": stamp, "sport": "nba", "propParts": 1, "analytics": None, "season": season, "week": None, "seasonType": stype,
-             "odds": {"source": "ESPN (DraftKings)"}, "report": None, "nbaModel": {"mktW": MKT_W}, "games": games}
+             "odds": {"source": "ESPN (DraftKings)"}, "report": None, "nbaModel": {"mktW": MKT_W}, "games": games, "arbs": gaps}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
     sync.save(os.path.join(sync.OUT, "props-0.json"), {"sync": stamp, "part": 0, "games": props})
     if not os.path.exists(os.path.join(sync.OUT, "history.json")): sync.save(os.path.join(sync.OUT, "history.json"), {"season": season, "snaps": []})

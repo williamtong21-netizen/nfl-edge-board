@@ -93,12 +93,12 @@ def candidates(games, props, report, st, label="NFL", gaps=None):
             if not b: base[gid] = {"hs": o["hs"], "t": o["t"]}
             else:
                 ds, dt = o["hs"] - b["hs"], o["t"] - b["t"]
-                if abs(ds) >= 1.5 or (ds and crossed(b["hs"], o["hs"])):
+                if abs(ds) >= 1.5 or (ds and label == "NFL" and crossed(b["hs"], o["hs"])):   # key numbers 3 / 7 are a football thing
                     fav = lambda hs: f"{H} {hs:+g}" if hs else "pick'em"
                     toward = H if ds < 0 else A
                     out.append((2, f"line:{gid}:{o['hs']}", f"{label} line move: {name}", f"Spread moved {fav(b['hs'])} -> {fav(o['hs'])}, toward {toward}.", "chart_with_upwards_trend",
                                 lambda gid=gid, o=o: base.__setitem__(gid, {**base[gid], "hs": o["hs"]})))
-                if abs(dt) >= 2:
+                if abs(dt) >= (3 if label == "NBA" else 2):   # NBA totals run ~230: a 2-point move is noise
                     out.append((3, f"total:{gid}:{o['t']}", f"{label} total move: {name}", f"Total {'up' if dt > 0 else 'down'} {b['t']} -> {o['t']}.", "chart_with_upwards_trend",
                                 lambda gid=gid, o=o: base.__setitem__(gid, {**base[gid], "t": o["t"]})))
         for side in ("home", "away"):

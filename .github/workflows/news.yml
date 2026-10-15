@@ -33,6 +33,16 @@ jobs:
           EDGE_SPORT: nba
           NTFY_TOPIC: edgeboard-gjmjta8ulgns
         run: python news.py
+      - name: Fantasy lineup and waiver alerts (personal channel)
+        continue-on-error: true
+        env:
+          EDGE_OUT: data
+          EDGE_DATA: state
+          FF_NTFY_TOPIC: edgeboard-ff-eecj49l677db
+          FF_SLEEPER_LEAGUE: "1389374318844067840"
+          FF_SLEEPER_USER: DestroyBOY
+          FF_YAHOO_TEAM: "7"
+        run: python fantasy_alerts.py
       - name: A player was just ruled out? Start a full sync now
         if: hashFiles('state/.dispatch_sync') != '' || hashFiles('state/nba/.dispatch_sync') != ''
         env:
@@ -44,7 +54,7 @@ jobs:
         run: |
           git config user.name "edge-board-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state/news_state.json state/nba/news_state.json 2>/dev/null || git add state/news_state.json
+          git add state/news_state.json state/fantasy_alerts.json state/nba/news_state.json 2>/dev/null || git add state/news_state.json
           git diff --cached --quiet && exit 0
           git commit -q -m "News check $(date -u +%Y-%m-%dT%H:%MZ)"
           git pull --rebase -X theirs -q || true
