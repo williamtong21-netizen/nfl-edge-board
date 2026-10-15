@@ -850,6 +850,53 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 .sepn{font:600 9.5px var(--f-body);fill:var(--ink)}.sepdot[data-player]{cursor:pointer}.sepdot[data-player]:hover circle{r:6.5}
 .lastn{display:flex;gap:6px;margin:0 0 8px}.lastn button{border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;padding:4px 11px;font:700 12.5px var(--f-body);cursor:pointer}
 .lastn button[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:var(--on-good)}
+/* ============================================================ sportsbook-pro layer (2026-10): deeper blacks, glass cards,
+   glowing green accents, bolder numbers, tap feedback. Overrides only: delete this block to get the previous look back. */
+:root{--bg:#05070a;--surface:#0e131a;--surface2:#151c26;--line:#1e2835;--glass:rgba(17,23,31,.72);--glass-hi:rgba(255,255,255,.06);
+  --glow:0 0 0 1px rgba(46,220,132,.35),0 0 18px rgba(46,220,132,.28);--lift:0 14px 34px rgba(0,0,0,.55),0 2px 0 rgba(255,255,255,.03) inset}
+body{background:radial-gradient(1200px 600px at 85% -10%,rgba(46,220,132,.08),transparent 60%),radial-gradient(900px 500px at -10% 10%,rgba(59,167,255,.07),transparent 55%),var(--bg) fixed}
+header{background:rgba(5,8,12,.78)!important;backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);border-bottom:1px solid rgba(255,255,255,.06)}
+.brand{letter-spacing:1px;text-shadow:0 0 22px rgba(46,220,132,.18)}
+/* tabs: a glowing pill under the active one */
+nav button{transition:color .15s,opacity .15s,background .2s,box-shadow .2s}
+nav button[aria-selected="true"]{background:linear-gradient(180deg,#2bea8c,#18b86a)!important;color:#03140b!important;opacity:1;box-shadow:var(--glow);border-radius:999px}
+.fftab[aria-pressed="true"]{color:#fff;border-bottom-color:#2edc84;text-shadow:0 0 14px rgba(46,220,132,.55)}
+/* glass cards */
+.card,.spot,.pcard,.lgcard,.roster,.mtable,.mucard,.ffcard,.ffrow,.tile,.kpi,.pick,.edge,.rc,.slip,.story,.gcard{background:linear-gradient(180deg,var(--glass-hi),rgba(255,255,255,0) 38%),var(--glass)!important;
+  border:1px solid rgba(255,255,255,.07)!important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.spot,.pcard,.lgcard,.ffcard,.mucard{box-shadow:var(--lift)!important}
+.roster,.mtable{background:rgba(9,13,18,.65)!important}
+.rr,.mrow{transition:background .15s}
+.rr:hover,.rrbtn:hover,.ffrow:hover{background:rgba(255,255,255,.035)}
+/* chips, buttons, pills */
+.chip{transition:transform .08s,background .2s,box-shadow .2s,border-color .2s}
+.chip[aria-pressed="true"]{background:linear-gradient(180deg,#2bea8c,#18b86a)!important;color:#03140b!important;border-color:transparent!important;box-shadow:var(--glow);font-weight:700}
+.btn.primary,.slipbtn{background:linear-gradient(180deg,#2bea8c,#16b366)!important;color:#03140b!important;border:0!important;box-shadow:0 8px 24px rgba(22,179,102,.35),0 0 0 1px rgba(46,220,132,.4)}
+.btn,.chip,.slipbtn,.rrbtn,.ffrow,nav button,.fftab,.lgpos,[data-propdrop],[data-addleg]{-webkit-tap-highlight-color:transparent}
+.btn:active,.chip:active,.slipbtn:active,.rrbtn:active,.ffrow:active,nav button:active,.fftab:active,.lgpos:active,[data-addleg]:active{transform:scale(.97)}
+.pill{background:rgba(255,255,255,.04)!important;border-color:rgba(255,255,255,.08)!important}
+.pill i{color:var(--muted)}
+/* numbers: big, tabular, a touch of glow on the ones that matter */
+.rpts b,.ffpts,.mc .mp,.muside b,.ffstats b,.kpi b,.tile b,.score,.spot-mid .big,.lteam b{font-variant-numeric:tabular-nums;letter-spacing:.3px}
+.muside b,.spot-mid .big{text-shadow:0 0 24px rgba(255,255,255,.12)}
+.mubar{height:8px;background:rgba(255,255,255,.08)}.mubar i{background:linear-gradient(90deg,#16b366,#2edc84);box-shadow:0 0 12px rgba(46,220,132,.6)}
+/* over / under and start / sit pills */
+.lean.o,.fftier.start{background:linear-gradient(180deg,#2bea8c,#18b86a)!important;color:#03140b!important;box-shadow:0 0 12px rgba(46,220,132,.3)}
+.lean.u{background:linear-gradient(180deg,#4fb4ff,#2a86d8)!important;color:#03101c!important;box-shadow:0 0 12px rgba(59,167,255,.3)}
+.ffnt.up,.ffmu.soft{background:rgba(46,220,132,.1)}.ffnt.dn,.ffmu.tough{background:rgba(255,99,99,.1)}
+.rslot{background:rgba(255,255,255,.05)!important;border-color:rgba(255,255,255,.1)!important}
+/* live: a pulsing dot */
+@keyframes edgepulse{0%{box-shadow:0 0 0 0 rgba(255,77,77,.6)}70%{box-shadow:0 0 0 8px rgba(255,77,77,0)}100%{box-shadow:0 0 0 0 rgba(255,77,77,0)}}
+.livedot,.live-dot,.ldot{animation:edgepulse 1.8s infinite;border-radius:50%}
+/* each view slides in when you switch to it */
+@keyframes edgein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+main>[id^="view-"]:not([hidden]){animation:edgein .22s ease-out}
+.ffcardwrap,.pdrop,.ffwhy{animation:edgein .18s ease-out}
+/* scrollbars and selection */
+::selection{background:rgba(46,220,132,.35)}
+*{scrollbar-color:#253242 transparent}
+@media (prefers-reduced-motion:reduce){main>[id^="view-"]:not([hidden]),.ffcardwrap,.pdrop,.ffwhy,.livedot,.live-dot,.ldot{animation:none}.btn:active,.chip:active{transform:none}}
+
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -4186,7 +4233,7 @@ function lgMatchupView(D) {
   const val = pid => { const w = wk(pid), a = D.mu.pts?.[pid]; return w.tag === 'played' && a != null ? [a, 'final'] : D.mu.live && a != null && a > 0 ? [a, 'live'] : [w.pts, 'proj']; };
   const tot = ids => ids.reduce((a, pid) => a + val(pid)[0], 0), A = tot(mine), B = tot(theirs), pw = normCdf((A - B) / 31);
   const cell = (pid, side) => { if (!pid) return `<div class="mc ${side}"><small>Empty</small></div>`; const [q, k] = val(pid), w = wk(pid);
-    return `<div class="mc ${side}"><b data-ffcard="${D.V[pid] ? pid : ''}" class="${D.V[pid] ? 'cardlink' : ''}">${esc(lgNm(pid, D))}</b><small>${esc(lgPos(pid, D))} · ${w.x ? `${esc(w.x.opp.abbr)}` : w.tag === 'bye' ? 'BYE' : w.tag === 'played' ? 'Final' : ''}</small><span class="mp ${k}">${q.toFixed(1)}</span></div>`; };
+    return `<div class="mc ${side}"><b data-ffcard="${D.V[pid] ? pid : ''}" class="${D.V[pid] ? 'cardlink' : ''}">${esc(lgNm(pid, D).replace(/^(\S)\S*\s+(?=\S)/, '$1. '))}</b><small>${esc(lgPos(pid, D))} · ${w.x ? `${esc(w.x.opp.abbr)}` : w.tag === 'bye' ? 'BYE' : w.tag === 'played' ? 'Final' : ''}</small><span class="mp ${k}">${q.toFixed(1)}</span></div>`; };
   const edge = slots.map((sl, i) => (val(mine[i] || '')[0] || 0) - (val(theirs[i] || '')[0] || 0));
   const big = edge.map((d, i) => [d, i]).sort((a, b) => a[0] - b[0]);
   return `<div class="mucard"><div class="muside"><small>You</small><b>${A.toFixed(1)}</b></div>
