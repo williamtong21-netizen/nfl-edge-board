@@ -52,6 +52,12 @@ jobs:
           EDGE_OUT: data/nba
           EDGE_DATA: state/nba
         run: python nba_sync.py
+      - name: College basketball (separate data folder; free sources only)
+        continue-on-error: true
+        env:
+          EDGE_OUT: data/cbb
+          EDGE_DATA: state/cbb
+        run: python cbb_sync.py
       - name: Publish the new data
         run: |
           git config user.name "edge-board-bot"

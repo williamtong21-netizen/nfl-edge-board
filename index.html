@@ -794,7 +794,7 @@ details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[o
 .honest{margin:4px 0 12px;padding:8px 12px;border-radius:10px;background:var(--warn-soft);color:var(--ink);font-size:13px}
 .sportsw{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin-left:10px}
 .sportsw button{background:none;border:0;color:var(--muted);font:800 12.5px var(--f-display);letter-spacing:1px;padding:5px 11px;cursor:pointer}
-.sportsw .sm{display:none}@media (max-width:480px){.sportsw .sm{display:inline}.sportsw .lg{display:none}.sportsw button{padding:5px 7px;letter-spacing:.3px;font-size:11.5px}.sportsw{margin-left:4px;flex-shrink:0}#sportName{display:none}}
+.sportsw .sm{display:none}@media (max-width:480px){.sportsw .sm{display:inline}.sportsw .lg{display:none}.sportsw button{padding:5px 6px;letter-spacing:.2px;font-size:11px}.sportsw{margin-left:4px;flex-shrink:0}#sportName{display:none}}
 @media (max-width:400px){.brand{font-size:18px !important}.hdr-btns .btn,.hdr-btns button{width:34px;height:34px}}
 .sportsw button[aria-pressed="true"]{background:var(--good);color:var(--on-good)}
 .rk{font:700 11px var(--f-display);color:var(--muted);margin-right:3px}
@@ -884,7 +884,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 <header>
   <div class="bar">
     <p class="brand">Edge Board <small id="sportName">NFL</small></p>
-    <div class="sportsw" role="group" aria-label="Sport"><button data-sport="nfl">NFL</button><button data-sport="cfb"><span class="lg">College</span><span class="sm">CFB</span></button><button data-sport="nba">NBA</button><button data-sport="ff"><span class="lg">Fantasy</span><span class="sm">FF</span></button></div>
+    <div class="sportsw" role="group" aria-label="Sport"><button data-sport="nfl">NFL</button><button data-sport="cfb"><span class="lg">College</span><span class="sm">CFB</span></button><button data-sport="nba">NBA</button><button data-sport="cbb"><span class="lg">College BB</span><span class="sm">CBB</span></button><button data-sport="ff"><span class="lg">Fantasy</span><span class="sm">FF</span></button></div>
     <div class="sync"><span class="dot off" id="syncDot"></span><span id="syncText">Waiting for data…</span></div>
     <div class="hdr-btns"><button class="hdr-btn" id="fbBtn" aria-label="Send feedback" title="Something off? Tell us"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></button><button class="hdr-btn" id="helpBtn" aria-label="How the app works">?</button></div>
   </div>
@@ -1117,8 +1117,10 @@ const pct = p => p == null ? '–' : (p * 100).toFixed(1) + '%';
 const prob = a => a == null ? null : a < 0 ? -a / (-a + 100) : 100 / (a + 100);
 const dec = a => a < 0 ? 1 + 100 / -a : 1 + a / 100;
 const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
-const SPORT = (() => { try { const s = localStorage.getItem('edge-sport'); return ['cfb', 'nba', 'ff'].includes(s) ? s : 'nfl'; } catch { return 'nfl'; } })();
-const CFB = SPORT === 'cfb', NBA = SPORT === 'nba', FFM = SPORT === 'ff';   // FFM: Fantasy mode, built on the NFL data
+const SPORT = (() => { try { const s = localStorage.getItem('edge-sport'); return ['cfb', 'nba', 'cbb', 'ff'].includes(s) ? s : 'nfl'; } catch { return 'nfl'; } })();
+const CFB = SPORT === 'cfb', NBA = SPORT === 'nba', FFM = SPORT === 'ff', CBB = SPORT === 'cbb';
+const COL = CFB || CBB;
+const CBB_NOTE = 'Info only: our tempo-free ratings, tested on last season\'s games against Kalshi\'s lines.';   // college modes: our number shown as info, report card vs the closing line, no props   // FFM: Fantasy mode, built on the NFL data
 // each sport keeps its own parlay, bets and per-sport picks; app-wide prefs (theme, easy mode, your book) are shared
 const SHARED_KEYS = new Set(['edge-sport', 'edge-easy', 'edge-welcomed', 'edge-alerts-seen', 'edge-mybook', 'edge-state', 'edge-altbook',
   'edge-slp-user', 'edge-slp-uid', 'edge-slp-league', 'edge-lg-src', 'edge-yh-team', 'edge-ff-view', 'edge-ff-score']);   // your fantasy league follows you into Fantasy mode
@@ -1452,7 +1454,7 @@ function renderSpot() {
   box.innerHTML = `<div class="spot">
       <div class="spot-top"><span class="${isLive ? 'live' : ''}">${isLive ? '<span class="livedot"></span>Live now' : 'Up next'}</span><span>${esc(g.venue || '')}${g.indoor ? ' · Indoors' : g.wx ? ` · ${Math.round(g.wx.temp)}°F, wind ${Math.round(g.wx.wind)} mph` : ''}</span></div>
       <div class="spot-main">${side(A, 'away')}${mid}${side(H, 'home')}</div>
-      ${o ? `<div class="pills">${fav ? `<span class="pill"><i>Favorite</i>${esc(fav)}</span>` : ''}${o.t != null ? `<span class="pill"><i>Total</i>${o.t} pts</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected score</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}${CFB && g.ours ? `<span class="pill" title="Info only: matched Vegas in 2023–25 tests but didn't beat it"><i>Our number</i>${Math.abs(g.ours.m) < 0.5 ? 'Pick ’em' : `${esc((g.ours.m >= 0 ? H : A).abbr)} by ${(Math.round(Math.abs(g.ours.m) * 2) / 2).toFixed(1)}`} · ${(Math.round(g.ours.t * 2) / 2).toFixed(1)}</span>` : ''}</div>` : ''}
+      ${o ? `<div class="pills">${fav ? `<span class="pill"><i>Favorite</i>${esc(fav)}</span>` : ''}${o.t != null ? `<span class="pill"><i>Total</i>${o.t} pts</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected score</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}${COL && g.ours ? `<span class="pill" title="Info only: matched Vegas in 2023–25 tests but didn't beat it"><i>Our number</i>${Math.abs(g.ours.m) < 0.5 ? 'Pick ’em' : `${esc((g.ours.m >= 0 ? H : A).abbr)} by ${(Math.round(Math.abs(g.ours.m) * 2) / 2).toFixed(1)}`} · ${(Math.round(g.ours.t * 2) / 2).toFixed(1)}</span>` : ''}</div>` : ''}
       ${wp != null ? `<div class="wplab"><span>${esc(A.abbr)} ${Math.round((1 - wp) * 100)}%</span><span>${wpLabel}</span><span>${esc(H.abbr)} ${Math.round(wp * 100)}%</span></div>
         <div class="wpbar"><i style="width:${(1 - wp) * 100}%;background:${esc(teamColor(A))}"></i><i style="flex:1;background:${esc(teamColor(H))}"></i></div>` : ''}
       ${isLive && L?.last ? `<div class="lastplay"><b>Last play</b>${esc(L.last)}</div>` : ''}
@@ -1534,6 +1536,7 @@ function elapsed(L) {
   if (L.state === 'post') return 60;
   if (L.state !== 'in' || !L.period) return 0;
   const [mm, ss] = String(L.clock || '0:00').split(':').map(Number);
+  if (CBB) return Math.min(60, ((Math.min(L.period, 2) - 1) * 20 + (20 - (mm || 0) - (ss || 0) / 60)) * 1.5);   // two 20-minute halves, on the 60-minute scale
   const q = NBA ? 12 : 15;   // quarter length; the result is always on a 60-minute scale so every pace formula works for both
   return Math.min(60, ((Math.min(L.period, 4) - 1) * q + (q - (mm || 0) - (ss || 0) / 60)) * 15 / q);
 }
@@ -1604,8 +1607,8 @@ function renderLive() {
 
 // ------------------------------------------------------------ local real-time mode (page served from your PC)
 // Same shape as live.py. Only runs when the page can reach ESPN directly, i.e. outside claude.ai.
-const ESPN_PATH = NBA ? 'basketball/nba' : CFB ? 'football/college-football' : 'football/nfl';
-const ESPN_SB = `https://site.api.espn.com/apis/site/v2/sports/${ESPN_PATH}/scoreboard${CFB ? '?groups=80&limit=300' : ''}`;
+const ESPN_PATH = NBA ? 'basketball/nba' : CBB ? 'basketball/mens-college-basketball' : CFB ? 'football/college-football' : 'football/nfl';
+const ESPN_SB = `https://site.api.espn.com/apis/site/v2/sports/${ESPN_PATH}/scoreboard${CFB ? '?groups=80&limit=300' : CBB ? '?groups=50&limit=400' : ''}`;
 const ESPN_SUM = `https://site.web.api.espn.com/apis/site/v2/sports/${ESPN_PATH}/summary?event=`;
 const LIVE_COLS = ['passingYards', 'passingTouchdowns', 'interceptions', 'rushingAttempts', 'rushingYards', 'rushingTouchdowns', 'longRushing',
   'receptions', 'receivingYards', 'receivingTouchdowns', 'longReception', 'receivingTargets'];
@@ -1842,7 +1845,7 @@ function cfbReportCard() {   // college: how our number has done against the clo
     <p class="note">Top 25 and Power 4 games, graded against the last line before kickoff. Breaking even takes about 52.4% at normal -110 prices. Weeks before this one were replayed using only games played up to then. Early weeks lean mostly on last season, which is why they're weakest.</p></details></details>`;
 }
 function reportCard() {
-  if (CFB) return cfbReportCard();
+  if (COL) return cfbReportCard();
   const R = S.slate?.report;
   if (!R?.games) return `<div class="rc"><div class="rc-h"><b>Our report card</b><small>Every read gets graded after the final whistle. The first results show up after this week's games.</small></div></div>`;
   const strong = ['60–65%', '65%+'].reduce((a, k) => { const d = R.props[k]; if (d) { a.w += d.w; a.l += d.l; } return a; }, { w: 0, l: 0 });
@@ -3456,9 +3459,9 @@ function card(g) {
   };
   const totals = o && pre ? `<div class="row" style="padding:0 12px 10px;gap:6px">${o.t != null ? `<span class="pill"><i>Total</i>${o.t}${mv(o.to, o.t)}</span>` : ''}${o.hImp != null ? `<span class="pill"><i>Expected</i>${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)}</span>` : ''}</div>` : '';
   // college: our own number, shown as info only (backtested even with the closing line, so it never makes picks)
-  const cfbOurs = CFB && pre && g.ours ? (() => { const m = g.ours.m, fav = m >= 0 ? H : A, half = x => (Math.round(x * 2) / 2).toFixed(1);
+  const cfbOurs = COL && pre && g.ours ? (() => { const m = g.ours.m, fav = m >= 0 ? H : A, half = x => (Math.round(x * 2) / 2).toFixed(1);
     const book = o?.hs != null ? ` · book ${esc((o.hs <= 0 ? H : A).abbr)} ${fmtLine(-Math.abs(o.hs))}${o.t != null ? ', ' + o.t : ''}` : '';
-    return `<div class="cfbours"><span class="ourline">Our number ${Math.abs(m) < 0.5 ? 'Pick ’em' : `${esc(fav.abbr)} -${half(Math.abs(m))}`} · total ${half(g.ours.t)}${book}</span><small>${g.qb ? Object.entries(g.qb).map(([sd, q]) => `Includes ${esc(g[sd].abbr)}'s QB change: ${esc(q.new)} started last game for ${esc(q.old)} (${q.adj > 0 ? '+' : ''}${q.adj} pts). `).join('') : ''}Info only: in 2023–25 tests our number matched Vegas but didn't beat it.</small></div>`; })() : '';
+    return `<div class="cfbours"><span class="ourline">Our number ${Math.abs(m) < 0.5 ? 'Pick ’em' : `${esc(fav.abbr)} -${half(Math.abs(m))}`} · total ${half(g.ours.t)}${book}</span><small>${g.qb ? Object.entries(g.qb).map(([sd, q]) => `Includes ${esc(g[sd].abbr)}'s QB change: ${esc(q.new)} started last game for ${esc(q.old)} (${q.adj > 0 ? '+' : ''}${q.adj} pts). `).join('') : ''}${CBB ? CBB_NOTE : 'Info only: in 2023–25 tests our number matched Vegas but didn\'t beat it.'}</small></div>`; })() : '';
   const probs = o?.hFair && pre ? `<div class="probs">
       <div class="pl"><span>${esc(A.abbr)} ${Math.round(o.aFair * 100)}%</span><span>Win chance · betting market</span><span>${esc(H.abbr)} ${Math.round(o.hFair * 100)}%</span></div>
       <div class="pbar"><i style="width:${o.aFair * 100}%;background:${esc(teamColor(A))}"></i><i style="flex:1;background:${esc(teamColor(H))}"></i></div>
@@ -3759,7 +3762,7 @@ function ffMatchup(x) {   // the opponent's rank against this position (1 = give
   return r <= 8 ? '<span class="ffmu soft">soft D</span>' : r >= 25 ? '<span class="ffmu tough">tough D</span>' : '';
 }
 function renderFantasy() {
-  const box = $('#fantasy'); if (!box || CFB) return;
+  const box = $('#fantasy'); if (!box || COL) return;
   if (!$('#view-fantasy').hidden) lgBoot();
   $('#ff-tabs').innerHTML = NBA ? '' : [['team', 'Team'], ['matchup', 'Matchup'], ['rank', 'Players'], ['trades', 'Trades'], ['waivers', 'Waivers'], ['league', 'League']]
     .map(([k, l]) => `<button class="${FFM ? 'fftab' : 'chip'}" data-ffview="${k}" aria-pressed="${k === FF.view}">${l}</button>`).join('');
@@ -4164,7 +4167,7 @@ function lgLeagueView(D) {
 }
 function renderLeague() {
   const box = $('#ffleague'); if (!box) return;
-  if (NBA || CFB || FF.view === 'rank') { box.innerHTML = FF.card ? `<div class="ffcardwrap">${ffCard(FF.card)}</div>` : ''; return; }
+  if (NBA || COL || FF.view === 'rank') { box.innerHTML = FF.card ? `<div class="ffcardwrap">${ffCard(FF.card)}</div>` : ''; return; }
   const D = LG.data;
   if (!D) {
     box.innerHTML = `<section class="lgcard"><h3>Your league</h3><p class="note">Connect your Sleeper league to see your lineup, start/sit, waiver pickups and trades. Just your Sleeper username: no password.</p>
@@ -4220,7 +4223,7 @@ async function lgLive() {   // Sleeper live points while any game is on (Matchup
     D.mu.pts = { ...(a?.players_points || {}), ...(b?.players_points || {}) }; D.mu.live = true; if (['matchup', 'team'].includes(FF.view)) renderLeague(); } catch {}
 }
 function lgBoot() {
-  if (lgBooted || NBA || CFB) return; lgBooted = true; renderLeague();
+  if (lgBooted || NBA || COL) return; lgBooted = true; renderLeague();
   ffVals().then(v => { LG.vals = v; if (FF.view === 'rank') renderFantasy(); }).catch(() => {});
   FF.liveTimer = setInterval(lgLive, 60000);
   fetch(DATA_BASE + 'yahoo_league.json', { method: 'HEAD', cache: 'no-cache' }).then(r => { LG.hasYahoo = r.ok; if (!LG.data) renderLeague(); }).catch(() => {});
@@ -4716,7 +4719,7 @@ function fbContext() {
   const tab = document.querySelector('nav [aria-selected="true"]')?.textContent || '';
   const open = [...(S.open || [])].map(id => S.slate?.games?.find(g => g.id === id)).filter(Boolean).map(g => `${g.away.abbr} @ ${g.home.abbr}`);
   const legs = (PAR?.legs || []).map(l => l.label);
-  return [`Edge Board · ${CFB ? 'College' : NBA ? 'NBA' : 'NFL'} · ${tab} tab`, open.length ? `Open games: ${open.join(', ')}` : '', legs.length ? `Parlay: ${legs.join(' + ')}` : '',
+  return [`Edge Board · ${CFB ? 'College' : CBB ? 'College BB' : NBA ? 'NBA' : FFM ? 'Fantasy' : 'NFL'} · ${tab} tab`, open.length ? `Open games: ${open.join(', ')}` : '', legs.length ? `Parlay: ${legs.join(' + ')}` : '',
     `Data from ${S.slate?.updatedAt ? new Date(S.slate.updatedAt).toLocaleString() : 'unknown'} · ${innerWidth}x${innerHeight}${$('body').classList.contains('easy') ? ' · easy mode' : ''}`].filter(Boolean).join('\n');
 }
 const fbBody = () => `[${FB.kind}] ${$('#fbText').value.trim()}\n\n${fbContext()}`;
@@ -4904,16 +4907,16 @@ function loadSharedSlip() {
 
 // ------------------------------------------------------------ NFL / College switch
 queueMicrotask(() => {
-  document.body.classList.toggle('cfb', CFB); document.body.classList.toggle('nba', NBA); document.body.classList.toggle('ffmode', FFM); document.body.classList.toggle('nflmode', SPORT === 'nfl');
-  $('#sportName').textContent = CFB ? 'College' : NBA ? 'NBA' : FFM ? 'Fantasy' : 'NFL';
-  document.title = CFB ? 'CFB Edge Board' : NBA ? 'NBA Edge Board' : FFM ? 'Fantasy · Edge Board' : document.title;
+  document.body.classList.toggle('cfb', COL); document.body.classList.toggle('cbb', CBB); document.body.classList.toggle('nba', NBA); document.body.classList.toggle('ffmode', FFM); document.body.classList.toggle('nflmode', SPORT === 'nfl');
+  $('#sportName').textContent = CFB ? 'College' : CBB ? 'College BB' : NBA ? 'NBA' : FFM ? 'Fantasy' : 'NFL';
+  document.title = CFB ? 'CFB Edge Board' : CBB ? 'CBB Edge Board' : NBA ? 'NBA Edge Board' : FFM ? 'Fantasy · Edge Board' : document.title;
   if (FFM) setTab('fantasy');
   if (NBA) $('#pf-pos').innerHTML = ['', 'G', 'F', 'C'].map(p => `<button class="chip" data-pos="${p}" aria-pressed="${!p}">${p || 'All'}</button>`).join('');
   for (const b of document.querySelectorAll('[data-sport]')) {
     b.setAttribute('aria-pressed', b.dataset.sport === SPORT);
     b.onclick = () => { if (b.dataset.sport === SPORT) return; try { localStorage.setItem('edge-sport', b.dataset.sport); } catch {} location.reload(); };
   }
-  if (CFB && ['props', 'tds', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
+  if (COL && ['props', 'tds', 'lineups', 'players', 'teams', 'fantasy'].includes(store.get('edge-tab'))) setTab('board');
   if (NBA && ['tds', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
   if (SPORT === 'nfl' && store.get('edge-tab') === 'fantasy') setTab('board');   // fantasy moved to its own mode
 });

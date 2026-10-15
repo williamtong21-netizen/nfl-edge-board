@@ -3,4 +3,5 @@ state/gamelogs/
 state/depth/
 state/cfb/cfbd/
 state/nba/box/
+state/cbb/box/
 __pycache__/
