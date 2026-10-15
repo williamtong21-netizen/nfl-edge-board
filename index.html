@@ -451,6 +451,16 @@ details.nerd .usage{border-bottom:0}
 .pgame small{margin-left:auto;font:500 12px var(--f-body);letter-spacing:0;text-transform:none;color:var(--muted)}
 .pgrid.compact>.pgame:first-child{margin-top:0}
 .pgrid.compact{grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:10px}
+.fflist{display:flex;flex-direction:column;gap:6px}
+.ffrow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--tc,var(--line));border-radius:10px;padding:9px 12px;color:var(--ink);cursor:pointer;font:inherit}
+.ffrk{width:22px;color:var(--muted);font-variant-numeric:tabular-nums;font-size:12.5px;text-align:right}
+.ffn{flex:1;min-width:0;display:flex;flex-direction:column}.ffn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ffn small{color:var(--muted);font-size:11.5px}
+.ffpts{font:800 18px var(--f-display);font-variant-numeric:tabular-nums;min-width:44px;text-align:right}
+.fftier{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.fftier.start{background:var(--good);color:var(--on-good);border-color:transparent}.fftier.flex{color:var(--good);border-color:var(--good)}
+.ffwhy{display:flex;flex-wrap:wrap;gap:6px 14px;padding:4px 14px 10px 46px;font-size:13px}.ffwhy small{flex-basis:100%;color:var(--muted);font-size:11.5px}
+#ff-q{background:var(--surface);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:6px 12px;font:inherit;min-width:0;max-width:200px}
+.ffnote{margin:0 0 10px}
 .pcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:0}
 .pcard-h{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
 .pcard-h .logo{width:24px;height:24px}
@@ -707,11 +717,12 @@ details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[o
 .honest{margin:4px 0 12px;padding:8px 12px;border-radius:10px;background:var(--warn-soft);color:var(--ink);font-size:13px}
 .sportsw{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin-left:10px}
 .sportsw button{background:none;border:0;color:var(--muted);font:800 12.5px var(--f-display);letter-spacing:1px;padding:5px 11px;cursor:pointer}
+.sportsw .sm{display:none}@media (max-width:480px){.sportsw .sm{display:inline}.sportsw .lg{display:none}.sportsw button{padding:5px 8px;letter-spacing:.5px}}
 .sportsw button[aria-pressed="true"]{background:var(--good);color:var(--on-good)}
 .rk{font:700 11px var(--f-display);color:var(--muted);margin-right:3px}
 /* college mode: tabs that need NFL-only data (player props, depth charts, nflverse analytics) are hidden */
 body.cfb nav [data-tab="props"],body.cfb nav [data-tab="tds"],body.cfb nav [data-tab="lineups"],body.cfb nav [data-tab="players"],body.cfb nav [data-tab="teams"]{display:none}
-body.nba nav [data-tab="tds"],body.nba nav [data-tab="lineups"],body.nba nav [data-tab="players"],body.nba nav [data-tab="teams"]{display:none}
+body.cfb nav [data-tab="fantasy"],body.nba nav [data-tab="tds"],body.nba nav [data-tab="lineups"],body.nba nav [data-tab="players"],body.nba nav [data-tab="teams"]{display:none}
 body.nba #picks .sechead.tdsec,body.nba #picks .tdsec ~ .vgrid,body.nba #picks .tdsec + p,body.nba #picks .tdhonest,
 body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec ~ .vgrid,body.cfb #picks .tdsec + p,body.cfb #picks .tdhonest{display:none}
 .cfbours{display:flex;flex-direction:column;gap:3px;padding:2px 12px 10px}.cfbours small{color:var(--muted);font-size:11.5px}
@@ -795,7 +806,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
 <header>
   <div class="bar">
     <p class="brand">Edge Board <small id="sportName">NFL</small></p>
-    <div class="sportsw" role="group" aria-label="Sport"><button data-sport="nfl">NFL</button><button data-sport="cfb">College</button><button data-sport="nba">NBA</button></div>
+    <div class="sportsw" role="group" aria-label="Sport"><button data-sport="nfl">NFL</button><button data-sport="cfb"><span class="lg">College</span><span class="sm">CFB</span></button><button data-sport="nba">NBA</button></div>
     <div class="sync"><span class="dot off" id="syncDot"></span><span id="syncText">Waiting for data…</span></div>
     <div class="hdr-btns"><button class="hdr-btn" id="fbBtn" aria-label="Send feedback" title="Something off? Tell us"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></button><button class="hdr-btn" id="helpBtn" aria-label="How the app works">?</button></div>
   </div>
@@ -804,6 +815,7 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
     <button role="tab" id="tab-board" data-tab="board" aria-selected="true">Games</button>
     <button role="tab" id="tab-live" data-tab="live" aria-selected="false">Live</button>
     <button role="tab" id="tab-props" data-tab="props" aria-selected="false">Props</button>
+    <button role="tab" id="tab-fantasy" data-tab="fantasy" aria-selected="false">Fantasy</button>
     <button role="tab" id="tab-tds" data-tab="tds" aria-selected="false">TDs</button>
     <button role="tab" id="tab-parlay" data-tab="parlay" aria-selected="false">Parlay</button>
     <button role="tab" id="tab-bets" data-tab="bets" aria-selected="false">My Bets</button>
@@ -867,6 +879,16 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
     <div id="lineups"></div>
   </div>
 
+  <div id="view-fantasy" hidden>
+    <div class="toolbar">
+      <h2 style="margin:0 8px 0 0">Fantasy</h2>
+      <div class="row" id="ff-score"></div>
+      <div class="row" id="ff-pos"></div>
+      <input id="ff-q" type="search" placeholder="Find a player" aria-label="Find a player" autocomplete="off">
+    </div>
+    <p class="note ffnote" id="ff-note"></p>
+    <div id="fantasy"></div>
+  </div>
   <div id="view-props" hidden>
     <div class="toolbar">
       <h2 style="margin:0 8px 0 0">Player props</h2>
@@ -3554,6 +3576,70 @@ $('#view-lineups').addEventListener('click', e => {
   const sp = e.target.closest('[data-slot]'); if (sp) { LU.pick = LU.pick === sp.dataset.slot ? null : sp.dataset.slot; renderLineups(); }
 });
 
+// ------------------------------------------------------------ fantasy: projected points from the prop markets
+// each stat's expected value = the market's line blended with our projection (60/40, same lean on the market as props);
+// touchdowns from the anytime-TD chance (P = 1 - e^-λ, so λ = -ln(1 - P)). NBA has no steals / blocks / turnovers lines.
+const FF_SCORING = NBA ? { dk: ['DraftKings style', { Points: 1, Rebounds: 1.25, Assists: 1.5, Threes: 0.5 }], simple: ['Pts + reb + ast', { Points: 1, Rebounds: 1, Assists: 1, Threes: 0 }] }
+  : { ppr: ['PPR', 1], half: ['Half PPR', 0.5], std: ['Standard', 0] };
+const FF_POS = NBA ? ['', 'G', 'F', 'C'] : ['', 'QB', 'RB', 'WR', 'TE', 'FLEX'];
+const FF_START = NBA ? { G: 40, F: 40, C: 20 } : { QB: 12, RB: 24, WR: 30, TE: 12 };   // "start" cut-offs: a 12-team league's starters
+const FF = { score: (() => { const v = store.get('edge-ff-score'); return v && FF_SCORING[v] ? v : Object.keys(FF_SCORING)[0]; })(), pos: '', q: '', open: new Set() };
+const ffMean = pr => {
+  if (pr.m === 'Anytime TD') return pr.pOver != null ? -Math.log(1 - Math.min(0.95, pr.pOver)) : 0;
+  return pr.proj > 0 ? 0.6 * pr.l + 0.4 * pr.proj : pr.l;
+};
+function ffPlayer(pl) {
+  const e = {}; for (const pr of pl.props) if (pr.l != null || pr.m === 'Anytime TD') e[pr.m] = ffMean(pr);
+  if (NBA) { const w = FF_SCORING[FF.score][1], parts = ['Points', 'Rebounds', 'Assists', 'Threes'].filter(k => e[k] != null);
+    if (e.Points == null) return null;
+    return { pts: parts.reduce((s, k) => s + e[k] * w[k], 0), parts: parts.map(k => [k, e[k]]) }; }
+  const ppr = FF_SCORING[FF.score][1], qb = pl.p === 'QB';
+  const ryd = e['Rush yds'] ?? (e['Rush+rec yds'] != null && e['Rec yds'] != null ? e['Rush+rec yds'] - e['Rec yds'] : 0);
+  const recy = e['Rec yds'] ?? 0, rec = e.Receptions ?? (recy ? recy / 11 : 0), pyd = qb ? e['Pass yds'] ?? 0 : 0;
+  const ptd = qb ? e['Pass TD'] ?? 0 : 0, int = qb ? e.INT ?? (pyd ? 0.7 : 0) : 0, td = e['Anytime TD'] ?? 0;
+  if (!pyd && !ryd && !recy && !td) return null;
+  const pts = pyd * 0.04 + ptd * 4 - int * 2 + (ryd + recy) * 0.1 + rec * ppr + td * 6;
+  const parts = qb ? [['pass yds', pyd], ['pass TD', ptd], ['INT', int], ['rush yds', ryd], ['TD', td]] : [['rec', rec], ['rec yds', recy], ['rush yds', ryd], ['TD', td]];
+  return { pts, parts: parts.filter(([, v]) => v > 0.05) };
+}
+function renderFantasy() {
+  const box = $('#fantasy'); if (!box || CFB) return;
+  $('#ff-score').innerHTML = Object.entries(FF_SCORING).map(([k, [lbl]]) => `<button class="chip" data-ffscore="${k}" aria-pressed="${k === FF.score}">${lbl}</button>`).join('');
+  $('#ff-pos').innerHTML = FF_POS.map(p => `<button class="chip" data-ffpos="${p}" aria-pressed="${p === FF.pos}">${p || 'All'}</button>`).join('');
+  $('#ff-note').textContent = NBA ? "Projected fantasy points from the betting lines (points, rebounds, assists, threes) blended with our model. No steals, blocks or turnovers: books don't post those."
+    : 'Projected fantasy points from the betting lines blended with our model, for every player with props this week. Start = a 12-team league starter at his position. No kickers or defenses.';
+  const sl = S.slate; if (!sl || !S.props) { box.innerHTML = `<div class="empty"><b>No projections yet</b>They show up once player props are posted.</div>`; return; }
+  const all = [];
+  for (const g of sl.games.filter(g => g.state === 'pre' && S.props[g.id]?.length)) for (const pl of S.props[g.id]) {
+    const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home, inj = (team.inj || []).find(i => i.n === pl.n);
+    if (inj && isOut(inj.s)) continue;
+    const pos = NBA ? (pl.p || '').replace(/^(PG|SG)$/, 'G').replace(/^(SF|PF)$/, 'F') : posGroup(pl.p);
+    if (!FF_START[pos]) continue;
+    const f = ffPlayer(pl); if (!f) continue;
+    all.push({ pl, g, team, opp, inj, pos, ...f });
+  }
+  // rank within each position; start / flex / sit from those ranks
+  const byPos = {}; for (const x of all.sort((a, b) => b.pts - a.pts)) (byPos[x.pos] ||= []).push(x);
+  for (const [pos, xs] of Object.entries(byPos)) xs.forEach((x, i) => { x.rk = i + 1; x.tier = i < FF_START[pos] ? 'start' : !NBA && pos !== 'QB' && i < FF_START[pos] * 1.5 ? 'flex' : 'sit'; });
+  const q = FF.q.trim().toLowerCase();
+  const rows = all.filter(x => (!FF.pos || (FF.pos === 'FLEX' ? ['RB', 'WR', 'TE'].includes(x.pos) : x.pos === FF.pos)) && (!q || x.pl.n.toLowerCase().includes(q)));
+  if (!rows.length) { box.innerHTML = `<div class="empty"><b>No players match</b>Try another position or name.</div>`; return; }
+  const fmt = v => v >= 10 ? v.toFixed(0) : v.toFixed(1), tierLbl = { start: 'Start', flex: 'Flex', sit: 'Sit' };
+  box.innerHTML = `<div class="fflist">${rows.slice(0, 150).map((x, i) => { const k = x.pl.id + '|' + x.g.id, open = FF.open.has(k);
+    return `<button class="ffrow" data-ffopen="${esc(k)}" aria-expanded="${open}" style="--tc:${teamColor(x.team)}">
+      <span class="ffrk">${i + 1}</span>${logo(x.team.abbr, 22)}
+      <span class="ffn"><b>${esc(x.pl.n)}</b><small>${esc(x.pos)}${x.rk} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${esc(kick(x.g))}${x.inj ? ` · <span class="neg">${esc(x.inj.s)}</span>` : ''}</small></span>
+      <span class="fftier ${x.tier}">${tierLbl[x.tier]}</span><span class="ffpts">${x.pts.toFixed(1)}</span></button>
+      ${open ? `<div class="ffwhy">${x.parts.map(([n, v]) => `<span><b>${fmt(v)}</b> ${esc(NBA ? n.toLowerCase() : n)}</span>`).join('')}<small>${NBA ? '' : 'TD = expected touchdowns from the anytime-TD price. '}Each number blends the market's line (60%) with our projection (40%).</small></div>` : ''}`; }).join('')}</div>
+    ${rows.length > 150 ? `<p class="note">Showing 150 of ${rows.length}. Pick a position or search a name.</p>` : ''}`;
+}
+document.addEventListener('click', e => {
+  const sc = e.target.closest('[data-ffscore]'); if (sc) { FF.score = sc.dataset.ffscore; store.set('edge-ff-score', FF.score); renderFantasy(); return; }
+  const ps = e.target.closest('[data-ffpos]'); if (ps) { FF.pos = ps.dataset.ffpos; renderFantasy(); return; }
+  const op = e.target.closest('[data-ffopen]'); if (op) { const k = op.dataset.ffopen; FF.open.has(k) ? FF.open.delete(k) : FF.open.add(k); renderFantasy(); }
+});
+document.addEventListener('input', e => { if (e.target.id === 'ff-q') { FF.q = e.target.value; renderFantasy(); } });
+
 // ------------------------------------------------------------ props
 const PROP_STATS = { 'Pass yds': ['passingYards'], 'Pass TD': ['passingTouchdowns'], 'Completions': ['completions'], 'Pass att': ['passingAttempts'],
   'INT': ['interceptions'], 'Rush yds': ['rushingYards'], 'Carries': ['rushingAttempts'], 'Rec yds': ['receivingYards'], 'Receptions': ['receptions'],
@@ -4242,11 +4328,11 @@ queueMicrotask(() => {
   if (CFB && ['props', 'tds', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
   if (NBA && ['tds', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
 });
-function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
+function renderAll() { normProps(); renderSync(); renderBoard(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderFantasy(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
 
 function setTab(t) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
-  for (const v of ['live', 'picks', 'board', 'lineups', 'props', 'players', 'teams', 'shop', 'tds', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
+  for (const v of ['live', 'picks', 'board', 'lineups', 'props', 'fantasy', 'players', 'teams', 'shop', 'tds', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
   store.set('edge-tab', t);
   if (t === 'tds') renderTD();   // props may have loaded since it last drew
   if (t === 'parlay') renderSGP();
