@@ -461,6 +461,20 @@ details.nerd .usage{border-bottom:0}
 .ffwhy{display:flex;flex-wrap:wrap;gap:6px 14px;padding:4px 14px 10px 46px;font-size:13px}.ffwhy small{flex-basis:100%;color:var(--muted);font-size:11.5px}
 #ff-q{background:var(--surface);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:6px 12px;font:inherit;min-width:0;max-width:200px}
 .ffnote{margin:0 0 10px}
+.ffviews .chip{font-weight:800}
+.ffmu{font-size:10.5px;font-weight:800;padding:0 6px;border-radius:999px;margin-left:4px}.ffmu.soft{color:var(--good);border:1px solid var(--good)}.ffmu.tough{color:var(--bad);border:1px solid var(--bad)}
+.lgswaps{display:flex;flex-direction:column;gap:6px}
+.lgswap{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg);font-size:13.5px}
+.lgswap .lbl{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}.lgswap .lbl.start{color:var(--good)}
+.lgswap .pos{margin-left:auto;color:var(--good);font-weight:800}
+.lgnew{font-size:10px;font-weight:800;text-transform:uppercase;color:var(--good);border:1px solid var(--good);border-radius:999px;padding:0 6px}
+.lgcard .pos{color:var(--good)}
+.lgtr .btn{grid-column:1/-1;justify-self:start}
+#anTeam{background:var(--bg);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:6px 10px;font:inherit;max-width:100%}
+.lgan{display:flex;flex-direction:column;gap:8px}.lgan .lbl{display:block;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.lgan .chip small{color:var(--muted);font-weight:400}
+.lgverdict{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size:13px}
+.lgverdict.good{border-left-color:var(--good)}.lgverdict.ok{border-left-color:var(--accent)}.lgverdict.bad{border-left-color:var(--bad)}
 .lgcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 14px;display:flex;flex-direction:column;gap:8px}
 .lgcard h3,.lgcard h4{margin:0}.lgcard h4{margin-top:6px}
 .lgform{display:flex;gap:8px;flex-wrap:wrap}.lgform input{flex:1;min-width:0;max-width:260px;background:var(--bg);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:7px 12px;font:inherit}
@@ -896,6 +910,9 @@ table.bk{width:100%;border-collapse:collapse;font-size:13.5px}table.bk td{paddin
   <div id="view-fantasy" hidden>
     <div class="toolbar">
       <h2 style="margin:0 8px 0 0">Fantasy</h2>
+      <div class="row ffviews" id="ff-tabs"></div>
+    </div>
+    <div class="toolbar" id="ff-rankctl">
       <div class="row" id="ff-score"></div>
       <div class="row" id="ff-pos"></div>
       <input id="ff-q" type="search" placeholder="Find a player" aria-label="Find a player" autocomplete="off">
@@ -3591,78 +3608,119 @@ $('#view-lineups').addEventListener('click', e => {
   const sp = e.target.closest('[data-slot]'); if (sp) { LU.pick = LU.pick === sp.dataset.slot ? null : sp.dataset.slot; renderLineups(); }
 });
 
-// ------------------------------------------------------------ fantasy: projected points from the prop markets
-// each stat's expected value = the market's line blended with our projection (60/40, same lean on the market as props);
-// touchdowns from the anytime-TD chance (P = 1 - e^-λ, so λ = -ln(1 - P)). NBA has no steals / blocks / turnovers lines.
+// ------------------------------------------------------------ fantasy
+// Three views. My team: your league's lineup for this week, start / sit swaps, waiver pickups. Trades: a finder for a
+// position you need (with why the other team might say yes) and an analyzer for any trade you build. Rankings: every
+// player's projected points this week. Projections: each stat's expected value = the prop line blended with our
+// projection (60/40), touchdowns from the anytime-TD chance (λ = -ln(1 - P)); kickers and defenses from team totals.
+// NBA has rankings only (no steals / blocks / turnovers lines).
 const FF_SCORING = NBA ? { dk: ['DraftKings style', { Points: 1, Rebounds: 1.25, Assists: 1.5, Threes: 0.5 }], simple: ['Pts + reb + ast', { Points: 1, Rebounds: 1, Assists: 1, Threes: 0 }] }
   : { ppr: ['PPR', 1], half: ['Half PPR', 0.5], std: ['Standard', 0] };
-const FF_POS = NBA ? ['', 'G', 'F', 'C'] : ['', 'QB', 'RB', 'WR', 'TE', 'FLEX'];
-const FF_START = NBA ? { G: 40, F: 40, C: 20 } : { QB: 12, RB: 24, WR: 30, TE: 12 };   // "start" cut-offs: a 12-team league's starters
-const FF = { score: (() => { const v = store.get('edge-ff-score'); return v && FF_SCORING[v] ? v : Object.keys(FF_SCORING)[0]; })(), pos: '', q: '', open: new Set() };
+const FF_POS = NBA ? ['', 'G', 'F', 'C'] : ['', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DEF'];
+const FF_START = NBA ? { G: 40, F: 40, C: 20 } : { QB: 12, RB: 24, WR: 30, TE: 12, K: 12, DEF: 12 };   // a 12-team league's starters
+const FF_SD = { QB: 0.35, RB: 0.5, WR: 0.55, TE: 0.6, K: 0.45, DEF: 0.7, G: 0.3, F: 0.3, C: 0.3 };   // week-to-week spread, share of the mean
+const FF = { score: (() => { const v = store.get('edge-ff-score'); return v && FF_SCORING[v] ? v : Object.keys(FF_SCORING)[0]; })(), pos: '', q: '', open: new Set(),
+  view: NBA ? 'rank' : ['team', 'trades', 'rank'].includes(store.get('edge-ff-view')) ? store.get('edge-ff-view') : 'team' };
 const ffMean = pr => {
   if (pr.m === 'Anytime TD') return pr.pOver != null ? -Math.log(1 - Math.min(0.95, pr.pOver)) : 0;
   return pr.proj > 0 ? 0.6 * pr.l + 0.4 * pr.proj : pr.l;
 };
-function ffPlayer(pl) {
+const ffKey = n => (n || '').toLowerCase().replace(/[^a-z]/g, '').replace(/(iii|ii|iv|jr|sr)$/, '');
+const ffOrd = n => n + (['th', 'st', 'nd', 'rd'][n % 10 > 3 || [11, 12, 13].includes(n % 100) ? 0 : n % 10]);
+function ffPlayer(pl, ppr) {
   const e = {}; for (const pr of pl.props) if (pr.l != null || pr.m === 'Anytime TD') e[pr.m] = ffMean(pr);
   if (NBA) { const w = FF_SCORING[FF.score][1], parts = ['Points', 'Rebounds', 'Assists', 'Threes'].filter(k => e[k] != null);
     if (e.Points == null) return null;
     return { pts: parts.reduce((s, k) => s + e[k] * w[k], 0), parts: parts.map(k => [k, e[k]]) }; }
-  const ppr = FF_SCORING[FF.score][1], qb = pl.p === 'QB';
+  const qb = pl.p === 'QB';
   const ryd = e['Rush yds'] ?? (e['Rush+rec yds'] != null && e['Rec yds'] != null ? e['Rush+rec yds'] - e['Rec yds'] : 0);
   const recy = e['Rec yds'] ?? 0, rec = e.Receptions ?? (recy ? recy / 11 : 0), pyd = qb ? e['Pass yds'] ?? 0 : 0;
   const ptd = qb ? e['Pass TD'] ?? 0 : 0, int = qb ? e.INT ?? (pyd ? 0.7 : 0) : 0, td = e['Anytime TD'] ?? 0;
   if (!pyd && !ryd && !recy && !td) return null;
   const pts = pyd * 0.04 + ptd * 4 - int * 2 + (ryd + recy) * 0.1 + rec * ppr + td * 6;
   const parts = qb ? [['pass yds', pyd], ['pass TD', ptd], ['INT', int], ['rush yds', ryd], ['TD', td]] : [['rec', rec], ['rec yds', recy], ['rush yds', ryd], ['TD', td]];
-  return { pts, parts: parts.filter(([, v]) => v > 0.05) };
+  return { pts, rec, parts: parts.filter(([, v]) => v > 0.05) };
+}
+// implied team points from the spread and total; kicker and defense points from them
+const ffImplied = g => { const o = g.odds || {}; return o.t == null || o.hs == null ? null : { home: (o.t - o.hs) / 2, away: (o.t + o.hs) / 2 }; };
+const ffKicker = imp => imp / 7 * 0.95 + 0.07 * imp * 3.3;            // extra points + ~0.07 field goals per team point
+function ffDefense(oppImp) {   // Sleeper-style points-allowed tiers over a normal spread of opponent scores, plus sacks / takeaways
+  let prev = 0, e = 0;
+  for (const [hi, v] of [[0.5, 10], [6.5, 7], [13.5, 4], [20.5, 1], [27.5, 0], [34.5, -1], [Infinity, -4]]) { const c = hi === Infinity ? 1 : normCdf((hi - oppImp) / 9.5); e += (c - prev) * v; prev = c; }
+  return Math.max(0, e + 6 * (1 + (22 - oppImp) * 0.03));
+}
+// every player we can project this week
+function ffRows(ppr) {
+  const all = [], sl = S.slate; if (!sl) return all;
+  for (const g of sl.games.filter(g => g.state === 'pre')) {
+    for (const pl of S.props?.[g.id] || []) {
+      const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home, inj = (team.inj || []).find(i => i.n === pl.n);
+      if (inj && isOut(inj.s)) continue;
+      const pos = NBA ? (pl.p || '').replace(/^(PG|SG)$/, 'G').replace(/^(SF|PF)$/, 'F') : posGroup(pl.p);
+      if (!FF_START[pos]) continue;
+      const f = ffPlayer(pl, ppr); if (!f) continue;
+      all.push({ id: pl.id, n: pl.n, pl, g, team, opp, inj, pos, ...f });
+    }
+    const im = NBA ? null : ffImplied(g);
+    if (im) for (const side of ['home', 'away']) {
+      const team = g[side], other = side === 'home' ? 'away' : 'home', opp = g[other];
+      all.push({ id: 'K-' + team.abbr, n: team.abbr + ' kicker', pos: 'K', g, team, opp, est: true, pts: ffKicker(im[side]), parts: [['team pts (implied)', im[side]]] });
+      all.push({ id: 'D-' + team.abbr, n: team.abbr + ' D/ST', pos: 'DEF', g, team, opp, est: true, pts: ffDefense(im[other]), parts: [['opp pts (implied)', im[other]]] });
+    }
+  }
+  return all;
+}
+function ffMatchup(x) {   // the opponent's rank against this position (1 = gives up the most)
+  if (NBA || x.est) return '';
+  const r = AN()[x.opp.abbr]?.dvp?.[x.pos]?.rk?.[{ QB: 'pyd', RB: 'tot', WR: 'yds', TE: 'yds' }[x.pos]];
+  return r <= 8 ? '<span class="ffmu soft">soft D</span>' : r >= 25 ? '<span class="ffmu tough">tough D</span>' : '';
 }
 function renderFantasy() {
   const box = $('#fantasy'); if (!box || CFB) return;
   if (!$('#view-fantasy').hidden) lgBoot();
+  $('#ff-tabs').innerHTML = NBA ? '' : [['team', 'My team'], ['trades', 'Trades'], ['rank', 'Rankings']].map(([k, l]) => `<button class="chip" data-ffview="${k}" aria-pressed="${k === FF.view}">${l}</button>`).join('');
+  const rank = FF.view === 'rank';
+  $('#ff-rankctl').hidden = !rank; $('#ff-note').hidden = !rank;
+  renderLeague();
+  if (!rank) { box.innerHTML = ''; return; }
   $('#ff-score').innerHTML = Object.entries(FF_SCORING).map(([k, [lbl]]) => `<button class="chip" data-ffscore="${k}" aria-pressed="${k === FF.score}">${lbl}</button>`).join('');
   $('#ff-pos').innerHTML = FF_POS.map(p => `<button class="chip" data-ffpos="${p}" aria-pressed="${p === FF.pos}">${p || 'All'}</button>`).join('');
   $('#ff-note').textContent = NBA ? "Projected fantasy points from the betting lines (points, rebounds, assists, threes) blended with our model. No steals, blocks or turnovers: books don't post those."
-    : 'Projected fantasy points from the betting lines blended with our model, for every player with props this week. Start = a 12-team league starter at his position. No kickers or defenses.';
-  const sl = S.slate; if (!sl || !S.props) { box.innerHTML = `<div class="empty"><b>No projections yet</b>They show up once player props are posted.</div>`; return; }
-  const all = [];
-  for (const g of sl.games.filter(g => g.state === 'pre' && S.props[g.id]?.length)) for (const pl of S.props[g.id]) {
-    const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home, inj = (team.inj || []).find(i => i.n === pl.n);
-    if (inj && isOut(inj.s)) continue;
-    const pos = NBA ? (pl.p || '').replace(/^(PG|SG)$/, 'G').replace(/^(SF|PF)$/, 'F') : posGroup(pl.p);
-    if (!FF_START[pos]) continue;
-    const f = ffPlayer(pl); if (!f) continue;
-    all.push({ pl, g, team, opp, inj, pos, ...f });
-  }
-  // rank within each position; start / flex / sit from those ranks
+    : 'Projected points this week from the betting lines blended with our model. Range = a typical bad-to-good week. Kickers and defenses are estimates from each team\'s implied points. Start = a 12-team league starter at his position.';
+  if (!S.slate || !S.props) { box.innerHTML = `<div class="empty"><b>No projections yet</b>They show up once player props are posted.</div>`; return; }
+  const all = ffRows(NBA ? 0 : FF_SCORING[FF.score][1]);
   const byPos = {}; for (const x of all.sort((a, b) => b.pts - a.pts)) (byPos[x.pos] ||= []).push(x);
-  for (const [pos, xs] of Object.entries(byPos)) xs.forEach((x, i) => { x.rk = i + 1; x.tier = i < FF_START[pos] ? 'start' : !NBA && pos !== 'QB' && i < FF_START[pos] * 1.5 ? 'flex' : 'sit'; });
+  for (const [pos, xs] of Object.entries(byPos)) xs.forEach((x, i) => { x.rk = i + 1; x.tier = i < FF_START[pos] ? 'start' : !NBA && ['RB', 'WR', 'TE'].includes(pos) && i < FF_START[pos] * 1.5 ? 'flex' : 'sit'; });
   const q = FF.q.trim().toLowerCase();
-  const rows = all.filter(x => (!FF.pos || (FF.pos === 'FLEX' ? ['RB', 'WR', 'TE'].includes(x.pos) : x.pos === FF.pos)) && (!q || x.pl.n.toLowerCase().includes(q)));
+  const rows = all.filter(x => (FF.pos ? (FF.pos === 'FLEX' ? ['RB', 'WR', 'TE'].includes(x.pos) : x.pos === FF.pos) : !['K', 'DEF'].includes(x.pos)) && (!q || x.n.toLowerCase().includes(q)));
   if (!rows.length) { box.innerHTML = `<div class="empty"><b>No players match</b>Try another position or name.</div>`; return; }
   const fmt = v => v >= 10 ? v.toFixed(0) : v.toFixed(1), tierLbl = { start: 'Start', flex: 'Flex', sit: 'Sit' };
-  box.innerHTML = `<div class="fflist">${rows.slice(0, 150).map((x, i) => { const k = x.pl.id + '|' + x.g.id, open = FF.open.has(k);
+  box.innerHTML = `<div class="fflist">${rows.slice(0, 150).map((x, i) => { const k = x.id + '|' + x.g.id, open = FF.open.has(k), sd = x.pts * FF_SD[x.pos];
     return `<button class="ffrow" data-ffopen="${esc(k)}" aria-expanded="${open}" style="--tc:${teamColor(x.team)}">
       <span class="ffrk">${i + 1}</span>${logo(x.team.abbr, 22)}
-      <span class="ffn"><b>${esc(x.pl.n)}</b><small>${esc(x.pos)}${x.rk} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${esc(kick(x.g))}${x.inj ? ` · <span class="neg">${esc(x.inj.s)}</span>` : ''}</small></span>
+      <span class="ffn"><b>${esc(x.n)}</b><small>${esc(x.pos)}${x.rk} · ${x.est ? 'vs' : x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${esc(kick(x.g))}${x.inj ? ` · <span class="neg">${esc(x.inj.s)}</span>` : ''}</small>
+        <small>range ${fmt(Math.max(0, x.pts - 0.84 * sd))}–${fmt(x.pts + 0.84 * sd)} ${ffMatchup(x)}</small></span>
       <span class="fftier ${x.tier}">${tierLbl[x.tier]}</span><span class="ffpts">${x.pts.toFixed(1)}</span></button>
-      ${open ? `<div class="ffwhy">${x.parts.map(([n, v]) => `<span><b>${fmt(v)}</b> ${esc(NBA ? n.toLowerCase() : n)}</span>`).join('')}<small>${NBA ? '' : 'TD = expected touchdowns from the anytime-TD price. '}Each number blends the market's line (60%) with our projection (40%).</small></div>` : ''}`; }).join('')}</div>
+      ${open ? `<div class="ffwhy">${x.parts.map(([n, v]) => `<span><b>${fmt(v)}</b> ${esc(NBA ? n.toLowerCase() : n)}</span>`).join('')}<small>${x.est ? 'Estimated from the betting lines\' implied team points.' : `${NBA ? '' : 'TD = expected touchdowns from the anytime-TD price. '}Each number blends the market's line (60%) with our projection (40%).`}</small></div>` : ''}`; }).join('')}</div>
     ${rows.length > 150 ? `<p class="note">Showing 150 of ${rows.length}. Pick a position or search a name.</p>` : ''}`;
 }
 document.addEventListener('click', e => {
+  const vw = e.target.closest('[data-ffview]'); if (vw) { FF.view = vw.dataset.ffview; store.set('edge-ff-view', FF.view); renderFantasy(); return; }
   const sc = e.target.closest('[data-ffscore]'); if (sc) { FF.score = sc.dataset.ffscore; store.set('edge-ff-score', FF.score); renderFantasy(); return; }
   const ps = e.target.closest('[data-ffpos]'); if (ps) { FF.pos = ps.dataset.ffpos; renderFantasy(); return; }
   const op = e.target.closest('[data-ffopen]'); if (op) { const k = op.dataset.ffopen; FF.open.has(k) ? FF.open.delete(k) : FF.open.add(k); renderFantasy(); }
 });
 document.addEventListener('input', e => { if (e.target.id === 'ff-q') { FF.q = e.target.value; renderFantasy(); } });
 
-// ------------------------------------------------------------ my league (Sleeper) + trade finder
-// Sleeper's API is public: a username (no password) finds the leagues, rosters and owners. Player values come from the
-// sync's ff_values.json (rest-of-season points per game, split into non-reception points "s" and receptions "r" so the
-// league's own PPR setting applies). Teams are shown by their owner's Sleeper handle, never the custom team name.
+// ------------------------------------------------------------ my league (Sleeper or Yahoo)
+// Sleeper's API is public: a username (no password) finds the leagues, rosters, lineups and owners. Yahoo comes from the
+// sync (yahoo_league.json). Rest-of-season values: ff_values.json (points per game, split into non-reception points "s"
+// and receptions "r" so the league's PPR setting applies). Teams show their owner's handle, never the custom team name.
 const SLP = 'https://api.sleeper.app/v1/';
-const LG = { user: store.get('edge-slp-user') || '', league: store.get('edge-slp-league') || '', leagues: null, data: null, err: '', busy: false, need: '', open: false };
-const lgName = l => /nig/i.test(l.name || '') ? 'GSO League' : l.name || 'League';   // league names with slurs never shown
+const SLP_TM = { WAS: 'WSH' };   // Sleeper team codes that differ from ESPN's
+const LG = { user: store.get('edge-slp-user') || '', league: store.get('edge-slp-league') || '', leagues: null, data: null, err: '', busy: false, need: '',
+  an: { team: '', give: new Set(), get: new Set() } };
+const lgName = l => /nig/i.test(l.name || '') ? 'GSO League' : l.name || 'League';   // league names with slurs never shown
 const slp = p => fetch(SLP + p).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
 const FLEX_OK = { FLEX: ['RB', 'WR', 'TE'], SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'], REC_FLEX: ['WR', 'TE'], WRRB_FLEX: ['RB', 'WR'] };
 async function lgConnect(name) {
@@ -3679,27 +3737,26 @@ async function lgConnect(name) {
   } catch (e) { LG.err = e.message === '404' ? 'Sleeper didn\'t find that username.' : e.message; }
   LG.busy = false; renderLeague();
 }
+const ffVals = () => fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null);
 async function lgLoad(id) {
   LG.busy = true; renderLeague();
   try {
-    const [league, rosters, users, vals] = await Promise.all([slp('league/' + id), slp(`league/${id}/rosters`), slp(`league/${id}/users`),
-      fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null)]);
+    const [league, rosters, users, vals] = await Promise.all([slp('league/' + id), slp(`league/${id}/rosters`), slp(`league/${id}/users`), ffVals()]);
     if (!vals) throw new Error('Player values aren\'t ready yet; they come with the next data sync.');
-    LG.league = id; store.set('edge-slp-league', id);
+    LG.league = id; store.set('edge-slp-league', id); LG.src = 'sleeper'; store.set('edge-lg-src', 'sleeper');
     const handle = Object.fromEntries(users.map(u => [u.user_id, u.display_name || 'Team']));
     LG.data = lgBuild({ rec: league.scoring_settings?.rec ?? 0, te: league.scoring_settings?.bonus_rec_te || 0, n: league.total_rosters },
-      league.roster_positions || [], rosters.map(r => ({ id: r.roster_id, owner: r.owner_id, name: handle[r.owner_id] || `Team ${r.roster_id}`, players: r.players || [] })),
+      league.roster_positions || [], rosters.map(r => ({ id: r.roster_id, owner: r.owner_id, name: handle[r.owner_id] || `Team ${r.roster_id}`, players: r.players || [], starters: r.starters || [] })),
       vals, t => t.owner === (LG.uid || store.get('edge-slp-uid')));
     if (!LG.leagues) LG.leagues = [league];
   } catch (e) { LG.err = e.message; LG.data = null; }
   LG.busy = false; renderLeague();
 }
-// Yahoo: the sync pulls the league (yahoo_league.json); you pick your team once on this device
+// Yahoo: the sync pulls the league; you pick your team once on this device
 async function lgYahoo() {
   LG.busy = true; LG.err = ''; renderLeague();
   try {
-    const [yl, vals] = await Promise.all([fetch(DATA_BASE + 'yahoo_league.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null),
-      fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null)]);
+    const [yl, vals] = await Promise.all([fetch(DATA_BASE + 'yahoo_league.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null), ffVals()]);
     if (!yl || !vals) throw new Error('The Yahoo league hasn\'t synced yet.');
     LG.src = 'yahoo'; store.set('edge-lg-src', 'yahoo');
     const mine = store.get('edge-yh-team');
@@ -3709,20 +3766,20 @@ async function lgYahoo() {
   LG.busy = false; renderLeague();
 }
 function lgBuild(sc, positions, rawTeams, vals, isMe) {
-    const V = vals.players;
-    const ppg = pid => { const v = V[pid]; return v ? v.s + v.r * (sc.rec + (v.pos === 'TE' ? sc.te : 0)) : 0; };
-    const slots = positions.filter(x => ['QB', 'RB', 'WR', 'TE'].includes(x) || FLEX_OK[x]);
-    const teams = rawTeams.map(t => ({ ...t, players: (t.players || []).filter(pid => V[pid]) }));
-    // replacement level: the best player nobody would start in a league this size
-    const cnt = { QB: 0, RB: 0, WR: 0, TE: 0 };
-    for (const x of slots) if (cnt[x] != null) cnt[x]++; else { const ok = FLEX_OK[x]; for (const ps of ok) cnt[ps] += ps === 'TE' ? 0.1 : ps === 'QB' ? 0.8 : (1 - (ok.includes('TE') ? 0.1 : 0) - (ok.includes('QB') ? 0.8 : 0)) / ok.filter(q => q === 'RB' || q === 'WR').length; }
-    const repl = {};
-    for (const pos of Object.keys(cnt)) { const xs = Object.keys(V).filter(k => V[k].pos === pos).map(ppg).sort((a, b) => b - a); repl[pos] = xs[Math.round(teams.length * cnt[pos])] ?? 0; }
-    return { sc, teams, V, ppg, slots, repl, me: teams.find(isMe), week: vals.week };
+  const V = vals.players;
+  const ppg = pid => { const v = V[pid]; return v ? v.s + v.r * (sc.rec + (v.pos === 'TE' ? sc.te : 0)) : 0; };
+  const slots = positions.filter(x => ['QB', 'RB', 'WR', 'TE'].includes(x) || FLEX_OK[x]);
+  const teams = rawTeams.map(t => ({ ...t, players: (t.players || []).filter(pid => V[pid]) }));
+  // replacement level: the best player nobody would start in a league this size
+  const cnt = { QB: 0, RB: 0, WR: 0, TE: 0 };
+  for (const x of slots) if (cnt[x] != null) cnt[x]++; else { const ok = FLEX_OK[x]; for (const ps of ok) cnt[ps] += ps === 'TE' ? 0.1 : ps === 'QB' ? 0.8 : (1 - (ok.includes('TE') ? 0.1 : 0) - (ok.includes('QB') ? 0.8 : 0)) / ok.filter(q => q === 'RB' || q === 'WR').length; }
+  const repl = {};
+  for (const pos of Object.keys(cnt)) { const xs = Object.keys(V).filter(k => V[k].pos === pos).map(ppg).sort((a, b) => b - a); repl[pos] = xs[Math.round(teams.length * cnt[pos])] ?? 0; }
+  return { sc, teams, V, ppg, slots, repl, me: teams.find(isMe), week: vals.week };
 }
-// best starting lineup for a roster: fixed slots first, then flex slots, each taking the best eligible player left
-function lgLineup(pids, D) {
-  const left = pids.map(pid => ({ pid, pos: D.V[pid].pos, p: D.ppg(pid) })).sort((a, b) => b.p - a.p), out = [];
+// best lineup for a roster (fixed slots first, then flex), by rest-of-season points or any other value
+function lgLineup(pids, D, val = pid => D.ppg(pid)) {
+  const left = pids.map(pid => ({ pid, pos: D.V[pid].pos, p: val(pid) })).sort((a, b) => b.p - a.p), out = [];
   for (const sl of [...D.slots.filter(x => !FLEX_OK[x]), ...D.slots.filter(x => FLEX_OK[x])]) {
     const ok = FLEX_OK[sl] || [sl], i = left.findIndex(x => ok.includes(x.pos));
     if (i >= 0) out.push({ slot: sl, ...left.splice(i, 1)[0] });
@@ -3735,23 +3792,50 @@ function lgStrength(D) {   // each team's starting points at each position, rank
   const rank = {}; for (const pos of ['QB', 'RB', 'WR', 'TE']) rows.slice().sort((a, b) => (b.by[pos] || 0) - (a.by[pos] || 0)).forEach((r, i) => { (rank[r.t.id] ||= {})[pos] = i + 1; });
   return { rows, rank };
 }
-function lgTrades(D, pos) {
-  const me = D.me, base = lgLineup(me.players, D).pts, out = [];
-  const mine = me.players.filter(pid => D.ppg(pid) > 0);
+// this week's points for every rostered player: his props projection; else bye / already played / out; else his season rate
+function lgWeek(D) {
+  const byKey = {}; for (const x of ffRows(D.sc.rec)) if (x.pl) byKey[ffKey(x.n) + '|' + x.pos] = x;
+  const playing = new Set(), done = new Set();
+  for (const g of S.slate?.games || []) for (const t of [g.home.abbr, g.away.abbr]) (g.state === 'pre' ? playing : done).add(t);
+  const W = {};
+  for (const t of D.teams) for (const pid of t.players) {
+    const v = D.V[pid], tm = SLP_TM[v.tm] || v.tm, x = byKey[ffKey(v.n) + '|' + v.pos];
+    W[pid] = x ? { pts: x.pts + (v.pos === 'TE' ? D.sc.te * (x.rec || 0) : 0), tag: '' }
+      : done.has(tm) ? { pts: 0, tag: 'played' } : !playing.has(tm) ? { pts: 0, tag: 'bye' }
+      : /out|ir|sus|pup/i.test(v.inj || '') ? { pts: 0, tag: 'out' } : { pts: D.ppg(pid), tag: 'est' };
+  }
+  return W;
+}
+// trade finder for a position you need. Rules, so it never "fixes" one hole by opening another:
+//  - stars stay put: a top-3 player at his position (top 5 at RB / WR) is never offered unless you allow it
+//  - after the trade you can't fall into the league's bottom third at any position you give up, or drop 3+ places there
+//  - fair: what you send is worth 85-125% of what you get (rest-of-season value over a replacement player)
+//  - it helps your weekly lineup and doesn't gut theirs; bench players and players they need are preferred
+function lgTrades(D, pos, rank, rows) {
+  const me = D.me, n = D.teams.length, base = lgLineup(me.players, D).pts, out = [];
+  const starCut = {}; for (const p of ['QB', 'RB', 'WR', 'TE']) { const xs = Object.keys(D.V).filter(k => D.V[k].pos === p).map(D.ppg).sort((a, b) => b - a); starCut[p] = xs[(p === 'RB' || p === 'WR' ? 5 : 3) - 1] ?? 99; }
+  const star = pid => D.ppg(pid) >= starCut[D.V[pid].pos];
+  const myBest = new Set(lgLineup(me.players, D).out.map(x => x.pid));
+  const mine = me.players.filter(pid => D.ppg(pid) > 0 && (LG.stars || !star(pid)));
   const gives = [...mine.map(a => [a]), ...mine.flatMap((a, i) => mine.slice(i + 1).map(b => [a, b]))];
+  const others = rows.filter(r => r.t.id !== me.id);
+  const rankAfter = (pids, p) => { const lu = lgLineup(pids, D), v = lu.out.filter(x => x.pos === p).reduce((a, x) => a + x.p, 0); return 1 + others.filter(r => (r.by[p] || 0) > v + 1e-9).length; };
   for (const t of D.teams) {
     if (t.id === me.id) continue;
     const tBase = lgLineup(t.players, D).pts;
     for (const get of t.players.filter(pid => D.V[pid].pos === pos && D.ppg(pid) > 0)) {
-      const vGet = lgVal(get, D);
+      const vGet = lgVal(get, D); if (vGet <= 0) continue;
       for (const give of gives) {
         if (give.some(pid => D.V[pid].pos === pos) && give.length === 1) continue;
         const vGive = give.reduce((a, pid) => a + lgVal(pid, D), 0);
-        if (vGive < vGet * 0.85 || vGive > vGet * 1.6 + 1) continue;   // roughly fair by rest-of-season value
-        const myNew = me.players.filter(x => !give.includes(x)).concat(get), thNew = t.players.filter(x => x !== get).concat(give);
-        const dMe = lgLineup(myNew, D).pts - base, dThem = lgLineup(thNew, D).pts - tBase;
-        if (dMe < 0.5 || dThem < -1.0) continue;   // helps you, and they don't lose much of their weekly lineup
-        out.push({ t, get, give, dMe, dThem, vGet, vGive, score: dMe + 0.6 * Math.min(dThem, 2) - 0.15 * (give.length - 1) });
+        if (vGive < vGet * 0.85 || vGive > vGet * 1.25) continue;
+        const myNew = me.players.filter(x => !give.includes(x)).concat(get);
+        const dMe = lgLineup(myNew, D).pts - base; if (dMe < 0.5) continue;
+        const hole = [...new Set(give.map(pid => D.V[pid].pos))].filter(p => p !== pos).some(p => { const r = rankAfter(myNew, p); return r > n - Math.ceil(n / 3) || r - rank[me.id][p] >= 3; });
+        if (hole) continue;
+        const dThem = lgLineup(t.players.filter(x => x !== get).concat(give), D).pts - tBase; if (dThem < -1.0) continue;
+        const bench = give.filter(pid => !myBest.has(pid)).length, theyNeed = give.filter(pid => rank[t.id][D.V[pid].pos] > n / 2).length;
+        out.push({ t, get, give, dMe, dThem, score: dMe + 0.4 * Math.min(dThem, 2) + 0.6 * bench + 0.4 * theyNeed - 0.2 * (give.length - 1) });
       }
     }
   }
@@ -3759,14 +3843,73 @@ function lgTrades(D, pos) {
   const seen = new Set(), per = {}, keep = [];   // at most two offers for any one player, so the list covers more targets
   for (const x of out) { const k = x.get + '|' + x.give.slice().sort().join(','); if (seen.has(k) || (per[x.get] || 0) >= 2) continue;
     seen.add(k); per[x.get] = (per[x.get] || 0) + 1; keep.push(x); if (keep.length >= 10) break; }
+  for (const x of keep) { const gp = [...new Set(x.give.map(pid => D.V[pid].pos))], r = rank[x.t.id];
+    x.why = `They're ${ffOrd(r[pos])} at ${pos}` + gp.filter(p => p !== pos).map(p => `, ${ffOrd(r[p])} at ${p}`).join('') + (x.give.every(pid => !myBest.has(pid)) ? '. You only give up bench players' : '') + (x.dThem > 0.3 ? '; their lineup gets better too.' : '.'); }
   return keep;
+}
+function lgPl(pid, D, wk) {
+  const v = D.V[pid], w = wk?.[pid];
+  const tag = w?.tag === 'bye' ? ' · <span class="neg">bye</span>' : w?.tag === 'out' ? ' · <span class="neg">out</span>' : w?.tag === 'played' ? ' · played' : '';
+  return `<b>${esc(v.n)}</b> <small>${esc(v.pos)} · ${esc(v.tm || 'FA')} · ${w ? `${w.pts.toFixed(1)} this wk${w.tag === 'est' ? '*' : ''}` : `${D.ppg(pid).toFixed(1)}/wk`}${v.inj && w?.tag !== 'out' ? ` · <span class="neg">${esc(v.inj)}</span>` : ''}${tag}</small>`;
+}
+function lgTeamView(D) {
+  const W = lgWeek(D), mine = D.me.players, cur = new Set((D.me.starters || []).filter(pid => D.V[pid]));
+  const live = pid => W[pid].tag !== 'played';
+  const best = lgLineup(mine, D, pid => W[pid].pts), bestSet = new Set(best.out.map(x => x.pid));
+  // start / sit: players the best lineup starts that you don't, paired with your starters it benches (games not played yet)
+  const ins = best.out.filter(x => cur.size && !cur.has(x.pid) && live(x.pid)), outs = [...cur].filter(pid => !bestSet.has(pid) && live(pid));
+  const swaps = ins.map((x, i) => outs[i] ? { in: x.pid, out: outs[i], d: W[x.pid].pts - W[outs[i]].pts } : null).filter(s => s && s.d >= 0.5);
+  const curPts = [...cur].reduce((a, pid) => a + W[pid].pts, 0);
+  // waivers: free agents better than your weakest player at the position
+  const owned = new Set(D.teams.flatMap(t => t.players));
+  const myWorst = {}; for (const pid of mine) { const p = D.V[pid].pos; myWorst[p] = Math.min(myWorst[p] ?? 99, D.ppg(pid)); }
+  const fa = Object.keys(D.V).filter(pid => !owned.has(pid) && !/ir|out|sus|pup/i.test(D.V[pid].inj || '') && D.ppg(pid) > (myWorst[D.V[pid].pos] ?? 0) + 0.5)
+    .sort((a, b) => D.ppg(b) - D.ppg(a)).slice(0, 6);
+  const drop = mine.filter(pid => !lgLineup(mine, D).out.some(x => x.pid === pid)).sort((a, b) => lgVal(a, D) - lgVal(b, D) || D.ppg(a) - D.ppg(b))[0];
+  return `<h4>This week</h4>
+    ${cur.size ? `<p class="note">Your set lineup: <b>${curPts.toFixed(1)}</b> projected · best possible: <b>${best.pts.toFixed(1)}</b></p>` : `<p class="note">Best lineup: <b>${best.pts.toFixed(1)}</b> projected points${D.yahoo ? ' (Yahoo doesn\'t share your set lineup)' : ''}</p>`}
+    ${swaps.length ? `<div class="lgswaps">${swaps.map(s => `<div class="lgswap"><span class="lbl start">Start</span>${lgPl(s.in, D, W)}<span class="lbl sit">over</span>${lgPl(s.out, D, W)}<span class="pos">+${s.d.toFixed(1)}</span></div>`).join('')}</div>`
+      : cur.size ? (best.pts - curPts >= 0.05 ? `<p class="note">Your lineup is within ${(best.pts - curPts).toFixed(1)} pts of the best one: the players marked "new" are coin flips.</p>` : '<p class="note pos">Your lineup is already the best one we see.</p>') : ''}
+    <div class="lglu">${best.out.map(x => `<div class="lgp"><i>${esc(x.slot === 'SUPER_FLEX' ? 'SF' : x.slot)}</i>${lgPl(x.pid, D, W)}${cur.size && !cur.has(x.pid) ? ' <span class="lgnew">new</span>' : ''}</div>`).join('')}</div>
+    <p class="note">* no betting lines for him this week: season rate.</p>
+    <h4>Waiver pickups</h4>
+    ${fa.length ? `<div class="lglu">${fa.map(pid => `<div class="lgp"><i>${esc(D.V[pid].pos)}</i>${lgPl(pid, D)}</div>`).join('')}</div>${drop ? `<p class="note">Easiest drop: ${lgPl(drop, D)}</p>` : ''}`
+      : '<p class="note">No free agent beats your weakest player at his position right now.</p>'}`;
+}
+function lgTradeView(D, rank, my, need) {
+  const trades = lgTrades(D, need, rank, lgStrength(D).rows), A = LG.an;
+  const other = D.teams.find(t => String(t.id) === A.team);
+  let verdict = '';
+  if (other && A.give.size && A.get.size) {
+    const give = [...A.give], get = [...A.get];
+    const dMe = lgLineup(D.me.players.filter(x => !A.give.has(x)).concat(get), D).pts - lgLineup(D.me.players, D).pts;
+    const dThem = lgLineup(other.players.filter(x => !A.get.has(x)).concat(give), D).pts - lgLineup(other.players, D).pts;
+    const vG = give.reduce((a, p) => a + lgVal(p, D), 0), vR = get.reduce((a, p) => a + lgVal(p, D), 0);
+    const call = dMe >= 0.5 && dThem >= -1 ? ['good', 'Good for you, and fair enough to pitch'] : dMe >= 0.5 ? ['ok', 'Good for you, but it hurts their lineup: a tough sell'] : dMe > -0.5 ? ['', 'About even for you'] : ['bad', 'This makes your lineup worse'];
+    verdict = `<div class="lgverdict ${call[0]}"><b>${call[1]}</b><span>Your lineup <span class="${dMe >= 0 ? 'pos' : 'neg'}">${dMe >= 0 ? '+' : ''}${dMe.toFixed(1)}</span>/wk · theirs <span class="${dThem >= 0 ? 'pos' : 'neg'}">${dThem >= 0 ? '+' : ''}${dThem.toFixed(1)}</span>/wk · value you send ${vG.toFixed(1)} vs ${vR.toFixed(1)} you get</span></div>`;
+  }
+  const chips = (t, set, attr) => t.players.slice().sort((a, b) => D.ppg(b) - D.ppg(a)).map(pid => `<button class="chip" ${attr}="${pid}" aria-pressed="${set.has(pid)}">${esc(D.V[pid].n)} <small>${esc(D.V[pid].pos)} ${D.ppg(pid).toFixed(1)}</small></button>`).join('');
+  return `<div class="lgstr">${['QB', 'RB', 'WR', 'TE'].map(pos => `<button class="lgpos ${my[pos] <= Math.ceil(D.teams.length / 3) ? 'good' : my[pos] > D.teams.length - Math.ceil(D.teams.length / 3) ? 'bad' : ''}" data-lgneed="${pos}" aria-pressed="${pos === need}"><b>${pos}</b><span>${ffOrd(my[pos])}</span></button>`).join('')}</div>
+    <h4>Trade finder: get a ${esc(need)}</h4>
+    <p class="note">Fair trades (within ~20% on rest-of-season value) that raise your weekly lineup without opening a new hole on your roster. Your stars stay off the table unless you allow it. <button class="chip" data-lgstars aria-pressed="${!!LG.stars}">${LG.stars ? 'Stars included' : 'Include my stars'}</button></p>
+    ${trades.length ? `<div class="lgtrades">${trades.map(x => `<div class="lgtr"><div class="lgside"><span class="lbl">You get</span>${lgPl(x.get, D)}</div>
+      <div class="lgside"><span class="lbl">You give</span>${x.give.map(p => lgPl(p, D)).join('<br>')}</div>
+      <div class="lgmeta">with <b>${esc(x.t.name)}</b> · your lineup <span class="pos">+${x.dMe.toFixed(1)}</span>/wk · theirs <span class="${x.dThem >= 0 ? 'pos' : 'neg'}">${x.dThem >= 0 ? '+' : ''}${x.dThem.toFixed(1)}</span>/wk<br>${esc(x.why)}</div>
+      <button class="btn small" data-lgtry="${esc(String(x.t.id))}|${x.get}|${x.give.join(',')}">Open in analyzer</button></div>`).join('')}</div>`
+      : `<p class="note">No fair ${esc(need)} trades found right now: nobody deep at ${esc(need)} needs what you have to spare.</p>`}
+    <h4>Trade analyzer</h4>
+    <p class="note">Build any trade: pick a team, then the players on each side.</p>
+    <select id="anTeam" aria-label="Trade partner"><option value="">Pick a team…</option>${D.teams.filter(t => t.id !== D.me.id).map(t => `<option value="${esc(String(t.id))}" ${String(t.id) === A.team ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
+    ${other ? `<div class="lgan"><div><span class="lbl">You give</span><div class="row">${chips(D.me, A.give, 'data-angive')}</div></div>
+      <div><span class="lbl">You get</span><div class="row">${chips(other, A.get, 'data-anget')}</div></div></div>${verdict}` : ''}
+    <p class="note">Values: points per game this season (recent games count more) blended with this week's prop lines; injured players count less. Week ${D.week} data.</p>`;
 }
 function renderLeague() {
   const box = $('#ffleague'); if (!box) return;
-  if (NBA || CFB) { box.innerHTML = ''; return; }
+  if (NBA || CFB || FF.view === 'rank') { box.innerHTML = ''; return; }
   const D = LG.data;
   if (!D) {
-    box.innerHTML = `<section class="lgcard"><h3>Your league</h3><p class="note">Connect your Sleeper league to see your team's strengths and a trade finder. Just your Sleeper username: no password.</p>
+    box.innerHTML = `<section class="lgcard"><h3>Your league</h3><p class="note">Connect your Sleeper league to see your lineup, start/sit, waiver pickups and trades. Just your Sleeper username: no password.</p>
       <form id="lgForm" class="lgform"><input id="lgUser" placeholder="Sleeper username" autocomplete="off" value="${esc(LG.user)}"><button class="btn primary" ${LG.busy ? 'disabled' : ''}>${LG.busy ? 'Loading…' : 'Connect'}</button></form>
       ${LG.leagues?.length > 1 ? `<div class="row">${LG.leagues.map(l => `<button class="chip" data-lgpick="${l.league_id}">${esc(lgName(l))} · ${l.total_rosters} teams</button>`).join('')}</div>` : ''}
       ${LG.err ? `<p class="neg">${esc(LG.err)}</p>` : ''}${LG.hasYahoo ? `<p class="note">Or your Yahoo league: <button class="btn small" data-lgyahoo>Fantasy Degens (Yahoo)</button></p>` : ''}</section>`;
@@ -3775,29 +3918,22 @@ function renderLeague() {
   if (!D.me && D.yahoo) { box.innerHTML = `<section class="lgcard"><h3>Which team is yours?</h3><div class="row">${D.teams.map(t => `<button class="chip" data-yhteam="${esc(String(t.id))}">${esc(t.name)}</button>`).join('')}</div><button class="btn small" data-lgout>Back</button></section>`; return; }
   if (!D.me) { box.innerHTML = `<section class="lgcard"><h3>Your league</h3><p class="neg">You don't own a team in this league.</p><button class="btn small" data-lgout>Switch account</button></section>`; return; }
   const { rows, rank } = lgStrength(D), n = D.teams.length, my = rank[D.me.id];
-  const weakest = ['RB', 'WR', 'TE', 'QB'].sort((a, b) => my[b] - my[a])[0];
-  const need = LG.need || weakest, trades = lgTrades(D, need);
-  const tag = r => r <= Math.ceil(n / 3) ? 'good' : r > n - Math.ceil(n / 3) ? 'bad' : '';
-  const pl = pid => { const v = D.V[pid]; return `<b>${esc(v.n)}</b> <small>${esc(v.pos)} · ${esc(v.tm || 'FA')} · ${D.ppg(pid).toFixed(1)}/wk${v.inj ? ` · <span class="neg">${esc(v.inj)}</span>` : ''}</small>`; };
-  const lu = lgLineup(D.me.players, D), myRow = rows.find(r => r.t.id === D.me.id), lgRank = rows.slice().sort((a, b) => b.pts - a.pts).findIndex(r => r.t.id === D.me.id) + 1;
+  const need = LG.need || ['RB', 'WR', 'TE', 'QB'].sort((a, b) => my[b] - my[a])[0];
+  const myRow = rows.find(r => r.t.id === D.me.id), lgRank = rows.slice().sort((a, b) => b.pts - a.pts).findIndex(r => r.t.id === D.me.id) + 1;
   box.innerHTML = `<section class="lgcard">
-    <div class="lghead"><h3>${esc(D.me.name)}</h3><small>${n}-team league · ${D.sc.rec === 1 ? 'PPR' : D.sc.rec === 0.5 ? 'Half PPR' : 'Standard'}${D.yahoo ? ' · Yahoo' : ''} · best lineup ${myRow.pts.toFixed(1)} pts/wk (${lgRank} of ${n})</small>
+    <div class="lghead"><h3>${esc(D.me.name)}</h3><small>${n}-team league · ${D.sc.rec === 1 ? 'PPR' : D.sc.rec === 0.5 ? 'Half PPR' : 'Standard'}${D.yahoo ? ' · Yahoo' : ''} · roster strength ${ffOrd(lgRank)} of ${n} (${myRow.pts.toFixed(1)} pts/wk)</small>
       <button class="btn small" data-lgout>Switch</button></div>
-    <div class="lgstr">${['QB', 'RB', 'WR', 'TE'].map(pos => `<button class="lgpos ${tag(my[pos])}" data-lgneed="${pos}" aria-pressed="${pos === need}"><b>${pos}</b><span>${my[pos]}${['th', 'st', 'nd', 'rd'][my[pos] % 10 > 3 || [11, 12, 13].includes(my[pos]) ? 0 : my[pos] % 10]}</span><small>${(myRow.by[pos] || 0).toFixed(1)} pts</small></button>`).join('')}</div>
-    <details class="lglu"${LG.open ? ' open' : ''}><summary>Your best lineup</summary>${lu.out.map(x => `<div class="lgp"><i>${esc(x.slot === 'SUPER_FLEX' ? 'SF' : x.slot)}</i>${pl(x.pid)}</div>`).join('')}</details>
-    <h4>Trade finder: get a ${esc(need)}</h4>
-    <p class="note">Trades that raise your weekly lineup without gutting theirs, roughly even on rest-of-season value. Tap a position above to search another one.</p>
-    ${trades.length ? `<div class="lgtrades">${trades.map(x => `<div class="lgtr"><div class="lgside"><span class="lbl">You get</span>${pl(x.get)}</div>
-      <div class="lgside"><span class="lbl">You give</span>${x.give.map(pl).join('<br>')}</div>
-      <div class="lgmeta">with <b>${esc(x.t.name)}</b> · your lineup <span class="pos">+${x.dMe.toFixed(1)}</span>/wk · theirs <span class="${x.dThem >= 0 ? 'pos' : 'neg'}">${x.dThem >= 0 ? '+' : ''}${x.dThem.toFixed(1)}</span>/wk</div></div>`).join('')}</div>`
-      : `<p class="note">No fair ${esc(need)} trades found right now: nobody deep at ${esc(need)} needs what you have to spare.</p>`}
-    <p class="note">Values: points per game this season (recent games count more) blended with this week's prop lines; injured players count less. Week ${D.week} data.</p>
+    ${FF.view === 'team' ? lgTeamView(D) : lgTradeView(D, rank, my, need)}
   </section>`;
 }
 document.addEventListener('submit', e => { if (e.target.id === 'lgForm') { e.preventDefault(); const v = $('#lgUser').value; if (v.trim()) lgConnect(v); } });
+document.addEventListener('change', e => { if (e.target.id === 'anTeam') { LG.an = { team: e.target.value, give: new Set(), get: new Set() }; renderLeague(); } });
 document.addEventListener('click', e => {
   const pk = e.target.closest('[data-lgpick]'); if (pk) { lgLoad(pk.dataset.lgpick); return; }
-  const nd = e.target.closest('[data-lgneed]'); if (nd) { LG.need = nd.dataset.lgneed; LG.open = !!document.querySelector('.lglu[open]'); renderLeague(); return; }
+  if (e.target.closest('[data-lgstars]')) { LG.stars = !LG.stars; renderLeague(); return; }
+  const nd = e.target.closest('[data-lgneed]'); if (nd) { LG.need = nd.dataset.lgneed; renderLeague(); return; }
+  const ag = e.target.closest('[data-angive],[data-anget]'); if (ag) { const set = ag.dataset.angive ? LG.an.give : LG.an.get, pid = ag.dataset.angive || ag.dataset.anget; set.has(pid) ? set.delete(pid) : set.add(pid); renderLeague(); return; }
+  const tr = e.target.closest('[data-lgtry]'); if (tr) { const [t, get, give] = tr.dataset.lgtry.split('|'); LG.an = { team: t, get: new Set([get]), give: new Set(give.split(',')) }; renderLeague(); $('#anTeam')?.scrollIntoView({ block: 'center' }); return; }
   if (e.target.closest('[data-lgyahoo]')) { lgYahoo(); return; }
   const yt = e.target.closest('[data-yhteam]'); if (yt) { store.set('edge-yh-team', yt.dataset.yhteam); lgYahoo(); return; }
   if (e.target.closest('[data-lgout]')) { LG.data = null; LG.league = ''; LG.leagues = null; LG.src = ''; store.set('edge-slp-league', ''); store.set('edge-lg-src', ''); renderLeague(); }
