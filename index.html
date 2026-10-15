@@ -492,6 +492,7 @@ body.ffmode #view-fantasy>.toolbar:first-child h2{display:none}
 .mc{display:grid;grid-template-columns:1fr auto;gap:0 8px;padding:8px 10px;min-width:0}.mc b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13.5px}.mc small{color:var(--muted);font-size:11px;grid-column:1}
 .mc .mp{grid-row:1/3;grid-column:2;align-self:center;font:800 17px var(--f-display);font-variant-numeric:tabular-nums}.mc .mp.live{color:var(--good)}.mc .mp.final{color:var(--ink)}.mc .mp.proj{color:var(--muted)}
 .mc.r{text-align:right;grid-template-columns:auto 1fr}.mc.r b,.mc.r small{grid-column:2}.mc.r .mp{grid-column:1}
+.ffsch small{display:block}.rn .ffsch{margin-top:4px;gap:4px}.rn .ffsch span{padding:2px 7px;font-size:11.5px}
 .lgtable{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}.lgtable th{text-align:left;color:var(--muted);font-size:11px;letter-spacing:.6px;text-transform:uppercase;padding:6px}
 .lgtable td{padding:7px 6px;border-top:1px solid var(--line);vertical-align:top}.lgtable tr.me td{background:color-mix(in srgb,var(--good) 10%,transparent)}.lgtable td div{margin-top:2px}.lgtable .ffnt{margin-left:0;margin-right:4px}
 .teamrec{margin:-4px 0 0;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
@@ -3730,11 +3731,19 @@ const BZ_LBL = { pass: 'pass yds', rush: 'rush yds', rec: 'rec yds', rr: 'rush+r
 // implied team points from the spread and total; kicker and defense points from them
 const ffImplied = g => { const o = g.odds || {}; return o.t == null || o.hs == null ? null : { home: (o.t - o.hs) / 2, away: (o.t + o.hs) / 2 }; };
 const ffKicker = imp => imp / 7 * 0.95 + 0.07 * imp * 3.3;            // extra points + ~0.07 field goals per team point
-function ffDefense(oppImp) {   // Sleeper-style points-allowed tiers over a normal spread of opponent scores, plus sacks / takeaways
+// defense points: Sleeper-style points-allowed tiers over a normal spread of opponent scores, + sacks (1) + takeaways (2 each)
+// + a return / defensive TD chance that grows with takeaways. sk / to come from the matchup model (fantasy.py dst()); without
+// it, league-average rates scaled by how much the opponent is expected to score
+function ffPaTiers(pa) {
   let prev = 0, e = 0;
-  for (const [hi, v] of [[0.5, 10], [6.5, 7], [13.5, 4], [20.5, 1], [27.5, 0], [34.5, -1], [Infinity, -4]]) { const c = hi === Infinity ? 1 : normCdf((hi - oppImp) / 9.5); e += (c - prev) * v; prev = c; }
-  return Math.max(0, e + 6 * (1 + (22 - oppImp) * 0.03));
+  for (const [hi, v] of [[0.5, 10], [6.5, 7], [13.5, 4], [20.5, 1], [27.5, 0], [34.5, -1], [Infinity, -4]]) { const c = hi === Infinity ? 1 : normCdf((hi - pa) / 9.5); e += (c - prev) * v; prev = c; }
+  return e;
 }
+function ffDefense(oppImp, sk, to) {
+  if (sk == null) { sk = 2.4 * (1 + (22 - oppImp) * 0.02); to = 1.3 * (1 + (22 - oppImp) * 0.03); }
+  return Math.max(0, ffPaTiers(oppImp) + sk + 2 * to + 6 * (0.04 + 0.05 * to));
+}
+const ffDstRow = (team, week) => (LG.vals?.dst?.[team] || []).find(r => r[0] === week);
 // every player we can project this week
 function ffRows(ppr) {
   const all = [], sl = S.slate; if (!sl) return all;
@@ -3751,7 +3760,9 @@ function ffRows(ppr) {
     if (im) for (const side of ['home', 'away']) {
       const team = g[side], other = side === 'home' ? 'away' : 'home', opp = g[other];
       all.push({ id: 'K-' + team.abbr, n: team.abbr + ' kicker', pos: 'K', g, team, opp, est: true, pts: ffKicker(im[side]), parts: [['team pts (implied)', im[side]]] });
-      all.push({ id: 'D-' + team.abbr, n: team.abbr + ' D/ST', pos: 'DEF', g, team, opp, est: true, pts: ffDefense(im[other]), parts: [['opp pts (implied)', im[other]]] });
+      const dr = ffDstRow(team.abbr, g.week);
+      all.push({ id: 'D-' + team.abbr, n: team.abbr + ' D/ST', pos: 'DEF', g, team, opp, est: true, pts: ffDefense(im[other], dr?.[2], dr?.[3]),
+        parts: [['sacks', dr?.[2] ?? 2.4], ['takeaways', dr?.[3] ?? 1.3], ['opp pts (implied)', im[other]]] });
     }
   }
   return all;
@@ -4126,6 +4137,18 @@ function lgMatchupView(D) {
     <p class="guide">${big[0][0] < -2 ? `Biggest gap against you: <b>${esc(SLOT_LBL[slots[big[0][1]]] || slots[big[0][1]])}</b> (${big[0][0].toFixed(1)}). ` : ''}${big[big.length - 1][0] > 2 ? `Your biggest edge: <b>${esc(SLOT_LBL[slots[big[big.length - 1][1]]] || slots[big[big.length - 1][1]])}</b> (+${big[big.length - 1][0].toFixed(1)}).` : ''}</p>
     <p class="note">Projections = this week's betting lines + our model. ${D.yahoo ? 'Yahoo: no live points (read from the site).' : 'Live points update every minute during games.'}</p>`;
 }
+// defense streaming: every defense's next four matchups (sacks + takeaways + points allowed -> points), free agents first
+function lgDefStream(D, owned) {
+  const dst = LG.vals?.dst || {}, mineDef = (D.me.raw || []).find(p => /^[A-Z]{2,3}$/.test(p));
+  const est = r => ffPaTiers(r[4]) + r[2] + 2 * r[3] + 6 * (0.04 + 0.05 * r[3]);
+  const rows = Object.entries(dst).map(([t, rs]) => { const sid = Object.entries(SLP_TM).find(([, e]) => e === t)?.[0] || t;
+    return { t, sid, rs: rs.slice(0, 4), wk: rs[0] && rs[0][0] === LG.vals.week ? est(rs[0]) : 0, next: rs.slice(0, 4).reduce((a, r) => a + est(r), 0), fa: !owned.has(sid) && !owned.has(t) }; })
+    .sort((a, b) => b.fa - a.fa || b.wk - a.wk);
+  const cell = r => { const p = est(r); return `<span class="${p >= 9 ? 'soft' : p <= 5 ? 'tough' : ''}">W${r[0]} ${esc(r[1])}<small>${p.toFixed(1)}</small></span>`; };
+  return `${mineDef ? `<p class="guide">Your defense: <b>${esc(mineDef)}</b> · ${(() => { const r = rows.find(x => x.sid === mineDef || x.t === (SLP_TM[mineDef] || mineDef)); return r ? `${r.wk.toFixed(1)} projected this week` : ''; })()}</p>` : ''}
+    <div class="roster">${rows.slice(0, 20).map(r => `<div class="rr"><span class="rslot s-DEF">DEF</span>${logo(r.t, 26)}<span class="rn"><b>${esc(r.t)} D/ST</b><small>${r.fa ? '<span class="pos">free agent</span>' : 'rostered'} · next 4: ${r.next.toFixed(0)} pts</small><span class="ffsch">${r.rs.map(cell).join('')}</span></span><span class="rpts"><b>${r.wk.toFixed(1)}</b><small>this wk</small></span></div>`).join('')}</div>
+    <p class="note">Defense points = points-allowed tiers + 1 per sack + 2 per takeaway + a small return-TD chance. Sacks and takeaways come from both sides: what this defense forces and what the opponent's offense gives up this season. Green = a strong matchup.</p>`;
+}
 function lgWaiverView(D) {
   const W = lgWeek(D), owned = new Set(D.teams.flatMap(t => t.raw || t.players));
   const myWorst = {}; for (const pid of D.me.players) { const p = D.V[pid].pos; myWorst[p] = Math.min(myWorst[p] ?? 99, D.ppg(pid)); }
@@ -4133,7 +4156,8 @@ function lgWaiverView(D) {
     .sort((a, b) => (D.ppg(b) - (D.repl[D.V[b].pos] || 0)) - (D.ppg(a) - (D.repl[D.V[a].pos] || 0))).slice(0, 25);   // value over a replacement player, so positions mix fairly
   const drop = D.me.players.filter(pid => !lgLineup(D.me.players, D).out.some(x => x.pid === pid)).sort((a, b) => lgVal(a, D) - lgVal(b, D) || D.ppg(a) - D.ppg(b))[0];
   const tr = v => { const g = (v.lg || []).map(x => ffGamePts(x, D.sc.rec)); if (g.length < 3) return 0; return g.slice(-2).reduce((a, b) => a + b, 0) / 2 - (v.s + v.r * D.sc.rec); };
-  return `<div class="row">${['', 'QB', 'RB', 'WR', 'TE'].map(p => `<button class="chip" data-wpos="${p}" aria-pressed="${p === FF.wpos}">${p || 'All'}</button>`).join('')}</div>
+  if (FF.wpos === 'DEF') return `<div class="row">${['', 'QB', 'RB', 'WR', 'TE', 'DEF'].map(p => `<button class="chip" data-wpos="${p}" aria-pressed="${p === FF.wpos}">${p || 'All'}</button>`).join('')}</div>${lgDefStream(D, owned)}`;
+  return `<div class="row">${['', 'QB', 'RB', 'WR', 'TE', 'DEF'].map(p => `<button class="chip" data-wpos="${p}" aria-pressed="${p === FF.wpos}">${p || 'All'}</button>`).join('')}</div>
     <div class="roster">${fa.map(pid => { const v = D.V[pid], up = D.ppg(pid) > (myWorst[v.pos] ?? 0) + 0.5, t = tr(v), w = W[pid];
       return `<button class="rr rrbtn${up ? ' up' : ''}" data-ffcard="${pid}"><span class="rslot s-${esc(v.pos)}">${esc(v.pos)}</span>${logo(SLP_TM[v.tm] || v.tm, 26)}
         <span class="rn"><b>${esc(v.n)}</b>${v.inj ? ` <span class="rinj">${esc(v.inj === 'Questionable' ? 'Q' : v.inj)}</span>` : ''}<small>${esc(v.tm || 'FA')} · ${w ? `${w.pts.toFixed(1)} this wk` : ''} ${lgSched(v)}${Math.abs(t) >= 2 ? `<span class="ffnt ${t > 0 ? 'up' : 'dn'}">${t > 0 ? '▲ trending up' : '▼ cooling'}</span>` : ''}</small>

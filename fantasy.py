@@ -84,6 +84,45 @@ def schedule(season, week, st):
     return left, fac
 
 
+K_DST = 4.0   # games of league average mixed into each team's sack / turnover / scoring rates
+
+
+def dst(st, season, week, left):
+    """Team defenses: for each remaining game, expected sacks, takeaways and points allowed from both sides of the matchup
+    (the defense's own rates and what the opponent's offense gives up), shrunk toward average early in the season.
+    {team: [[week, opp, sacks, takeaways, points allowed], ...]} for this week and the next four."""
+    from analytics import rows, f, i, fix
+    off = defaultdict(lambda: defaultdict(float))   # (team, week) -> sacks allowed, giveaways
+    for w in st:
+        t = fix(w.get("team") or ""); k = (t, i(w["week"]))
+        off[k]["sk"] += f(w.get("sacks_suffered")) or 0
+        off[k]["to"] += (f(w.get("passing_interceptions")) or 0) + sum(f(w.get(c)) or 0 for c in ("rushing_fumbles_lost", "receiving_fumbles_lost", "sack_fumbles_lost"))
+        off[k]["opp"] = fix(w.get("opponent_team") or "")
+    sched = [g for g in rows("schedules/games.csv.gz", 6 * 3600) if g["season"] == str(season) and g["game_type"] == "REG"]
+    pts_for = defaultdict(list)
+    for g in sched:
+        if g.get("result") in ("", "NA", None): continue
+        h, a = fix(g["home_team"]), fix(g["away_team"])
+        pts_for[h].append((f(g["home_score"]), f(g["away_score"]))); pts_for[a].append((f(g["away_score"]), f(g["home_score"])))
+    gave = defaultdict(list); forced = defaultdict(list)
+    for (t, wk), v in off.items():
+        gave[t].append((v["sk"], v["to"])); forced[v["opp"]].append((v["sk"], v["to"]))
+    allg = [x for xs in gave.values() for x in xs]
+    lg_sk = sum(x[0] for x in allg) / max(1, len(allg)); lg_to = sum(x[1] for x in allg) / max(1, len(allg))
+    allp = [x[0] for xs in pts_for.values() for x in xs]; lg_pts = sum(allp) / max(1, len(allp))
+    rate = lambda xs, j, lg: (sum(x[j] for x in xs) + K_DST * lg) / (len(xs) + K_DST)
+    out = {}
+    for t, games_left in left.items():
+        rows_ = []
+        for wk, opp in sorted(games_left)[:5]:
+            sk = rate(forced[t], 0, lg_sk) * rate(gave[opp], 0, lg_sk) / lg_sk          # both sides, multiplicative around the league rate
+            to = rate(forced[t], 1, lg_to) * rate(gave[opp], 1, lg_to) / lg_to
+            pa = rate([(x[1],) for x in pts_for[t]], 0, lg_pts) * rate([(x[0],) for x in pts_for[opp]], 0, lg_pts) / lg_pts
+            rows_.append([wk, opp, round(sk, 2), round(to, 2), round(pa, 1)])
+        out[t] = rows_
+    return out
+
+
 def build(props, season, week, out_dir, cache_dir):
     from analytics import rows, f, i, norm, fix
     st = [w for w in rows(f"stats_player/stats_player_week_{season}.csv", 6 * 3600) if w.get("season_type") == "REG"]
@@ -145,7 +184,9 @@ def build(props, season, week, out_dir, cache_dir):
     # kickers: names and teams only (the page projects them from team totals)
     for sid, v in sp.items():
         if v["pos"] == "K" and v["tm"]: out[sid] = {"n": v["n"], "pos": "K", "tm": v["tm"], "s": 0, "r": 0, "g": 0, "inj": v["inj"]}
-    doc = {"season": season, "week": week, "players": out}
+    try: dsts = dst(st, season, week, left)
+    except Exception as e: print("dst failed", e, file=sys.stderr); dsts = {}
+    doc = {"season": season, "week": week, "players": out, "dst": dsts}
     with open(os.path.join(out_dir, "ff_values.json"), "w", encoding="utf-8") as fh: json.dump(doc, fh, separators=(",", ":"))
     return len(out)
 
