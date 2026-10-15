@@ -463,6 +463,10 @@ details.nerd .usage{border-bottom:0}
 .ffnote{margin:0 0 10px}
 .ffviews .chip{font-weight:800}
 .ffmu{font-size:10.5px;font-weight:800;padding:0 6px;border-radius:999px;margin-left:4px}.ffmu.soft{color:var(--good);border:1px solid var(--good)}.ffmu.tough{color:var(--bad);border:1px solid var(--bad)}
+.ffnt{font-size:10.5px;font-weight:700;padding:0 6px;border-radius:999px;margin-left:4px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}.ffnt.up{color:var(--good);border-color:var(--good)}.ffnt.dn{color:var(--bad);border-color:var(--bad)}
+.ffwhyl{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}.ffwhyl .ffmu:first-child,.ffwhyl .ffnt:first-child{margin-left:0}
+.ffnx{margin-left:6px}.ffnx i{font-style:normal;font-weight:700}.ffnx i.soft{color:var(--good)}.ffnx i.tough{color:var(--bad)}
+.lgp{flex-wrap:wrap}.lgp>b{margin-right:4px}
 .lgswaps{display:flex;flex-direction:column;gap:6px}
 .lgswap{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg);font-size:13.5px}
 .lgswap .lbl{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}.lgswap .lbl.start{color:var(--good)}
@@ -3699,7 +3703,7 @@ function renderFantasy() {
     return `<button class="ffrow" data-ffopen="${esc(k)}" aria-expanded="${open}" style="--tc:${teamColor(x.team)}">
       <span class="ffrk">${i + 1}</span>${logo(x.team.abbr, 22)}
       <span class="ffn"><b>${esc(x.n)}</b><small>${esc(x.pos)}${x.rk} · ${x.est ? 'vs' : x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${esc(kick(x.g))}${x.inj ? ` · <span class="neg">${esc(x.inj.s)}</span>` : ''}</small>
-        <small>range ${fmt(Math.max(0, x.pts - 0.84 * sd))}–${fmt(x.pts + 0.84 * sd)} ${ffMatchup(x)}</small></span>
+        <small>range ${fmt(Math.max(0, x.pts - 0.84 * sd))}–${fmt(x.pts + 0.84 * sd)} ${ffNotes(x) || ffMatchup(x)}</small></span>
       <span class="fftier ${x.tier}">${tierLbl[x.tier]}</span><span class="ffpts">${x.pts.toFixed(1)}</span></button>
       ${open ? `<div class="ffwhy">${x.parts.map(([n, v]) => `<span><b>${fmt(v)}</b> ${esc(NBA ? n.toLowerCase() : n)}</span>`).join('')}<small>${x.est ? 'Estimated from the betting lines\' implied team points.' : `${NBA ? '' : 'TD = expected touchdowns from the anytime-TD price. '}Each number blends the market's line (60%) with our projection (40%).`}</small></div>` : ''}`; }).join('')}</div>
     ${rows.length > 150 ? `<p class="note">Showing 150 of ${rows.length}. Pick a position or search a name.</p>` : ''}`;
@@ -3767,7 +3771,9 @@ async function lgYahoo() {
 }
 function lgBuild(sc, positions, rawTeams, vals, isMe) {
   const V = vals.players;
-  const ppg = pid => { const v = V[pid]; return v ? v.s + v.r * (sc.rec + (v.pos === 'TE' ? sc.te : 0)) : 0; };
+  // rest-of-season points per game: his rate x how soft his remaining opponents are at his position (schedule strength)
+  const ppg = pid => { const v = V[pid]; return v ? (v.s + v.r * (sc.rec + (v.pos === 'TE' ? sc.te : 0))) * (v.sf || 1) : 0; };
+  const maxGl = Math.max(1, ...Object.values(V).map(v => v.gl || 0));
   const slots = positions.filter(x => ['QB', 'RB', 'WR', 'TE'].includes(x) || FLEX_OK[x]);
   const teams = rawTeams.map(t => ({ ...t, players: (t.players || []).filter(pid => V[pid]) }));
   // replacement level: the best player nobody would start in a league this size
@@ -3775,7 +3781,7 @@ function lgBuild(sc, positions, rawTeams, vals, isMe) {
   for (const x of slots) if (cnt[x] != null) cnt[x]++; else { const ok = FLEX_OK[x]; for (const ps of ok) cnt[ps] += ps === 'TE' ? 0.1 : ps === 'QB' ? 0.8 : (1 - (ok.includes('TE') ? 0.1 : 0) - (ok.includes('QB') ? 0.8 : 0)) / ok.filter(q => q === 'RB' || q === 'WR').length; }
   const repl = {};
   for (const pos of Object.keys(cnt)) { const xs = Object.keys(V).filter(k => V[k].pos === pos).map(ppg).sort((a, b) => b - a); repl[pos] = xs[Math.round(teams.length * cnt[pos])] ?? 0; }
-  return { sc, teams, V, ppg, slots, repl, me: teams.find(isMe), week: vals.week };
+  return { sc, teams, V, ppg, slots, repl, maxGl, me: teams.find(isMe), week: vals.week };
 }
 // best lineup for a roster (fixed slots first, then flex), by rest-of-season points or any other value
 function lgLineup(pids, D, val = pid => D.ppg(pid)) {
@@ -3786,7 +3792,19 @@ function lgLineup(pids, D, val = pid => D.ppg(pid)) {
   }
   return { pts: out.reduce((a, x) => a + x.p, 0), out };
 }
-const lgVal = (pid, D) => Math.max(0, D.ppg(pid) - (D.repl[D.V[pid].pos] || 0));
+const lgVal = (pid, D) => Math.max(0, D.ppg(pid) - (D.repl[D.V[pid].pos] || 0)) * ((D.V[pid].gl ?? D.maxGl) / D.maxGl);   // fewer games left (byes) = less value
+const lgSched = v => !v.sf ? '' : v.sf >= 1.04 ? '<span class="ffmu soft">easy schedule</span>' : v.sf <= 0.96 ? '<span class="ffmu tough">tough schedule</span>' : '';
+// the model's reasons behind a player's number this week, as short tags: matchup, teammate out, game script, weather, TD chance
+function ffNotes(x) {
+  if (!x?.pl) return '';
+  const main = x.pl.props.find(p => p.lcv || p.vol || p.wxv) || {}, td = x.pl.props.find(p => p.m === 'Anytime TD'), t = [];
+  const pc = v => Math.round(Math.abs(v - 1) * 100) + '%';
+  if (main.lcv && Math.abs(main.lcv - 1) >= 0.02) t.push(`<span class="ffnt ${main.lcv > 1 ? 'up' : 'dn'}">${main.lcv > 1 ? '▲' : '▼'}${pc(main.lcv)} share, teammate out</span>`);
+  if (main.vol && Math.abs(main.vol - 1) >= 0.02) t.push(`<span class="ffnt ${main.vol > 1 ? 'up' : 'dn'}">game script ${main.vol > 1 ? '▲' : '▼'}${pc(main.vol)}</span>`);
+  if (main.wxv) t.push(`<span class="ffnt ${main.wxv > 1 ? 'up' : 'dn'}">weather ${main.wxv > 1 ? '▲' : '▼'}${pc(main.wxv)}</span>`);
+  if (td?.pOver != null && td.pOver >= 0.3) t.push(`<span class="ffnt">${Math.round(td.pOver * 100)}% TD</span>`);
+  return ffMatchup(x) + t.join('');
+}
 function lgStrength(D) {   // each team's starting points at each position, ranked across the league
   const rows = D.teams.map(t => { const lu = lgLineup(t.players, D), by = {}; for (const x of lu.out) by[x.pos] = (by[x.pos] || 0) + x.p; return { t, by, pts: lu.pts }; });
   const rank = {}; for (const pos of ['QB', 'RB', 'WR', 'TE']) rows.slice().sort((a, b) => (b.by[pos] || 0) - (a.by[pos] || 0)).forEach((r, i) => { (rank[r.t.id] ||= {})[pos] = i + 1; });
@@ -3800,7 +3818,7 @@ function lgWeek(D) {
   const W = {};
   for (const t of D.teams) for (const pid of t.players) {
     const v = D.V[pid], tm = SLP_TM[v.tm] || v.tm, x = byKey[ffKey(v.n) + '|' + v.pos];
-    W[pid] = x ? { pts: x.pts + (v.pos === 'TE' ? D.sc.te * (x.rec || 0) : 0), tag: '' }
+    W[pid] = x ? { pts: x.pts + (v.pos === 'TE' ? D.sc.te * (x.rec || 0) : 0), tag: '', x }
       : done.has(tm) ? { pts: 0, tag: 'played' } : !playing.has(tm) ? { pts: 0, tag: 'bye' }
       : /out|ir|sus|pup/i.test(v.inj || '') ? { pts: 0, tag: 'out' } : { pts: D.ppg(pid), tag: 'est' };
   }
@@ -3850,7 +3868,9 @@ function lgTrades(D, pos, rank, rows) {
 function lgPl(pid, D, wk) {
   const v = D.V[pid], w = wk?.[pid];
   const tag = w?.tag === 'bye' ? ' · <span class="neg">bye</span>' : w?.tag === 'out' ? ' · <span class="neg">out</span>' : w?.tag === 'played' ? ' · played' : '';
-  return `<b>${esc(v.n)}</b> <small>${esc(v.pos)} · ${esc(v.tm || 'FA')} · ${w ? `${w.pts.toFixed(1)} this wk${w.tag === 'est' ? '*' : ''}` : `${D.ppg(pid).toFixed(1)}/wk`}${v.inj && w?.tag !== 'out' ? ` · <span class="neg">${esc(v.inj)}</span>` : ''}${tag}</small>`;
+  const extra = w ? (w.x ? `${w.x.pl.side === 'home' ? 'vs' : '@'} ${esc(w.x.opp.abbr)} ${ffNotes(w.x)}` : '')
+    : `${lgSched(v)}${v.nx?.length ? `<span class="ffnx">next: ${v.nx.map(([wk, o, f]) => `<i class="${f >= 1.05 ? 'soft' : f <= 0.95 ? 'tough' : ''}">${esc(o)}</i>`).join(' ')}</span>` : ''}`;
+  return `<b>${esc(v.n)}</b> <small>${esc(v.pos)} · ${esc(v.tm || 'FA')} · ${w ? `${w.pts.toFixed(1)} this wk${w.tag === 'est' ? '*' : ''}` : `${D.ppg(pid).toFixed(1)}/wk rest of season`}${v.inj && w?.tag !== 'out' ? ` · <span class="neg">${esc(v.inj)}</span>` : ''}${tag}</small>${extra ? `<span class="ffwhyl">${extra}</span>` : ''}`;
 }
 function lgTeamView(D) {
   const W = lgWeek(D), mine = D.me.players, cur = new Set((D.me.starters || []).filter(pid => D.V[pid]));
@@ -3902,7 +3922,7 @@ function lgTradeView(D, rank, my, need) {
     <select id="anTeam" aria-label="Trade partner"><option value="">Pick a team…</option>${D.teams.filter(t => t.id !== D.me.id).map(t => `<option value="${esc(String(t.id))}" ${String(t.id) === A.team ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
     ${other ? `<div class="lgan"><div><span class="lbl">You give</span><div class="row">${chips(D.me, A.give, 'data-angive')}</div></div>
       <div><span class="lbl">You get</span><div class="row">${chips(other, A.get, 'data-anget')}</div></div></div>${verdict}` : ''}
-    <p class="note">Values: points per game this season (recent games count more) blended with this week's prop lines; injured players count less. Week ${D.week} data.</p>`;
+    <p class="note">Values: points per game this season (recent games count more) blended with this week's prop lines, times schedule strength (how many points his remaining opponents allow to his position; green = soft, red = tough), scaled by games left. Injured players count less. Week ${D.week} data.</p>`;
 }
 function renderLeague() {
   const box = $('#ffleague'); if (!box) return;
