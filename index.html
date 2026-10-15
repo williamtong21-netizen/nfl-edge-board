@@ -3960,10 +3960,10 @@ function lgTeamView(D) {
     <div class="roster">${(cur.size ? order : best.out.map(x => [x.pid, x.slot])).map(([pid, slot]) => lgRow(pid, slot, D, wk(pid), flags[pid])).join('')}</div>
     <h4 class="rhead">Bench</h4>
     <div class="roster">${(cur.size ? bench : me.players.filter(pid => !bestSet.has(pid))).sort((a, b) => wk(b).pts - wk(a).pts).map(pid => lgRow(pid, 'BN', D, wk(pid), flags[pid])).join('')}</div>
-    ${(me.reserve || []).length ? `<h4 class="rhead">IR</h4><div class="roster">${me.reserve.map(pid => lgRow(pid, 'IR', D, wk(pid))).join('')}</div>` : ''}
+    ${(me.reserve || []).filter(pid => D.V[pid]).length ? `<h4 class="rhead">IR</h4><div class="roster">${me.reserve.filter(pid => D.V[pid]).map(pid => lgRow(pid, 'IR', D, wk(pid))).join('')}</div>` : ''}
     <p class="note">proj = this week's points from the betting lines + our model · * no lines for him this week: season rate. Tags: matchup, teammate out, game script, weather, TD chance.</p>
     <h4 class="rhead">Waiver pickups</h4>
-    ${fa.length ? `<div class="roster">${fa.map(pid => `<div class="rr"><span class="rslot s-${esc(D.V[pid].pos)}">${esc(D.V[pid].pos)}</span>${logo(SLP_TM[D.V[pid].tm] || D.V[pid].tm, 26)}<span class="rn"><b>${esc(D.V[pid].n)}</b><small>${esc(D.V[pid].tm || 'FA')} · ${lgSched(D.V[pid])}</small></span><span class="rpts"><b>${D.ppg(pid).toFixed(1)}</b><small>/wk ROS</small></span></div>`).join('')}</div>${drop ? `<p class="note">Easiest drop: <b>${esc(lgNm(drop, D))}</b> (${D.ppg(drop).toFixed(1)}/wk)</p>` : ''}`
+    ${fa.length ? `<div class="roster">${fa.map(pid => `<div class="rr"><span class="rslot s-${esc(D.V[pid].pos)}">${esc(D.V[pid].pos)}</span>${logo(SLP_TM[D.V[pid].tm] || D.V[pid].tm, 26)}<span class="rn"><b>${esc(D.V[pid].n)}</b><small>${esc(D.V[pid].pos)} · ${esc(D.V[pid].tm || 'FA')} ${lgSched(D.V[pid])}</small></span><span class="rpts"><b>${D.ppg(pid).toFixed(1)}</b><small>/wk ROS</small></span></div>`).join('')}</div>${drop ? `<p class="note">Easiest drop: <b>${esc(lgNm(drop, D))}</b> (${D.ppg(drop).toFixed(1)}/wk)</p>` : ''}`
       : '<p class="note">No free agent beats your weakest player at his position right now.</p>'}`;
 }
 function lgTradeView(D, rank, my, need) {
