@@ -3826,8 +3826,7 @@ async function lgConnect(name) {
 }
 const ffVals = () => fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null);
 async function lgLoad(id) {
-  LG.busy = true; renderLeague();
-  if (FF.liveTimer) clearInterval(FF.liveTimer);
+  LG.busy = true; if (!LG.data) renderLeague();
   try {
     const [league, rosters, users, vals, state] = await Promise.all([slp('league/' + id), slp(`league/${id}/rosters`), slp(`league/${id}/users`), ffVals(), slp('state/nfl').catch(() => null)]);
     const wkNow = state?.week || vals?.week, mus = wkNow ? await slp(`league/${id}/matchups/${wkNow}`).catch(() => []) : [];
@@ -4181,7 +4180,7 @@ function renderLeague() {
   const myRow = rows.find(r => r.t.id === D.me.id), lgRank = rows.slice().sort((a, b) => b.pts - a.pts).findIndex(r => r.t.id === D.me.id) + 1;
   box.innerHTML = `<section class="lgcard">
     <div class="lghead"><h3>${esc(D.me.name)}</h3><small>${n}-team league · ${D.sc.rec === 1 ? 'PPR' : D.sc.rec === 0.5 ? 'Half PPR' : 'Standard'}${D.sc.ptd === 6 ? ' · 6-pt pass TD' : ''}${D.sc.b?.length ? ' · yardage bonuses' : ''}${D.yahoo ? ' · Yahoo' : ''}${FF.view === 'trades' ? ` · roster strength ${ffOrd(lgRank)} of ${n} (${myRow.pts.toFixed(1)} pts/wk)` : ''}</small>
-      <button class="btn small" data-lgout>Switch</button></div>
+      <button class="btn small" data-lgrefresh title="Reload your league">↻</button><button class="btn small" data-lgout>Switch</button></div>
     ${FF.view === 'team' ? lgTeamView(D) : FF.view === 'matchup' ? lgMatchupView(D) : FF.view === 'waivers' ? lgWaiverView(D) : FF.view === 'league' ? lgLeagueView(D) : lgTradeView(D, rank, my, need)}
   </section>${FF.card ? `<div class="ffcardwrap">${ffCard(FF.card)}</div>` : ''}`;
   if (FF.card) box.querySelector('.ffcardwrap')?.scrollIntoView({ block: 'nearest' });
@@ -4191,6 +4190,7 @@ document.addEventListener('change', e => { if (e.target.id === 'anTeam') { LG.an
 document.addEventListener('click', e => {
   const pk = e.target.closest('[data-lgpick]'); if (pk) { lgLoad(pk.dataset.lgpick); return; }
   if (e.target.closest('[data-lgstars]')) { LG.stars = !LG.stars; renderLeague(); return; }
+  if (e.target.closest('[data-lgrefresh]')) { lgRefresh(true); toast('Reloading your league…'); return; }
   if (e.target.closest('[data-ffclose]')) { FF.card = null; renderLeague(); return; }
   const cd = e.target.closest('[data-ffcard]'); if (cd && cd.dataset.ffcard) { FF.card = cd.dataset.ffcard; renderLeague(); return; }
   const wp = e.target.closest('[data-wpos]'); if (wp) { FF.wpos = wp.dataset.wpos; renderLeague(); return; }
@@ -4203,6 +4203,17 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-lgout]')) { LG.data = null; LG.league = ''; LG.leagues = null; LG.src = ''; store.set('edge-slp-league', ''); store.set('edge-lg-src', ''); renderLeague(); }
 });
 let lgBooted = false;
+// your league changes (lineup set, waiver claim, trade) show up without reopening: reload it when the app comes back on
+// screen and every 3 minutes while it's open; Yahoo comes from the sync, so it reloads that file
+let lgLast = 0;
+function lgRefresh(force) {
+  if (!LG.data || (!force && Date.now() - lgLast < 60000) || (!FFM && $('#view-fantasy')?.hidden)) return;
+  lgLast = Date.now();
+  if (LG.data.yahoo) lgYahoo(); else if (LG.league) lgLoad(LG.league);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) lgRefresh(); });
+addEventListener('focus', () => lgRefresh());
+setInterval(() => lgRefresh(), 180000);
 async function lgLive() {   // Sleeper live points while any game is on (Matchup / Team pages)
   const D = LG.data; if (!D || D.yahoo || !D.mu || !(S.slate?.games || []).some(g => g.state === 'in')) return;
   try { const ms = await slp(`league/${LG.league}/matchups/${D.mu.week}`), a = ms.find(m => m.roster_id === D.me.id), b = ms.find(m => m.roster_id === D.mu.opp);
