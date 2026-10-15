@@ -97,14 +97,19 @@ def build_props(games, season):
         rost = dict(zip([g[s]["id"] for g in pre for s in ("home", "away")], pool.map(roster, [g[s]["id"] for g in pre for s in ("home", "away")])))
     props = {}
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # ruled out: ESPN's injury list on the game, or a headline the 20-minute news check caught (state news_state.json)
+    try: news_outs = set(json.load(open(os.path.join(sync.DATA, "news_state.json"), encoding="utf-8")).get("outs", {}))
+    except (FileNotFoundError, ValueError): news_outs = set()
     for g in pre:
         side_of = {}
         for s in ("home", "away"):
             for aid, a in rost.get(g[s]["id"], {}).items(): side_of[aid] = (s, a)
         pls = {}
+        out_names = news_outs | {i["n"] for sd in ("home", "away") for i in (g[sd].get("inj") or []) if i.get("s") in ("Out", "Doubtful")}
         for (aid, m), rungs in lads.get(g["id"], {}).items():
             if aid not in side_of: continue
             s, a = side_of[aid]
+            if a["n"] in out_names: continue
             pl = pls.setdefault(aid, {"id": aid, "n": a["n"], "p": a["p"], "tm": g[s]["abbr"], "side": s, "props": []})
             main = min(rungs, key=lambda r: abs(r["pk"] / (1 + VIG) - 0.5))   # the rung nearest a coin flip is the line
             pl["props"].append({"m": m, "l": main["l"], "o": None, "pk": main["pk"], "dk": main["dk"], "books": [{"n": "DraftKings", "l": r["l"], "o": int(float(str(r["dk"]).replace("+", ""))), "u": None} for r in rungs]})
