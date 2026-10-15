@@ -155,6 +155,30 @@ def record(games, season):
     return res
 
 
+def record_lines(games, props, now):
+    """Save every prop line this sync saw (DraftKings price, Kalshi's price at that line, our numbers, who's out), one file per
+    day in state/nba/lines/. Weeks of these show whether lines lag behind injury news (the "teammate out" test, nba_lineup.py)."""
+    d = os.path.join(sync.DATA, "lines"); os.makedirs(d, exist_ok=True)
+    try: outs_news = set(json.load(open(os.path.join(sync.DATA, "news_state.json"), encoding="utf-8")).get("outs", {}))
+    except (FileNotFoundError, ValueError): outs_news = set()
+    t = now.isoformat(timespec="seconds"); n = 0
+    with open(os.path.join(d, now.strftime("%Y-%m-%d") + ".jsonl"), "a", encoding="utf-8") as fh:
+        for g in games:
+            if g["state"] != "pre" or (g.get("pre_season") and not os.environ.get("NBA_TEST_PRESEASON")) or g["id"] not in props: continue
+            outs = {sd: sorted({i["n"] for i in (g[sd].get("inj") or []) if i.get("s") in ("Out", "Doubtful")} | {x for x in outs_news if x in {pl["n"] for pl in props[g["id"]] if pl["side"] == sd}})
+                    for sd in ("home", "away")}
+            fh.write(json.dumps({"t": t, "g": g["id"], "tip": g["date"], "outs": outs}, separators=(",", ":")) + "\n")
+            for pl in props[g["id"]]:
+                for pr in pl["props"]:
+                    k = next((r for r in pr.get("alt") or [] if r["l"] == pr["l"] and r.get("ya") is not None and r.get("na") is not None), None)
+                    fh.write(json.dumps({"t": t, "g": g["id"], "pid": pl["id"], "n": pl["n"], "tm": pl["tm"], "m": pr["m"], "l": pr["l"], "dk": pr.get("dk"),
+                                         "km": round((k["ya"] + 1 - k["na"]) / 2, 3) if k else None, "po": pr.get("pOver"), "pm": pr.get("pModel"), "pr": pr.get("proj")},
+                                        separators=(",", ":")) + "\n"); n += 1
+    # keep about 60 days
+    for fn in sorted(os.listdir(d))[:-60]: os.remove(os.path.join(d, fn))
+    return n
+
+
 def main():
     now = datetime.now(timezone.utc)
     events = []
@@ -178,6 +202,8 @@ def main():
     try: nk = kalshi.apply(games, props)
     except Exception as ex: print("kalshi failed", ex, file=sys.stderr); nk = 0
     finish(props)
+    try: nl = record_lines(games, props, now)
+    except Exception as ex: print("line log failed", ex, file=sys.stderr); nl = 0
     try:   # price gaps: DraftKings (ESPN) vs Kalshi on moneylines, spreads and totals
         import arbs; gaps = arbs.find(games, props, None)
     except Exception as ex: print("arbs failed", ex, file=sys.stderr); gaps = []
@@ -199,7 +225,7 @@ def main():
                                                         {"collection": "results", "doc_id": str(season), "file": "results.json"},
                                                         {"collection": "props", "doc_id": "part-0", "file": "props-0.json"}])
     print(json.dumps({"sport": "nba", "season": season, "games": len(games), "players": sum(len(v) for v in props.values()),
-                      "props": sum(len(p["props"]) for v in props.values() for p in v), "kalshi": nk}))
+                      "props": sum(len(p["props"]) for v in props.values() for p in v), "kalshi": nk, "logged": nl}))
 
 
 if __name__ == "__main__":
