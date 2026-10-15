@@ -1120,7 +1120,7 @@ const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1;
 const SPORT = (() => { try { const s = localStorage.getItem('edge-sport'); return ['cfb', 'nba', 'cbb', 'ff'].includes(s) ? s : 'nfl'; } catch { return 'nfl'; } })();
 const CFB = SPORT === 'cfb', NBA = SPORT === 'nba', FFM = SPORT === 'ff', CBB = SPORT === 'cbb';
 const COL = CFB || CBB;
-const CBB_NOTE = 'Info only: our tempo-free ratings, tested on last season\'s games against Kalshi\'s lines.';   // college modes: our number shown as info, report card vs the closing line, no props   // FFM: Fantasy mode, built on the NFL data
+const CBB_NOTE = 'Info only: on 2025-26 games Kalshi\'s line was more accurate than ours (off by 7.8 pts on margins vs our 8.2); our 4+ point disagreements went 20-12 on sides and 29-23 on totals, too few games to trust yet.';   // college modes: our number shown as info, report card vs the closing line, no props   // FFM: Fantasy mode, built on the NFL data
 // each sport keeps its own parlay, bets and per-sport picks; app-wide prefs (theme, easy mode, your book) are shared
 const SHARED_KEYS = new Set(['edge-sport', 'edge-easy', 'edge-welcomed', 'edge-alerts-seen', 'edge-mybook', 'edge-state', 'edge-altbook',
   'edge-slp-user', 'edge-slp-uid', 'edge-slp-league', 'edge-lg-src', 'edge-yh-team', 'edge-ff-view', 'edge-ff-score']);   // your fantasy league follows you into Fantasy mode
