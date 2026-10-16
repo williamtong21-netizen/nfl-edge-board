@@ -21,7 +21,7 @@ import bisect, json, math, os, random, sys, time, zlib
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 TABLES = os.path.join(os.environ.get("EDGE_DATA") or os.path.join(ROOT, "data"), "sim_tables.json")
-VERSION = 3   # bump when the engine changes so every game re-simulates
+VERSION = 4   # bump when the engine changes so every game re-simulates
 N_SIMS, CAL_ROUNDS, CAL_N, POLISH_N = 2000, 12, 500, 1500
 ST = ("att", "cmp", "pyd", "ptd", "int", "car", "ryd", "rtd", "tgt", "rec", "cyd", "ctd", "lng")
 S = {k: i for i, k in enumerate(ST)}
@@ -100,6 +100,15 @@ def build_teams(g, rows, T, gsis_of):
                              cw=max(0.0, u.get("rsh") or 0.0), cr=u.get("cr"), ym=1.0, rm=1.0, tdw=1.0,
                              out=(T["rusher"].get(gs) or {}).get("out", 0.4), io=(T["rusher"].get(gs) or {}).get("io", [1.0, 1.0]),
                              mz=T["rcv_mz"].get(gs) or {"man": [1, 1], "zone": [1, 1]}))
+        if not any(p.lines for p in ps):
+            # lines-only sim (no props yet), so nothing calibrates the players: hand the shares of anyone ruled out to the
+            # teammates who are playing, in proportion, so the "others" bucket doesn't absorb a missing lead back / WR1
+            # (same rule as sim_leans_backtest)
+            for attr, want in (("tw", 0.88), ("cw", 0.93)):
+                tot = sum(getattr(p, attr) * (0.6 if p.pos == "QB" and attr == "cw" else 1) for p in ps)
+                if 0 < tot < want:
+                    k = min(1.6, want / tot)
+                    for p in ps: setattr(p, attr, getattr(p, attr) * k)
         qbs = [p for p in ps if p.pos == "QB"]
         qbs.sort(key=lambda p: ("Pass yds" not in p.lines, "Pass att" not in p.lines))
         if qbs: tm.qb = qbs[0]
