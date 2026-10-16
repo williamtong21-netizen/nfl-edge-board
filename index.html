@@ -60,6 +60,13 @@ section+section{margin-top:28px}
 /* game cards */
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
 .toolbar select{font:inherit;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+/* phones: the props filters as a tidy 2-column block instead of five ragged rows */
+@media (max-width:560px){
+  #view-props .toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"h g" "m s" "p p" "a a";gap:8px}
+  #view-props .toolbar h2{grid-area:h;align-self:center}#pf-game{grid-area:g}#pf-market{grid-area:m}#pf-sort{grid-area:s}#pf-pos{grid-area:p}#pf-all{grid-area:a}
+  #view-props .toolbar select{width:100%;min-width:0}
+  #pf-pos,#pf-all{flex-wrap:nowrap;margin:0}
+}
 .games{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,430px),1fr));gap:14px;align-items:start}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
 .card.open{grid-column:1/-1}
@@ -110,6 +117,24 @@ section+section{margin-top:28px}
 .simc-fin>small{flex-basis:100%;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px}
 .simc-fin .b{color:var(--ink);font-variant-numeric:tabular-nums}
 .simc-basis{font-size:12px;color:var(--warn);margin:-2px 0 10px}
+.simsafe{border-top:1px solid var(--line);padding:10px 14px 12px}
+.simsafe h4{margin:0 0 6px;font:700 14px var(--f-display);letter-spacing:.6px;text-transform:uppercase}
+.simsafe ul{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:4px}
+.simsafe li{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.simsafe li span{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.simsafe .tot{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;margin-bottom:8px}
+.simsafe .tot b{font-variant-numeric:tabular-nums}
+.simrc{margin:0 0 14px}
+.simrc summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.simrc summary::-webkit-details-marker{display:none}
+.simrc summary h3{margin:0;font:700 16px var(--f-display);letter-spacing:.6px;text-transform:uppercase}
+.simrc summary .note{margin:0}
+.simrc-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 4px}
+@media (max-width:520px){.simrc-tiles{grid-template-columns:1fr}}
+.simrc table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;margin-top:8px}
+.simrc th,.simrc td{text-align:right;padding:4px 6px;border-bottom:1px solid var(--line)}
+.simrc th:first-child,.simrc td:first-child{text-align:left}
+.simrc th{color:var(--muted);font-weight:600}
 .card-foot button{flex:1;background:none;border:0;padding:9px;font:600 12.5px var(--f-body);color:var(--accent);cursor:pointer}
 .card-foot button+button{border-left:1px solid var(--line)}
 .detail{display:none;border-top:1px solid var(--line);padding:14px 12px;gap:20px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
@@ -786,7 +811,8 @@ details.moreangles > summary::after{content:" ▾";color:var(--muted)}details.mo
 body.easy nav [data-tab="shop"],body.easy nav [data-tab="lineups"],body.easy nav [data-tab="players"],body.easy nav [data-tab="teams"],body.easy .navsep{display:none}
 .sgp{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px;margin:0 0 16px;box-shadow:var(--shadow)}
 .sgp h3{margin:0 0 6px}.sgp .row{gap:8px;margin:6px 0}
-.sgp .modes{display:flex;flex-wrap:wrap;gap:8px}.sgp .modes button{flex:1 1 120px}
+.sgp .modes{display:flex;gap:8px}.sgp .modes button{flex:1 1 0;min-width:0;padding-inline:6px;white-space:nowrap}
+.sgp select{width:100%;font:inherit;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--ink)}
 .sgpres{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--surface2)}
 .sgpres ul{list-style:none;margin:6px 0;padding:0}.sgpres li{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px}
 .sgpres li:last-child{border-bottom:0}.sgpres li span{margin-left:auto;color:var(--muted);font:700 13px var(--f-display)}
@@ -953,12 +979,29 @@ main>[id^="view-"]:not([hidden]){animation:edgein .22s ease-out}
   nav[role="tablist"] button::before{content:"";width:22px;height:22px;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
   nav[role="tablist"] button[aria-selected="true"]{background:rgba(46,220,132,.14)!important;color:#2edc84!important;box-shadow:none!important;opacity:1}
   nav[role="tablist"] .navsep{display:none}
+  /* tidy bar: the main tabs + More (Live takes Picks' place while a game is on); the rest live in the More sheet */
+  nav[role="tablist"]{justify-content:space-around;overflow:visible}
+  nav[role="tablist"] button{flex:1 1 0!important;min-width:0!important;padding:6px 2px!important}
+  nav[role="tablist"] button[data-tab]:not(.nav-main),nav[role="tablist"] button.nav-off{display:none!important}
+  nav[role="tablist"] .navmore{display:flex!important}
+  nav[role="tablist"] .navmore[aria-current="true"]{background:rgba(46,220,132,.14)!important;color:#2edc84!important;opacity:1}
   main{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))!important}
   .slipbtn{bottom:calc(86px + env(safe-area-inset-bottom,0px))!important}
 }
 nav [data-tab="picks"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l3 6.6 7.2.7-5.4 4.8 1.6 7.1L12 17.6 5.6 21.2l1.6-7.1L1.8 9.3 9 8.6z'/%3E%3C/svg%3E")}
 nav [data-tab="board"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 4h18v4H3zm0 6h18v4H3zm0 6h18v4H3z'/%3E%3C/svg%3E")}
 nav [data-tab="live"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 2a10 10 0 100 20 10 10 0 000-20zm0 2a8 8 0 110 16 8 8 0 010-16z'/%3E%3C/svg%3E")}
+nav .navmore{display:none;--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='5' cy='12' r='2.2'/%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3Ccircle cx='19' cy='12' r='2.2'/%3E%3C/svg%3E")}
+nav button.nav-off{display:none}
+.moresheet{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:flex;align-items:flex-end}
+.moresheet[hidden]{display:none}
+.moresheet .ms-in{width:100%;background:var(--surface);border-top:1px solid var(--line);border-radius:20px 20px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.5);padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px))}
+.moresheet .ms-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.moresheet .ms-h b{font:800 20px var(--f-display);letter-spacing:.8px;text-transform:uppercase}
+.moresheet .ms-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.moresheet .ms-grid button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 6px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);color:var(--ink);font:700 12.5px var(--f-body);cursor:pointer}
+.moresheet .ms-grid button::before{content:"";width:24px;height:24px;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
+.moresheet .ms-grid button[aria-current="true"]{border-color:var(--good);color:var(--good)}
 nav [data-tab="sims"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 100 20 10 10 0 000-20zm-2 5.5l6 4.5-6 4.5z'/%3E%3C/svg%3E")}
 nav [data-tab="props"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='7' r='4.5'/%3E%3Cpath d='M3 22c0-5 4-8 9-8s9 3 9 8z'/%3E%3C/svg%3E")}
 nav [data-tab="fantasy"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 2h12v3h4v3a5 5 0 01-5 5h-.5A6 6 0 0113 16.9V19h4v3H7v-3h4v-2.1A6 6 0 017.5 13H7a5 5 0 01-5-5V5h4zm0 5H4v1a3 3 0 002 2.8zm12 0v3.8A3 3 0 0020 8V7z'/%3E%3C/svg%3E")}
@@ -1118,8 +1161,13 @@ body.simopen{overflow:hidden}
     <button role="tab" id="tab-lineups" data-tab="lineups" aria-selected="false">Lineups</button>
     <button role="tab" id="tab-players" data-tab="players" aria-selected="false">Players</button>
     <button role="tab" id="tab-teams" data-tab="teams" aria-selected="false">Teams</button>
+    <button class="navmore" id="navMore" aria-haspopup="dialog" aria-expanded="false" aria-controls="moreSheet">More</button>
   </nav>
 </header>
+
+<div class="moresheet" id="moreSheet" hidden role="dialog" aria-modal="true" aria-labelledby="moreTitle">
+  <div class="ms-in"><div class="ms-h"><b id="moreTitle">More</b><button class="btn small" data-moreclose>Close</button></div><div class="ms-grid" id="moreGrid"></div></div>
+</div>
 
 <main>
   <div id="view-live" hidden>
@@ -1201,10 +1249,10 @@ body.simopen{overflow:hidden}
       </div>
       <div class="row" id="pf-all"><button class="chip" data-pfall="0" aria-pressed="true">Best leans</button><button class="chip" data-pfall="1" aria-pressed="false">All props</button></div>
       <select id="pf-sort" aria-label="Sort props">
-        <option value="game">By game (kickoff order)</option>
-        <option value="trend">Strongest reads, all games</option>
-        <option value="move">Biggest line moves, all games</option>
-        <option value="due">Due watch, all games</option>
+        <option value="game">By game</option>
+        <option value="trend">Strongest reads</option>
+        <option value="move">Biggest line moves</option>
+        <option value="due">Due watch</option>
       </select>
     </div>
     <p class="note">One line per prop: our lean and chance, how often that side hit in his last 5 and 10 games, our projection, and the matchup. Tap any line for the full breakdown: game log, chart, and every alternate line with live prices.</p>
@@ -1248,6 +1296,7 @@ body.simopen{overflow:hidden}
   <div id="view-sims" hidden>
     <div class="toolbar"><h2 style="margin:0">Game sims</h2></div>
     <p class="note">Every upcoming game played 2,000 times, snap by snap. Each sim is tuned to the market's spread, total and player props, so these chances are the market's read played out, not picks. Tap Watch replay to see the most typical run.</p>
+    <div id="simCard"></div>
     <div class="games" id="sims"></div>
   </div>
 
@@ -1326,7 +1375,7 @@ body.simopen{overflow:hidden}
     </div>
   </div>
 </main>
-<footer>DraftKings lines via ESPN; extra books via The Odds API when a key is set up. Model is ESPN's matchup predictor. Fair % strips the bookmaker's margin out of the moneyline. Closing line value (CLV) compares your number with the last line before kickoff. None of this is a guarantee; bet what you can afford to lose.</footer>
+<footer>Lines from ESPN (DraftKings), The Odds API and Kalshi; stats from nflverse. Our numbers lean on the market, because it's usually right. Fair % strips the bookmaker's margin out of the moneyline. Closing line value (CLV) compares your number with the last line before kickoff. None of this is a guarantee; bet what you can afford to lose.</footer>
 
 <script>
 const EDGE_MIN = 5, SPREAD_MOVE = 1.5, TOTAL_MOVE = 2, WIND_MIN = 15, EV_MIN = 2;
@@ -3048,8 +3097,27 @@ function loadSim(gid, then) {
 }
 const hasSim = gid => SPORT === 'nfl' && !FFM && !!S.slate?.sim?.[gid];
 // Sims tab: every upcoming game's simulation at a glance, from the slate's index (a game's own file loads only for its replay)
+// how the sims have done: anchored to the market, so the honest check is "close to the market, and calibrated"
+function simCardHtml(c) {
+  if (!c || !c.n || !c.hw) return '';
+  const b = x => x == null ? '–' : x.toFixed(3), wl = x => x ? `${x.won}-${x.calls - x.won}` : '–';
+  const tile = (lbl, main, sub) => `<div class="simc-stat"><small>${lbl}</small><b>${main}</b> <span>${sub}</span></div>`;
+  const cal = (c.hw.cal || []).map(([lo, hi, n, said, hit]) => `<tr><td>${Math.round(lo * 100)}-${Math.min(100, Math.round(hi * 100))}%</td><td>${n}</td><td>${Math.round(said * 100)}%</td><td>${Math.round(hit * 100)}%</td></tr>`).join('');
+  const wk = Object.entries(c.weeks || {}).map(([w, v]) => `<tr><td>Week ${w}</td><td>${v.n}</td><td>${b(v.hw?.sim)}</td><td>${b(v.hw?.mkt)}</td><td>${wl(v.hc)}</td><td>${wl(v.ov)}</td></tr>`).join('');
+  return `<details class="panel simrc"><summary><h3>How the sims have done</h3><span class="note">${c.n} games graded${c.bf ? `, ${c.bf} of them re-run after the fact from closing lines` : ''} · tap for details</span></summary>
+    <div class="simrc-tiles">
+      ${tile('Winners · Brier', b(c.hw.sim), `market ${b(c.hw.mkt)}`)}
+      ${tile('Cover calls 55%+', wl(c.hc), `${c.hc?.n || 0} games`)}
+      ${tile('Total calls 55%+', wl(c.ov), `${c.ov?.n || 0} games`)}
+    </div>
+    <p class="note">Lower Brier is better. The sim is tuned to the spread and total, so it should land right next to the market on winners and near 50/50 on covers and totals. This is a trust check, not a record of picks.</p>
+    ${cal ? `<table><thead><tr><th>Sim said (winner)</th><th>Games</th><th>Avg said</th><th>Won</th></tr></thead><tbody>${cal}</tbody></table>` : ''}
+    ${wk ? `<table><thead><tr><th>Week</th><th>Games</th><th>Sim Brier</th><th>Market</th><th>Covers</th><th>Totals</th></tr></thead><tbody>${wk}</tbody></table>` : ''}
+  </details>`;
+}
 function renderSims() {
   const el = $('#sims'); if (!el) return;
+  if ($('#simCard')) $('#simCard').innerHTML = SPORT === 'nfl' && !FFM ? simCardHtml(S.slate?.simCard) : '';
   if (SPORT !== 'nfl' || FFM) { el.innerHTML = ''; return; }
   const idx = S.slate?.sim || {}, pc = p => p == null ? '–' : Math.round(p * 100) + '%';
   const lum = h => { const n = parseInt(h.slice(1), 16); return (0.2126 * (n >> 16) + 0.7152 * (n >> 8 & 255) + 0.0722 * (n & 255)) / 255; };
@@ -3080,9 +3148,77 @@ function renderSims() {
       ${fin ? `<div class="simc-fin"><small>Most common finals</small>${fin}</div>` : ''}
       ${s.basis === 'lines' ? '<p class="simc-basis">Props aren\'t posted yet, so players run on their season usage. It re-sims once they post.</p>' : ''}
     </div>
-    <div class="card-foot"><button data-simopen="${g.id}">▶ Watch replay</button><button data-go="${g.id}">Game details</button></div></article>`;
+    ${SIMSAFE.open.has(g.id) ? safeHtml(g) : ''}
+    <div class="card-foot"><button data-simopen="${g.id}">▶ Watch replay</button>${safeLegs(g).length >= 2 ? `<button data-simsafe="${g.id}" aria-expanded="${SIMSAFE.open.has(g.id)}">${SIMSAFE.open.has(g.id) ? 'Hide safe parlay' : 'Safe parlay'}</button>` : ''}<button data-go="${g.id}">Game details</button></div></article>`;
   }).join('');
 }
+// "safe" same-game parlay: alt lines below the main line that BOTH our number and Kalshi put at 84%+ (enough Kalshi volume
+// to trust the price), no Questionable players, no passing legs in a windy game; one leg per player; priced together with
+// the sim's correlations. The joint chance is the point: it's still a long way from a sure thing, and it isn't an edge.
+const SAFE_MIN = 0.84, SAFE_VOL = 50, SIMSAFE = { open: new Set() };
+const nkey = n => ffKey(n);   // same name key as the fantasy tab
+function safeLegs(g) {
+  const q = new Set(['home', 'away'].flatMap(sd => (g[sd].inj || []).filter(i => i.s === 'Questionable').map(i => nkey(i.n))));
+  const windy = !g.indoor && g.wx && (g.wx.wind >= 15 || g.wx.gust >= 25), out = [];
+  for (const pl of S.props?.[g.id] || []) {
+    if (q.has(nkey(pl.n))) continue;
+    for (const pr of pl.props) {
+      if (pr.m === 'Anytime TD' || pr.l == null || (windy && /^Pass|^Completions/.test(pr.m))) continue;
+      let best = null;
+      for (const r of pr.alt || []) {
+        if (r.l >= pr.l || r.ya == null || r.ya >= 0.99 || (r.v || 0) < SAFE_VOL) continue;
+        const k = kMid(r), ours = propChance(pr, r.l);
+        if (k == null || ours == null || k < SAFE_MIN || ours < SAFE_MIN) continue;
+        if (!best || r.l > best.r.l) best = { r, k, ours };   // the highest rung that still clears the bar
+      }
+      if (best) out.push({ pl, pr, ...best, p: (best.k + best.ours) / 2 });
+    }
+  }
+  return out.sort((a, b) => b.p - a.p);
+}
+function safeBuild(g) {
+  const doc = loadSim(g.id, () => renderSims()); if (!doc) return { wait: true };
+  const C = safeLegs(g).slice(0, 9).map(x => {
+    const l = makeLeg(g.id, 'prop', 'over', x.pl.id, x.pr.m); if (!l) return null;
+    l.line = x.r.l; refreshLeg(l); const c = simCol(doc, l); return c && { ...x, l, c };
+  }).filter(Boolean);
+  if (C.length < 2) return null;
+  const sbO = simBits(doc, C.map(x => ({ ...x.c, p: x.p })), 20000), sbK = simBits(doc, C.map(x => ({ ...x.c, p: x.k })), 20000);
+  if (!sbO || !sbK) return null;
+  let best = null;
+  const n = C.length >= 3 ? 3 : 2, pick = (st, cur) => {
+    if (cur.length === n) {
+      if (new Set(cur.map(i => C[i].pl.id)).size < n) return;
+      const p = simAnd(cur.map(i => sbO.bits[i]), sbO.N);
+      if (!best || p > best.p) best = { ix: [...cur], p, pk: simAnd(cur.map(i => sbK.bits[i]), sbK.N), ind: cur.reduce((a, i) => a * C[i].p, 1) };
+      return;
+    }
+    for (let i = st; i < C.length; i++) { cur.push(i); pick(i + 1, cur); cur.pop(); }
+  };
+  pick(0, []);
+  return best && { ...best, legs: best.ix.map(i => C[i]) };
+}
+function safeHtml(g) {
+  const r = safeBuild(g);
+  if (r?.wait) return '<div class="simsafe"><p class="note" style="margin:0">Loading the simulation…</p></div>';
+  if (!r) return '<div class="simsafe"><p class="note" style="margin:0">Not enough legs clear the bar in this game.</p></div>';
+  SIMSAFE[g.id] = r;
+  const pc = p => Math.round(p * 100) + '%';
+  return `<div class="simsafe"><h4>Safe parlay</h4>
+    <ul>${r.legs.map(x => `<li><b>${esc(x.l.label)}</b><span>ours ${pc(x.ours)} · Kalshi ${pc(x.k)}</span></li>`).join('')}</ul>
+    <div class="tot"><span>Hits <b>${pc(r.p)}</b> in the sim</span><span>Kalshi's prices: <b>${pc(r.pk)}</b></span><span>Fair odds <b>${fmtOdds(fairAm(r.p))}</b></span></div>
+    <p class="note" style="margin:0 0 8px">Each leg is a lower line both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+, combined with how they move together in the 2,000 sims (independent would be ${pc(r.ind)}). Safer, not free: about 1 in ${Math.max(2, Math.round(1 / (1 - r.p)))} still misses.</p>
+    <button class="btn primary" data-simsafeload="${g.id}">Load into my parlay</button></div>`;
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-simsafe]');
+  if (t) { const id = t.dataset.simsafe; SIMSAFE.open.has(id) ? SIMSAFE.open.delete(id) : SIMSAFE.open.add(id); renderSims(); return; }
+  const ld = e.target.closest('[data-simsafeload]');
+  if (ld && SIMSAFE[ld.dataset.simsafeload]) {
+    if (PAR.legs.length) store.set('edge-parlay-backup', JSON.stringify(PAR.legs));
+    PAR.legs = SIMSAFE[ld.dataset.simsafeload].legs.map(x => x.l); saveParlay(); renderSlip(); toast(`Loaded a ${PAR.legs.length}-leg safe parlay`);
+  }
+});
 function simNinv(p) {   // inverse standard normal (Acklam)
   p = Math.min(Math.max(p, 1e-9), 1 - 1e-9);
   const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239],
@@ -4258,6 +4394,15 @@ function ffPlayer(pl, ppr) {
 }
 // a league's scoring: per-TD / INT values and yardage bonuses (bonus marks stack: 200 yards pays the 100 and the 200 bonus)
 const BZ_MKT = { pass: 'Pass yds', rush: 'Rush yds', rec: 'Rec yds', rr: 'Rush+rec yds' };
+// floor / ceiling from the game sim when it has this player: 10th-90th percentile of his fantasy points across the 2,000
+// games (yards, catches and TDs move together there, so it's the real spread, not mean +- a flat %); null otherwise
+const ffSimOk = gid => SPORT === 'nfl' && !!S.slate?.sim?.[gid];
+function ffSimRange(x, ppr) {
+  if (NBA || x.est || !ffSimOk(x.g.id)) return null;
+  const doc = loadSim(x.g.id, () => { clearTimeout(ffSimRange.t); ffSimRange.t = setTimeout(() => { renderFantasy(); if (typeof renderLeague === 'function') renderLeague(); }, 60); });
+  const q = doc?.players?.find(p => p.id === String(x.id))?.fp?.[String(ppr)];
+  return q ? { lo: q[0], hi: q[4], med: q[2] } : null;
+}
 function lgScoring(ss) {   // from Sleeper scoring_settings
   const b = [];
   for (const [k, v] of Object.entries(ss || {})) { const m = k.match(/^bonus_(pass|rush|rec|rush_rec)_yd_(\d+)$/); if (m && v) b.push([m[1] === 'rush_rec' ? 'rr' : m[1], +m[2], v]); }
@@ -4345,7 +4490,7 @@ function renderFantasy() {
   $('#ff-score').innerHTML = Object.entries(FF_SCORING).map(([k, [lbl]]) => `<button class="chip" data-ffscore="${k}" aria-pressed="${k === FF.score}">${lbl}</button>`).join('');
   $('#ff-pos').innerHTML = FF_POS.map(p => `<button class="chip" data-ffpos="${p}" aria-pressed="${p === FF.pos}">${p || 'All'}</button>`).join('');
   $('#ff-note').textContent = NBA ? "Projected fantasy points from the betting lines (points, rebounds, assists, threes) blended with our model. No steals, blocks or turnovers: books don't post those."
-    : 'Projected points this week from the betting lines blended with our model. Range = a typical bad-to-good week. Kickers and defenses are estimates from each team\'s implied points. Start = a 12-team league starter at his position.';
+    : 'Projected points this week from the betting lines blended with our model. Floor / ceiling = his 10th to 90th percentile game in our 2,000-game sim of the matchup (range = a typical bad-to-good week where there is no sim yet). Kickers and defenses are estimates from each team\'s implied points. Start = a 12-team league starter at his position.';
   if (!S.slate || !S.props) { box.innerHTML = `<div class="empty"><b>No projections yet</b>They show up once player props are posted.</div>`; return; }
   const all = ffRows(NBA ? 0 : FF_SCORING[FF.score][1]);
   const byPos = {}; for (const x of all.sort((a, b) => b.pts - a.pts)) (byPos[x.pos] ||= []).push(x);
@@ -4360,7 +4505,7 @@ function renderFantasy() {
     return `<button class="ffrow" data-ffopen="${esc(k)}" aria-expanded="${open}" style="--tc:${teamColor(x.team)}">
       <span class="ffrk">${i + 1}</span>${x.est ? logo(x.team.abbr, 34) : espnHead(x.id, x.team.abbr, 38)}
       <span class="ffn"><b>${esc(x.n)}</b><small>${esc(x.pos)}${x.rk} · ${x.est ? 'vs' : x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${esc(kick(x.g))}${x.inj ? ` · <span class="neg">${esc(x.inj.s)}</span>` : ''}</small>
-        <small>range ${fmt(Math.max(0, x.pts - 0.84 * sd))}–${fmt(x.pts + 0.84 * sd)} ${ffNotes(x) || ffMatchup(x)}</small></span>
+        <small>${(sr => sr ? `<span title="10th to 90th percentile of his points in the 2,000-game sim">sim floor ${fmt(sr.lo)} · ceiling ${fmt(sr.hi)}</span>` : `range ${fmt(Math.max(0, x.pts - 0.84 * sd))}–${fmt(x.pts + 0.84 * sd)}`)(ffSimRange(x, NBA ? 0 : FF_SCORING[FF.score][1]))} ${ffNotes(x) || ffMatchup(x)}</small></span>
       <span class="fftier ${x.tier}">${tierLbl[x.tier]}</span><span class="ffpts">${x.pts.toFixed(1)}</span></button>
       ${open ? `<div class="ffwhy">${x.parts.map(([n, v]) => `<span><b>${fmt(v)}</b> ${esc(NBA ? n.toLowerCase() : n)}</span>`).join('')}<small>${x.est ? 'Estimated from the betting lines\' implied team points.' : `${NBA ? '' : 'TD = expected touchdowns from the anytime-TD price. '}Each number blends the market's line (60%) with our projection (40%).`}</small>${!NBA && sid(x) ? `<button class="btn small" data-ffcard="${sid(x)}">Player card →</button>` : ''}</div>` : ''}`; }).join('')}</div>
     ${extra.length ? `<h4 class="rhead">No betting lines this week</h4><div class="roster">${extra.map(k => `<button class="rr rrbtn" data-ffcard="${k}"><span class="rslot s-${esc(V[k].pos)}">${esc(V[k].pos)}</span>${logo(SLP_TM[V[k].tm] || V[k].tm, 26)}<span class="rn"><b>${esc(V[k].n)}</b><small>${esc(V[k].tm || 'FA')}${V[k].inj ? ' · ' + esc(V[k].inj) : ''}</small></span><span class="rpts"><b>${ffRos(V[k]).toFixed(1)}</b><small>/wk ROS</small></span></button>`).join('')}</div>` : ''}
@@ -5342,7 +5487,7 @@ function foldHowTos() {
 }
 queueMicrotask(foldHowTos);
 // ------------------------------------------------------------ welcome sheet and easy mode
-function setEasy(on) { document.body.classList.toggle('easy', on); store.set('edge-easy', on ? '1' : ''); const c = $('#easyMode'); if (c) c.checked = on;
+function setEasy(on) { document.body.classList.toggle('easy', on); store.set('edge-easy', on ? '1' : ''); if (typeof navTidy === 'function') navTidy(); const c = $('#easyMode'); if (c) c.checked = on;
   if (on && ['shop', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('picks'); }
 function showWelcome(on) { $('#welcome').hidden = !on; if (on) $('#welcomeGo').focus(); }
 queueMicrotask(() => {
@@ -5563,7 +5708,43 @@ queueMicrotask(() => {
   if (NBA && ['tds', 'sims', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
   if (SPORT === 'nfl' && store.get('edge-tab') === 'fantasy') setTab('board');   // fantasy moved to its own mode
 });
-function renderAll() { normProps(); renderSync(); renderBoard(); renderSims(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderFantasy(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
+function renderAll() { normProps(); navTidy(); renderSync(); renderBoard(); renderSims(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderFantasy(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
+
+// ------------------------------------------------------------ tab bar tidy-up (phones): main tabs + More
+const NAV_MAIN = ['board', 'picks', 'live', 'props', 'sims', 'parlay'];
+function navOff() {   // tabs this mode doesn't have (CSS hides them on desktop; the phone bar needs it spelled out)
+  const off = new Set(COL ? ['props', 'tds', 'sims', 'lineups', 'players', 'teams', 'fantasy'] : NBA ? ['tds', 'sims', 'lineups', 'players', 'teams'] : SPORT === 'nfl' ? ['fantasy'] : []);
+  if (document.body.classList.contains('easy')) ['shop', 'lineups', 'players', 'teams'].forEach(t => off.add(t));
+  return off;
+}
+function navTidy() {
+  const live = !!(S.slate?.games || []).some(g => g.state === 'in');
+  document.body.classList.toggle('haslive', live);
+  const off = navOff(), cur = store.get('edge-tab') || 'board';
+  // while a game is on, Live takes Picks' spot in the bar (Picks moves to More); otherwise Live waits in More
+  const main = new Set(NAV_MAIN.filter(t => !off.has(t) && t !== (live ? 'picks' : 'live')));
+  for (const b of document.querySelectorAll('nav [data-tab]')) { b.classList.toggle('nav-main', main.has(b.dataset.tab)); b.classList.toggle('nav-off', off.has(b.dataset.tab)); }
+  const more = $('#navMore'); if (more) more.setAttribute('aria-current', main.has(cur) ? 'false' : 'true');
+  return { main, off, cur };
+}
+function moreOpen(open) {
+  const sh = $('#moreSheet'); if (!sh) return;
+  if (open) {
+    const { main, off, cur } = navTidy();
+    $('#moreGrid').innerHTML = [...document.querySelectorAll('nav [data-tab]')].filter(b => !main.has(b.dataset.tab) && !off.has(b.dataset.tab))
+      .map(b => `<button data-moretab="${b.dataset.tab}" aria-current="${b.dataset.tab === cur}">${esc(b.textContent.trim())}</button>`).join('');
+    // each tab's icon (its data: URL has quotes, so it's set as a property, not inside the style attribute)
+    for (const m of $('#moreGrid').children) m.style.setProperty('--ic', getComputedStyle(document.querySelector(`nav [data-tab="${m.dataset.moretab}"]`)).getPropertyValue('--ic').trim());
+  }
+  sh.hidden = !open; $('#navMore')?.setAttribute('aria-expanded', String(open));
+  if (open) sh.querySelector('button')?.focus(); else $('#navMore')?.focus();
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('#navMore')) { moreOpen(true); return; }
+  const mt = e.target.closest('[data-moretab]'); if (mt) { setTab(mt.dataset.moretab); store.set('edge-tab-chosen', '1'); moreOpen(false); window.scrollTo({ top: 0 }); return; }
+  if (e.target.closest('[data-moreclose]') || e.target.id === 'moreSheet') moreOpen(false);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#moreSheet')?.hidden) moreOpen(false); });
 
 function setTab(t) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
@@ -5572,6 +5753,7 @@ function setTab(t) {
   if (t === 'fantasy') lgBoot();
   if (t === 'tds') renderTD();   // props may have loaded since it last drew
   if (t === 'sims') renderSims();
+  navTidy();
   if (t === 'parlay') renderSGP();
 }
 document.querySelector('nav').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { setTab(b.dataset.tab); store.set('edge-tab-chosen', '1'); } });

@@ -21,7 +21,7 @@ import bisect, json, math, os, random, sys, time, zlib
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 TABLES = os.path.join(os.environ.get("EDGE_DATA") or os.path.join(ROOT, "data"), "sim_tables.json")
-VERSION = 4   # bump when the engine changes so every game re-simulates
+VERSION = 5   # bump when the engine changes so every game re-simulates
 N_SIMS, CAL_ROUNDS, CAL_N, POLISH_N = 2000, 12, 500, 1500
 ST = ("att", "cmp", "pyd", "ptd", "int", "car", "ryd", "rtd", "tgt", "rec", "cyd", "ctd", "lng")
 S = {k: i for i, k in enumerate(ST)}
@@ -34,7 +34,11 @@ COV_NAME = {"COVER_0": "Cover 0", "COVER_1": "Cover 1", "COVER_2": "Cover 2", "C
 SUS_K = 1.12     # gains on 3rd / 4th down outside the red zone (sim 3rd-down rate -> real 2025 39.8%)
 PREVENT_K = 1.2   # late, down 4-16: softer coverage (pushes final margins onto 3 and 7 like real games)
 XP = 0.955
+K_PE_NOLINE = 0.82   # yards-per-catch scale when a team has no pass-yds line: sim pass yds / team = real (sim_leans_backtest tuning)
+TWO_PT_CHART = {-2, -5, -9, -10, -12, -16, 1, 5, 12}   # margin after the six, when trailing / leading late
+TWO_PT_BASE, TWO_PT_P = 0.03, 0.48
 SHOCK_SD, PACE_SD = 0.095, 0.0  # game-day form: one side plays better than expected, the other worse (sim margins were tighter than real; totals already matched)
+FGMODE_S, FGMODE_P, FGTIE_S, OT_FG_P = 110, 0.8, 90, 0.9  # play-for-the-FG window (seconds left in the 4th) and make chance needed
 CLOCK_K = 1.08    # runoff per snap vs the table: penalties, replay reviews and injuries also run clock (tuned to 2025 snaps)
 SQ2 = math.sqrt(2)
 Phi = lambda x: 0.5 * math.erfc(-x / SQ2)
@@ -262,13 +266,22 @@ class Sim:
             # field goal to end a half / win it
             kick_now = False
             if (qtr in (2, 4, 5) and qs <= 20 and self.fgp(ydl) > 0.35 and (qtr == 2 or -3 <= sd <= 0)): kick_now = True
+            # playing for the field goal: tied or down 1-2 late and already in easy range -> run, let the clock go, kick on
+            # 3rd down (or with the clock nearly out) instead of chasing a touchdown. Real 2023-25: 4.8% of games end by 3 on
+            # a last-2-minutes FG (the sim had 2.8% without this); overtime FGs follow from the extra ties
+            # overtime once the other side has had the ball: any field goal ties or wins, so the same (real OTs end tied 2%)
+            fg_mode = ((qtr == 4 and qs <= FGMODE_S or qtr == 5 and ot_poss is not None and ot_poss[1 - o] >= 1)
+                       and -2 <= sd <= 0 and down < 4 and self.fgp(ydl) >= FGMODE_P)
+            if fg_mode and (down == 3 or qs <= 12): kick_now = True
+            # sudden death (both sides have had the ball, still tied): any field goal wins, so kick once it's a likely make
+            if qtr == 5 and sd == 0 and ot_poss is not None and ot_poss[1 - o] >= 1 and self.fgp(ydl) >= OT_FG_P: kick_now = True
             choice = None
             if down == 4 or kick_now:
                 if kick_now: choice = "fg"
                 elif sd == 0 and (qtr == 5 or qtr == 4 and qs <= 150) and self.fgp(ydl) >= 0.5:
                     choice = "fg"
                 elif late and sd < 0:
-                    if -sd <= 3 and self.fgp(ydl) >= 0.55 and (qs <= 45 or togo >= 5): choice = "fg"
+                    if -sd <= 3 and self.fgp(ydl) >= 0.55 and (qs <= FGTIE_S or togo >= 4): choice = "fg"   # kick to tie / take the lead
                     elif ydl > 70 and qs > 240 and togo > 3: choice = "punt"
                     else: choice = "go"
                 else:
@@ -286,7 +299,7 @@ class Sim:
                     qs -= 5
                     if ot_poss is not None:
                         ot_poss[o] += 1
-                        if ot_poss[1 - o] >= 1: break
+                        if ot_poss[1 - o] >= 1 and score[o] != score[1 - o]: break   # a tying FG goes to sudden death
                     poss, ydl = kickoff(1 - o); down, togo = 1, 10
                 else:
                     L("fgx", f"{dist}-yard field goal is no good", 0)
@@ -327,7 +340,8 @@ class Sim:
             if down == 4: pp = 0.7 if togo > 2 else 0.45
             lo = math.log(pp / (1 - pp)) + off.tm.get("proe", 0) + off.k_pr
             if ydl <= 20: lo += math.log(off.k_rzp)
-            is_pass = rnd() < 1 / (1 + math.exp(-lo)); snaps += 1
+            is_pass = rnd() < 1 / (1 + math.exp(-lo)) and not fg_mode; snaps += 1
+            if fg_mode and qtr == 4: md = "milk"
             zn = "gl" if ydl <= 5 else "rz" if ydl <= 20 else "op"     # completion-rate zones
             zb = "g2" if ydl <= 2 else "g5" if ydl <= 5 else "r10" if ydl <= 10 else "r15" if ydl <= 15 else "r20" if ydl <= 20 else "op"
             rz = ydl <= 20                # the market's points knob (k_fin) works on red-zone finishing
@@ -435,11 +449,20 @@ class Sim:
                 poss, ydl = kickoff(o); down, togo = 1, 10; continue
             if td:
                 score_pts(o, 6)
-                xp = 1 if rnd() < XP else 0
+                # a walk-off TD in overtime (the other side already had the ball) ends it on the spot: no extra point
+                # (real 2023-25 overtimes: 35% end by 6, 2% by 7)
+                walkoff = ot_poss is not None and ot_poss[1 - o] >= 1 and score[o] > score[1 - o]
+                if walkoff: xp = 0
+                else:
+                    # two-point tries: the usual late-game chart in the 4th (down 2 / 5 / 9 / 10, up 1 / 5 ...), a few earlier
+                    # (real 2023-25: 0.24 tries per team-game, ~48% good); they move 1/2/4-point finals onto ties and 3s
+                    d = score[o] - score[1 - o]
+                    go2 = (qtr >= 4 and d in TWO_PT_CHART) or rnd() < TWO_PT_BASE
+                    xp = (2 if rnd() < TWO_PT_P else 0) if go2 else (1 if rnd() < XP else 0)
                 score_pts(o, xp)
                 if ot_poss is not None:
                     ot_poss[o] += 1
-                    if ot_poss[1 - o] >= 1 or score[o] > score[1 - o] and ot_poss[1 - o] >= 1: break
+                    if ot_poss[1 - o] >= 1 and score[o] != score[1 - o]: break   # a tying TD goes to sudden death
                 poss, ydl = kickoff(1 - o); down, togo = 1, 10
                 continue
             if turnover:
@@ -495,6 +518,8 @@ def pois_mean(line, p):
 def calibrate(sim, seed, rounds=CAL_ROUNDS, n=CAL_N):
     H, A = sim.H, sim.A
     cl = lambda x, a, b: max(a, min(b, x))
+    for tm in (H, A):   # no passing line to tune against: start from the league-wide pass-efficiency scale (the raw
+        if "Pass yds" not in tm.qb.lines and "Pass+rush yds" not in tm.qb.lines: tm.k_pe = K_PE_NOLINE   # engine runs hot)
     for rd in range(rounds):
         sim.prep()
         rng = random.Random(seed)
@@ -647,6 +672,15 @@ def simulate_game(g, rows, T, gsis_of, n=N_SIMS):
                 vals = sorted(stat_of(r[1], p, m) for r in res)
                 d["m"][m] = {"l": l, "p": po, "sim": round(sum(v > l for v in vals) / n, 3),
                              "q": [vals[int(n * f)] for f in (0.1, 0.25, 0.5, 0.75, 0.9)], "avg": round(sum(vals) / n, 1)}
+            # fantasy points per simulated game (no fumbles / 2-pt), 10th-90th percentiles for PPR, half and standard: the
+            # real floor / ceiling, since yards, catches and TDs move together inside a game
+            if p.pos in ("QB", "RB", "WR", "TE"):
+                fp = {}
+                for ppr in (1, 0.5, 0):
+                    v = sorted(round(st[p.idx][S["pyd"]] * 0.04 + st[p.idx][S["ptd"]] * 4 - st[p.idx][S["int"]] * 2 + (st[p.idx][S["ryd"]] + st[p.idx][S["cyd"]]) * 0.1
+                                     + st[p.idx][S["rec"]] * ppr + (st[p.idx][S["rtd"]] + st[p.idx][S["ctd"]]) * 6, 1) for _, st, _, _ in res)
+                    fp[str(ppr)] = [v[int(n * q)] for q in (0.1, 0.25, 0.5, 0.75, 0.9)]
+                d["fp"] = fp
             players.append(d)
     # typical game: closest to the median on the score and the key players, no freak plays
     keys = [lambda r: r[0][0], lambda r: r[0][1]]
