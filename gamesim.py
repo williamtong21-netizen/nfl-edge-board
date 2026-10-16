@@ -614,7 +614,10 @@ def simulate_game(g, rows, T, gsis_of, n=N_SIMS):
     margins = [r[0][0] - r[0][1] for r in res]; totals = [r[0][0] + r[0][1] for r in res]
     summ = {"n": n, "hw": round(sum(m > 0 for m in margins) / n, 3), "tie": round(sum(m == 0 for m in margins) / n, 3),
             "pts": [round(sum(r[0][0] for r in res) / n, 1), round(sum(r[0][1] for r in res) / n, 1)],
-            "target": [round(H.pts_target, 1), round(A.pts_target, 1)], "mkt": {"hs": hs, "t": tl, "pHome": (g.get("proj") or {}).get("pHome")}}
+            "target": [round(H.pts_target, 1), round(A.pts_target, 1)], "mkt": {"hs": hs, "t": tl, "pHome": (g.get("proj") or {}).get("pHome")},
+            # "props": players tuned to their prop lines; "lines": no props posted yet, so only the spread / total anchor the
+            # game and players run on their season usage (it re-simulates once props post)
+            "basis": "props" if any(r.get("props") for r in rows) else "lines"}
     if hs is not None:
         summ["hc"] = round(sum(m + hs > 0 for m in margins) / n, 3); summ["hpush"] = round(sum(m + hs == 0 for m in margins) / n, 3)
     if tl is not None:
@@ -699,6 +702,12 @@ def gsis_map():
     return {p["espn_id"]: p["gsis_id"] for p in analytics.rows("players/players.csv", 30 * 86400) if p.get("espn_id") and p.get("gsis_id")}
 
 
+def index_entry(d):
+    """the slate's per-game summary: enough for the Sims page without loading each game's file."""
+    s = d["sum"]
+    return {**{k: s.get(k) for k in ("hw", "hc", "ov", "tie", "hpush", "tpush", "pts", "target", "mkt", "basis")}, "scores": (s.get("scores") or [])[:5], "at": d.get("at")}
+
+
 def run(games, props, out_dir, n=N_SIMS, only=None):
     """simulate every upcoming game; one file per game plus an index. Returns the index."""
     T = load_tables(); gs = gsis_map()
@@ -713,7 +722,7 @@ def run(games, props, out_dir, n=N_SIMS, only=None):
         try:
             old = json.load(open(path, encoding="utf-8"))
             if old.get("h") == h:
-                idx[g["id"]] = {k: old["sum"].get(k) for k in ("hw", "hc", "ov", "pts", "target")}; continue
+                idx[g["id"]] = index_entry(old); continue
         except (FileNotFoundError, json.JSONDecodeError, KeyError): pass
         t0 = time.time()
         try: d = simulate_game(g, rows, T, gs, n)
@@ -721,8 +730,7 @@ def run(games, props, out_dir, n=N_SIMS, only=None):
             import traceback; traceback.print_exc(); print("sim failed", g["id"], e, file=sys.stderr); continue
         d["at"] = time.strftime("%Y-%m-%dT%H:%MZ", time.gmtime()); d["h"] = h
         with open(path, "w", encoding="utf-8") as fh: json.dump(d, fh, separators=(",", ":"))
-        s = d["sum"]
-        idx[g["id"]] = {k: s.get(k) for k in ("hw", "hc", "ov", "pts", "target")}
+        idx[g["id"]] = index_entry(d)
         print("sim", d["away"], "@", d["home"], round(time.time() - t0, 1), "s", json.dumps(idx[g["id"]]), file=sys.stderr)
     if only: return idx   # a partial (local) run leaves the other games and the index alone
     for f in os.listdir(out_dir):   # games that kicked off or left the slate

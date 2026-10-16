@@ -482,6 +482,37 @@ def roster(team_id, cache):
     return p
 
 
+def sim_fallback_rows(games, props, season, dep=None):
+    """Upcoming games with no props posted yet: the game sim still needs each side's players, so build rows from the
+    ESPN roster and this season's nflverse usage (target / carry shares), with no lines. One QB a side: the depth chart's
+    starter (depth_info), else the one with the most dropbacks this season."""
+    need = [g for g in games if g["state"] == "pre" and not props.get(g["id"])]
+    if not need: return {}
+    rc, people, out = load("roster_cache_v2.json", {}), {}, {}
+    for g in need:
+        for side in ("home", "away"):
+            try:
+                for aid, (n, pos, *_) in roster(g[side]["id"], rc).items():
+                    if pos in ("QB", "RB", "FB", "WR", "TE"): people[(g["id"], aid)] = (n, "RB" if pos == "FB" else pos, g[side]["abbr"], side)
+            except Exception as e:
+                print("roster failed", g[side]["abbr"], e, file=sys.stderr)
+    save(os.path.join(DATA, "roster_cache_v2.json"), rc)
+    use = analytics.player_usage(season, {aid for _, aid in people})["season"]
+    for (gid, aid), (n, pos, tm, side) in people.items():
+        u = use.get(aid)
+        if not u or not u.get("g"): continue
+        if pos != "QB" and (u.get("ts") or 0) < 0.01 and (u.get("rsh") or 0) < 0.02: continue
+        out.setdefault(gid, []).append({"id": aid, "n": n, "p": pos, "tm": tm, "side": side, "props": [], "u": u})
+    for rs in out.values():
+        for side in ("home", "away"):
+            qbs = [r for r in rs if r["side"] == side and r["p"] == "QB"]
+            order = ((dep or {}).get(qbs[0]["tm"]) or {}).get("qbs") or [] if qbs else []
+            rank = lambda r: order.index(analytics.norm(r["n"])) if analytics.norm(r["n"]) in order else len(order)
+            qbs.sort(key=lambda r: (rank(r), -(r["u"].get("dbpg") or 0) * (r["u"].get("g") or 0)))
+            for r in qbs[1:]: rs.remove(r)
+    return out
+
+
 def game_props(g):
     try:
         items, page = [], 1
@@ -739,6 +770,7 @@ def main():
     except Exception as e:
         print("analytics failed", e, file=sys.stderr)
     # key players back from injury (or newly out): the team's numbers and teammates' logs were built without (or with) them
+    dep = {}
     try:
         if team_an:
             dep = depth_info(games)
@@ -857,7 +889,9 @@ def main():
         print("report card failed", e, file=sys.stderr)
     sim_idx = {}
     try:   # play-by-play game sims (2,000 per game, anchored to the lines): replay, sim odds, same-game parlay correlations
-        import gamesim; sim_idx = gamesim.run(games, props, os.path.join(OUT, "sim"))
+        import gamesim
+        sim_rows = {**sim_fallback_rows(games, props, season, dep), **{k: v for k, v in props.items() if v}}
+        sim_idx = gamesim.run(games, sim_rows, os.path.join(OUT, "sim"))
     except Exception as e:
         import traceback; traceback.print_exc(); print("game sims failed", e, file=sys.stderr)
     lu = lineups(games)
