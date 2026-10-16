@@ -3970,7 +3970,7 @@ function renderDraft(box) {
     <div class="roster drboard">${rows.map(x => { const t = x.tier !== lastTier ? `<div class="drtier">Tier ${x.tier}</div>` : ''; lastTier = x.tier; const m = mk(x.n);
       return `${t}<button class="rr rrbtn dr-${m || 'av'}" data-drmark="${esc(x.n)}"><span class="ffrk">${x.rk}</span><span class="rslot s-${esc(x.pos.split(',').pop())}">${esc(x.pos.replace(/,/g, '/'))}</span>
         <span class="rn"><b>${esc(x.n)}</b>${m === 'me' ? ' <span class="lgnew">yours</span>' : m === 'x' ? ' <span class="rinj">taken</span>' : ''}<small>${esc(x.tm)}${x.age ? ' · ' + x.age : ''} · ${x.per != null ? `${x.per} × ${x.g} games` : 'no NBA stats'} · Yahoo #${x.yr}${x.note ? ' · ' + esc(x.note) : ''}</small>
-          ${x.tag ? `<span class="ffwhyl"><span class="ffnt ${x.tag === 'sleeper' ? 'up' : 'dn'}">${x.tag === 'sleeper' ? `▲ sleeper: Yahoo has him ${x.yr}th` : `▼ risk: Yahoo has him ${x.yr}th`}</span></span>` : ''}</span>
+          ${x.tag ? `<span class="ffwhyl"><span class="ffnt ${x.tag === 'sleeper' ? 'up' : 'dn'}">${x.tag === 'sleeper' ? `▲ sleeper: Yahoo has him ${x.yr}th` : `▼ risk: Yahoo has him ${x.yr}th`}</span></span>` : ''}${x.inj ? `<span class="ffwhyl"><span class="rinj">${esc(x.inj)}</span></span>` : ''}</span>
         <span class="rpts"><b>${x.pts ?? '–'}</b><small>${x.val != null ? `+${x.val} value` : 'season pts'}</small>${m ? '' : `<span class="chip drmine" data-drmine="${esc(x.n)}">Mine</span>`}</span></button>`; }).join('')}</div>`;
 }
 document.addEventListener('click', e => {

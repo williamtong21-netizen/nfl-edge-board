@@ -41,6 +41,26 @@ def season_fp(season):
     return out
 
 
+# games cut by hand when news gives a timetable the formula can't see (name key: games)
+GAMES_OVERRIDE = {"brandoningram": 45}   # partially torn Achilles, out to start 2026-27 (ESPN 2026-09-28)
+INJ = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries"
+
+
+def injuries(rows):
+    """ESPN injury report -> note on each player ("OUT: ..." or "inj: ..."); rest days are skipped. Manual games
+    "games cut" notes come from GAMES_OVERRIDE, applied in build() before ranking."""
+    try: j = json.loads(urlopen(Request(INJ, headers={"User-Agent": "edge-board"}), timeout=30).read())
+    except Exception as e: print("injuries: skipped", e); return
+    rep = {}
+    for t in j.get("injuries", []):
+        for i in t.get("injuries", []):
+            c = i.get("shortComment") or ""
+            if re.search(r"\brest(ed|ing)?\b", c): continue
+            rep[norm(i["athlete"]["displayName"])] = ("OUT: " if i.get("status") == "Out" else "inj: ") + c[:110]
+    for r in rows:
+        if norm(r["n"]) in rep: r["inj"] = rep[norm(r["n"])]
+
+
 def build(yahoo_path=os.path.join(DATA, "yahoo_ranks_hoopas.json")):
     yr = json.load(open(yahoo_path, encoding="utf-8"))
     prev = season_fp(2025)
@@ -64,6 +84,7 @@ def build(yahoo_path=os.path.join(DATA, "yahoo_ranks_hoopas.json")):
         if per: per *= cp
         games = min(80, games * cg) if games else None
         notes = []
+        if games and norm(name) in GAMES_OVERRIDE: games = GAMES_OVERRIDE[norm(name)]; notes.append(f"games cut to {games} (injury)")
         if rookie: notes.append("rookie: no NBA stats")
         elif gp == 0: notes.append("missed all of 2025-26")
         elif gp < 50: notes.append(f"played {gp} games last season")
@@ -85,6 +106,7 @@ def build(yahoo_path=os.path.join(DATA, "yahoo_ranks_hoopas.json")):
         r["tier"] = tier
         d = r["yr"] - r["rk"]
         r["tag"] = "sleeper" if d >= 12 and r["val"] is not None else "risk" if d <= -12 and r["val"] is not None else ""
+    injuries(ranked)
     doc = {"league": "NBA Hoopas", "teams": TEAMS, "starters": STARTERS, "scoring": "PTS + REB + AST + STL + BLK - TO", "repl": repl, "players": ranked}
     json.dump(doc, open(os.path.join(DATA, "draft.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     return ranked
