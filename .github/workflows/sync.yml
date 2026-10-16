@@ -45,6 +45,7 @@ jobs:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
           ODDS_API_MIN_HOURS: "12"
+          NTFY_TOPIC: edgeboard-gjmjta8ulgns
         run: python cfb_sync.py
       - name: NBA (separate data folder; free sources only)
         continue-on-error: true

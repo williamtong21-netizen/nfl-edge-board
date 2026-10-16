@@ -45,7 +45,14 @@ def ours(games, season):
                 g["qb"] = {k: v for k, v in (("home", qh), ("away", qa)) if v}
                 m += (qh or {}).get("adj", 0) - (qa or {}).get("adj", 0)
                 t += 0.5 * ((qh or {}).get("adj", 0) + (qa or {}).get("adj", 0))   # a weaker passer scores less
-            g["ours"] = {"m": round(m, 1), "t": round(t, 1)}
+            tb = t
+            if L.get("U"):   # mixed total: half the points ratings, half the run / pass unit matchups (cfb_units)
+                import cfb_units
+                try: t = (1 - cfb_units.W_UNIT_TOT) * t + cfb_units.W_UNIT_TOT * (cfb_units.unit_total(L["U"], h, a, g.get("neutral"))
+                          + 0.5 * ((qh or {}).get("adj", 0) + (qa or {}).get("adj", 0)) * (g["state"] == "pre"))
+                except Exception as e: print("unit total skipped", h, a, e, file=sys.stderr)
+            fb = set(L.get("fbs") or [])
+            g["ours"] = {"m": round(m, 1), "t": round(t, 1), "tb": round(tb, 1), "fbs": h in fb and a in fb}
     return {"games": L["games"], "at": L["at"]}
 
 
@@ -117,9 +124,20 @@ def main():
     odds_meta = sync.multibook(games, cfg)
     for g in games: g.pop("city", None)
     res = record(games, season, prev)
+    flags = None
+    try:   # early-week leans: Power 4 games where our number is 3+ off the opener, frozen, graded, one alert digest
+        import cfb_flags
+        fl = cfb_flags.find(games)
+        for f_ in fl: next(g for g in games if g["id"] == f_["gid"]).setdefault("lean", []).append({k: f_[k] for k in ("kind", "text", "open", "edge")})
+        st = cfb_flags.track(games, fl, res, os.path.join(sync.DATA, f"cfb_flags_{season}.json"))
+        flags = {"bt": cfb_flags.BACKTEST, "rec": cfb_flags.grade(st), "edge": cfb_flags.EDGE,
+                 "past": sorted((v for v in st["flags"].values() if v.get("hs") is not None), key=lambda v: v["d"], reverse=True)[:40]}
+        cfb_flags.alert(st, games, cfg, os.path.join(sync.DATA, f"cfb_flags_{season}.json"))
+    except Exception as e:
+        import traceback; traceback.print_exc(); print("cfb flags failed", e, file=sys.stderr)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     slate = {"updatedAt": now, "sport": "cfb", "propParts": 0, "analytics": None, "season": season, "week": week,
-             "seasonType": sb["season"].get("type", 2), "odds": odds_meta, "report": None, "cfbModel": model_note, "cfbReport": report(res), "games": games}
+             "seasonType": sb["season"].get("type", 2), "odds": odds_meta, "report": None, "cfbModel": model_note, "cfbReport": report(res), "cfbFlags": flags, "games": games}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
     sync.save(os.path.join(sync.OUT, "history.json"), {"season": season, "snaps": []})
     sync.save(os.path.join(sync.OUT, "results.json"), res)

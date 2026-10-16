@@ -203,8 +203,11 @@ PRIOR_FILE = os.path.join(ROOT, "cfb_prior.json")   # last season's final rating
 
 def export_prior(all_games, season=SEASONS[-1] - 1):
     f = season_priors(all_games)[season]
+    import cfb_units   # run / pass unit ratings for the mixed total
+    u = cfb_units.season_finals([g for g in all_games if g["season"] <= season]).get(season)
     with open(PRIOR_FILE, "w", encoding="utf-8") as fh:
-        json.dump({"season": season, **{k: {t: round(v, 2) for t, v in f[k].items()} for k in ("mov", "eff", "off", "def")}}, fh)
+        json.dump({"season": season, **{k: {t: round(v, 2) for t, v in f[k].items()} for k in ("mov", "eff", "off", "def")},
+                   **({"units": cfb_units.compact(u)} if u else {})}, fh)
 
 
 def live_ratings(season, max_age=12 * 3600):
@@ -212,7 +215,7 @@ def live_ratings(season, max_age=12 * 3600):
     out = os.path.join(os.path.dirname(CACHE), "cfb_ratings.json")
     try:
         with open(out, encoding="utf-8") as fh: L = json.load(fh)
-        if L.get("season") == season and time.time() - L["at"] < max_age: return L
+        if L.get("season") == season and time.time() - L["at"] < max_age and "U" in L and "fbs" in L: return L
     except (FileNotFoundError, ValueError, KeyError): pass
     with open(PRIOR_FILE, encoding="utf-8") as fh: last = json.load(fh)
     gs = load(season, max_age, with_lines=False)
@@ -220,7 +223,10 @@ def live_ratings(season, max_age=12 * 3600):
     raw = fetch("games", f"/games?year={season}&seasonType=regular", season, max_age)
     ids = {str(g[k + "Id"]): g[k + "Team"] for g in raw for k in ("home", "away")}   # CFBD team ids are ESPN's
     R = ratings(gs, carry(last, fbs, season))
-    L = {"at": time.time(), "season": season, "games": sum(1 for g in gs if g["done"]), "ids": ids,
+    import cfb_units
+    try: U = cfb_units.compact(cfb_units.unit_ratings(gs, cfb_units.load_adv(season), cfb_units.carry(last["units"]) if last.get("units") else {}))
+    except Exception as e: print("unit ratings skipped:", e, file=sys.stderr); U = None
+    L = {"at": time.time(), "season": season, "games": sum(1 for g in gs if g["done"]), "ids": ids, "U": U, "fbs": sorted(t for t, v in fbs.items() if v),
          "R": {"mu": R["mu"], **{k: {t: round(v, 2) for t, v in R[k].items()} for k in ("mov", "eff", "off", "def")}}}
     with open(out, "w", encoding="utf-8") as fh: json.dump(L, fh)
     return L

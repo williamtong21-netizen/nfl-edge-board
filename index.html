@@ -833,6 +833,11 @@ body.cfb nav [data-tab="fantasy"],body.nba nav [data-tab="tds"],body.nba nav [da
 body.nba #picks .sechead.tdsec,body.nba #picks .tdsec ~ .vgrid,body.nba #picks .tdsec + p,body.nba #picks .tdhonest,
 body.cfb #picks .sechead.tdsec,body.cfb #picks .tdsec ~ .vgrid,body.cfb #picks .tdsec + p,body.cfb #picks .tdhonest{display:none}
 .cfbours{display:flex;flex-direction:column;gap:3px;padding:2px 12px 10px}.cfbours small{color:var(--muted);font-size:11.5px}
+.earlylean{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;margin-top:4px}
+.earlylean b{font:700 12.5px var(--f-body);color:var(--warn);background:var(--warn-soft);border-radius:999px;padding:3px 10px}
+.earlylean span{color:var(--muted);font-size:11.5px}
+.flagrec td,.flagrec th{font-variant-numeric:tabular-nums}
+.flaglist{margin:6px 0 8px;padding-left:18px;display:grid;gap:4px}.flaglist small{color:var(--muted)}.flagrec{margin:6px 0}
 .fbkinds{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .fbkinds button{border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;padding:6px 12px;font:700 13px var(--f-body);cursor:pointer}
 .fbkinds button[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:var(--on-good)}
@@ -2049,6 +2054,31 @@ function tdBacktest(R, key = 'tdbt') {   // weekly backtest totals (touchdowns o
   rows.push(`<tr><td><b>All</b></td><td class="n">${sum(v => v.scored)}/${n}</td><td class="n">model ${br('p').toFixed(3)} · Kalshi ${br('mid').toFixed(3)} · blend ${br('blend').toFixed(3)}</td><td class="n">${won}/${bets}</td><td class="n"><b class="${pl > 0 ? 'pos' : 'neg'}">${pl > 0 ? '+' : '−'}$${Math.abs(pl).toFixed(0)}</b></td></tr>`);
   return { rows, wt: W[W.length - 1][1].wt, chip: { w: won, l: bets - won, pct: bets ? won / bets : null, pl } };
 }
+// college early-week flags (cfb_flags.py): our number 3+ off the opener and today's line, Power 4, FBS vs FBS
+function cfbFlagLines(g) {
+  const H = g.home, A = g.away;
+  const opened = f => f.kind === 'side' ? `opened ${esc(H.abbr)} ${fmtLine(f.open)}` : `opened ${f.open}`;
+  return g.lean.map(f => `<div class="earlylean"><b>Early lean: ${esc(f.text)}</b><span>${opened(f)} · ${f.edge} pts off today's line</span></div>`).join('')
+    + `<small>Early-line edge only: in 2023–26 Power 4 games, leans like this went about 56% at the opening number and the line moved our way 65% of the time, but at the closing line they only broke even. Bet early or skip.</small>`;
+}
+function cfbFlagsSection() {
+  const F = S.slate?.cfbFlags; if (!F) return '';
+  const r3 = a => a ? `${a[0]}-${a[1]}${a[2] ? '-' + a[2] : ''}` : '–';
+  const pc = a => a && a[0] + a[1] ? Math.round(a[0] / (a[0] + a[1]) * 100) + '%' : '';
+  const row = (lbl, d) => `<tr><td>${lbl}</td><td class="n">${d.n}</td><td class="n">${r3(d.moved)} <small>${pc(d.moved)}</small></td><td class="n">${r3(d.flag)} <small>${pc(d.flag)}</small></td><td class="n">${r3(d.close)} <small>${pc(d.close)}</small></td></tr>`;
+  const bt = (lbl, b) => `<tr><td>${lbl}</td><td class="n">${b.n}</td><td class="n">${Math.round(b.moved * 100)}%</td><td class="n">${(b.open * 100).toFixed(1)}%</td><td class="n">${(b.close * 100).toFixed(1)}%</td></tr>`;
+  const now = (S.slate.games || []).filter(g => g.state === 'pre' && g.lean?.length).sort((a, b) => new Date(a.date) - new Date(b.date));
+  const list = now.map(g => g.lean.map(f => `<li><b>${esc(f.text)}</b> · ${esc(g.away.abbr)} @ ${esc(g.home.abbr)} <small>${kick(g)} · ${f.edge} off</small></li>`).join('')).join('');
+  const past = (F.past || []).slice(0, 12).map(f => { const ln = f.line, hit = f.kind === 'side' ? (f.hs - f.as + ln) * (f.pick === 'home' ? 1 : -1) : (f.hs + f.as - ln) * (f.pick === 'over' ? 1 : -1);
+    return `<li><b class="${hit > 0 ? 'pos' : hit < 0 ? 'neg' : ''}">${hit > 0 ? 'W' : hit < 0 ? 'L' : 'P'}</b> ${esc(f.text)} · ${esc(f.a)} ${f.as}-${f.hs} ${esc(f.h)}</li>`; }).join('');
+  return `<details class="rc cfbrec" open><summary class="rc-h"><b>Early leans</b><small>${now.length ? `${now.reduce((a, g) => a + g.lean.length, 0)} this week` : 'none open'} · record ${r3(F.rec.side.flag)} sides, ${r3(F.rec.total.flag)} totals ▾</small></summary>
+    ${list ? `<ul class="flaglist">${list}</ul>` : '<p class="note">No early leans open right now. They show up when lines open, usually Sunday.</p>'}
+    <p class="note">Power 4 games (FBS vs FBS) where our number is ${F.edge}+ points off both the opening line and today's line. Our number predicts which way college lines move, but it doesn't beat the closing line, so any edge is in betting early. Totals use our mixed total (points ratings plus run/pass matchups) and are skipped in 12+ mph wind.</p>
+    <table class="flagrec"><tr><th></th><th class="n">Flags</th><th class="n">Line moved our way</th><th class="n">At the flagged line</th><th class="n">At the close</th></tr>${row('Sides, 2026', F.rec.side)}${row('Totals, 2026', F.rec.total)}</table>
+    <table class="flagrec"><tr><th>Backtest</th><th class="n">Games</th><th class="n">Moved our way</th><th class="n">At the opener</th><th class="n">At the close</th></tr>${bt('Sides (' + F.bt.side.games + ')', F.bt.side)}${bt('Totals (' + F.bt.total.games + ')', F.bt.total)}</table>
+    <p class="note">${esc(F.bt.side.test)}. Breaking even takes 52.4% at -110.</p>
+    ${past ? `<details><summary>Recent graded leans</summary><ul class="flaglist">${past}</ul></details>` : ''}</details>`;
+}
 function cfbReportCard() {   // college: how our number has done against the closing line
   const R = S.slate?.cfbReport;
   if (!R?.games) return `<div class="rc"><div class="rc-h"><b>Our number's record</b><small>Graded against the closing line after each final. First results after this week's games.</small></div></div>`;
@@ -2062,7 +2092,7 @@ function cfbReportCard() {   // college: how our number has done against the clo
     <p class="note">Top 25 and Power 4 games, graded against the last line before kickoff. Breaking even takes about 52.4% at normal -110 prices. Weeks before this one were replayed using only games played up to then. Early weeks lean mostly on last season, which is why they're weakest.</p></details></details>`;
 }
 function reportCard() {
-  if (COL) return cfbReportCard();
+  if (COL) return (CFB ? cfbFlagsSection() : '') + cfbReportCard();
   const R = S.slate?.report;
   if (!R?.games) return `<div class="rc"><div class="rc-h"><b>Our report card</b><small>Every read gets graded after the final whistle. The first results show up after this week's games.</small></div></div>`;
   const strong = ['60–65%', '65%+'].reduce((a, k) => { const d = R.props[k]; if (d) { a.w += d.w; a.l += d.l; } return a; }, { w: 0, l: 0 });
@@ -3991,7 +4021,7 @@ function card(g) {
   // college: our own number, shown as info only (backtested even with the closing line, so it never makes picks)
   const cfbOurs = COL && pre && g.ours ? (() => { const m = g.ours.m, fav = m >= 0 ? H : A, half = x => (Math.round(x * 2) / 2).toFixed(1);
     const book = o?.hs != null ? ` · book ${esc((o.hs <= 0 ? H : A).abbr)} ${fmtLine(-Math.abs(o.hs))}${o.t != null ? ', ' + o.t : ''}` : '';
-    return `<div class="cfbours"><span class="ourline">Our number ${Math.abs(m) < 0.5 ? 'Pick ’em' : `${esc(fav.abbr)} -${half(Math.abs(m))}`} · total ${half(g.ours.t)}${book}</span><small>${g.qb ? Object.entries(g.qb).map(([sd, q]) => `Includes ${esc(g[sd].abbr)}'s QB change: ${esc(q.new)} started last game for ${esc(q.old)} (${q.adj > 0 ? '+' : ''}${q.adj} pts). `).join('') : ''}${CBB ? CBB_NOTE : 'Info only: in 2023–25 tests our number matched Vegas but didn\'t beat it.'}</small></div>`; })() : '';
+    return `<div class="cfbours"><span class="ourline">Our number ${Math.abs(m) < 0.5 ? 'Pick ’em' : `${esc(fav.abbr)} -${half(Math.abs(m))}`} · total ${half(g.ours.t)}${book}</span><small>${g.qb ? Object.entries(g.qb).map(([sd, q]) => `Includes ${esc(g[sd].abbr)}'s QB change: ${esc(q.new)} started last game for ${esc(q.old)} (${q.adj > 0 ? '+' : ''}${q.adj} pts). `).join('') : ''}${CBB ? CBB_NOTE : g.lean?.length ? '' : 'Info only: in 2023–25 tests our number matched Vegas but didn\'t beat it.'}</small>${CFB && g.lean?.length ? cfbFlagLines(g) : ''}</div>`; })() : '';
   const probs = o?.hFair && pre ? `<div class="probs">
       <div class="pl"><span>${esc(A.abbr)} ${Math.round(o.aFair * 100)}%</span><span>Win chance · betting market</span><span>${esc(H.abbr)} ${Math.round(o.hFair * 100)}%</span></div>
       <div class="pbar"><i style="width:${o.aFair * 100}%;background:${esc(teamColor(A))}"></i><i style="flex:1;background:${esc(teamColor(H))}"></i></div>
