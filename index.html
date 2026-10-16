@@ -962,6 +962,74 @@ body.ffmode nav[role="tablist"]{display:none!important}
 .fftab[data-ffview="waivers"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z'/%3E%3C/svg%3E")}
 .fftab[data-ffview="league"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 2h12v3h4v3a5 5 0 01-5 5h-.5A6 6 0 0113 16.9V19h4v3H7v-3h4v-2.1A6 6 0 017.5 13H7a5 5 0 01-5-5V5h4zm0 5H4v1a3 3 0 002 2.8zm12 0v3.8A3 3 0 0020 8V7z'/%3E%3C/svg%3E")}
 
+
+/* game simulator replay (full screen): scorebug, field, captions, live box scores, final summary */
+body.simopen{overflow:hidden}
+.simv{position:fixed;inset:0;z-index:80;overflow:auto;background:radial-gradient(120% 70% at 0% 0%,color-mix(in srgb,var(--sa) 35%,transparent),transparent 60%),radial-gradient(120% 70% at 100% 0%,color-mix(in srgb,var(--sh) 35%,transparent),transparent 60%),var(--bg);color:var(--ink);padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+.simv[hidden]{display:none}
+.simv-in{max-width:1240px;margin:0 auto;padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px;min-height:100%}
+.simv-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.simv-tag{font:600 12px var(--f-body);letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.simv-x{background:var(--surface2);border:1px solid var(--line);color:var(--ink);border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer}
+.simv-sb{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;border-radius:10px;overflow:hidden;background:var(--surface);border:1px solid var(--line);max-width:760px;width:100%;margin:0 auto}
+.simv-sb .sbt{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:3px solid var(--sa);min-width:0}
+.simv-sb .sbt.home{justify-content:flex-end;border-bottom-color:var(--sh)}
+.simv-sb .sbt b{font:700 18px var(--f-display);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.simv-sb .sc{font:800 34px/1 var(--f-display);font-variant-numeric:tabular-nums;margin-left:auto}
+.simv-sb .sbt.home .sc{margin-left:0;margin-right:auto}
+.simv-sb .sbt.poss b::after{content:" •";color:var(--warn)}
+.simv-sb .sbc{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 14px;background:var(--surface2);min-width:96px}
+.simv-sb .sbc b{font:700 18px var(--f-display);font-variant-numeric:tabular-nums}.simv-sb .sbc small{color:var(--muted);font-size:12px}
+.simv-main{display:grid;grid-template-columns:200px minmax(0,1fr) 200px;gap:12px;align-items:start}
+.simv-fieldwrap{display:flex;flex-direction:column;gap:8px}
+.simv-field{width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.simv-field .turf{fill:var(--turf)}.simv-field .turf2{fill:var(--turf2)}
+.simv-field .lines line{stroke:var(--chalk);stroke-width:2}.simv-field .lines .y5{stroke-width:1.5;opacity:.7}.simv-field .lines .gl{stroke-width:4;opacity:1;stroke:#fff}
+.simv-field .nums text{fill:var(--fieldtext);opacity:.75;font:700 30px var(--f-display);text-anchor:middle}
+.simv-field .ez{fill:#fff;font:800 40px var(--f-display);letter-spacing:6px;text-anchor:middle;dominant-baseline:middle;opacity:.9}
+.simv-field .mid{fill:none;stroke:var(--chalk);stroke-width:3}.simv-field .midt{fill:var(--fieldtext);opacity:.6;font:800 34px var(--f-display);text-anchor:middle}
+.simv-field .los{stroke:var(--los);stroke-width:4}.simv-field .fd{stroke:#ffd84a;stroke-width:4}
+.simv-field .los,.simv-field .fd{transition:opacity .2s}
+.simv-field .trail{fill:none;stroke-width:5;stroke-linecap:round;opacity:.9}
+.simv-field .trail.comp{stroke:var(--good)}.simv-field .trail.run{stroke:#fff}.simv-field .trail.inc{stroke:var(--muted);stroke-dasharray:10 8}
+.simv-field .trail.bad{stroke:var(--bad)}.simv-field .trail.td{stroke:#ffd84a}.simv-field .trail.kick{stroke:#ffd84a;stroke-dasharray:4 8}
+.simv-field .ball{fill:#7a4a24;stroke:#3d2410;stroke-width:2}.simv-field .lace{stroke:#fff;stroke-width:2}
+.simv-cap{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-height:44px}
+.simv-cap .dd{color:#fff;font:700 13px var(--f-display);letter-spacing:.5px;padding:3px 8px;border-radius:4px;white-space:nowrap}
+.simv-cap .tx{font:600 16px var(--f-body);flex:1 1 220px}
+.simv-cap .tg{font:600 12px var(--f-body);padding:2px 8px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.simv-cap .tg.hot{color:var(--bad);border-color:var(--bad)}.simv-cap .tg.td{color:var(--good);border-color:var(--good)}
+.simv-box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px}
+.simv-box h4{display:flex;align-items:center;gap:6px;margin:0 0 6px;font:700 15px var(--f-display);letter-spacing:.5px;text-transform:uppercase}
+.simv-box h5{margin:8px 0 2px;font:600 11px var(--f-body);letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.simv-box p{margin:0;display:flex;justify-content:space-between;gap:8px}.simv-box p span{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.simv-ctrl{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}
+.simv-ctrl input[type=range]{flex:1 1 220px;max-width:480px;accent-color:var(--accent)}
+.simv-speed{display:flex;gap:4px}
+.simv-final[hidden]{display:none}
+.simv-final{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;max-width:900px;width:100%;margin:0 auto}
+.sf-score{display:flex;flex-direction:column;align-items:center;gap:6px}
+.sf-score>span{font:600 12px var(--f-body);letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.sf-score>div{display:flex;align-items:center;gap:14px}.sf-score b{font:800 56px/1 var(--f-display);font-variant-numeric:tabular-nums}.sf-score i{font-style:normal;color:var(--muted);font-size:28px}
+.sf-q{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}.sf-q th,.sf-q td{padding:2px 8px;text-align:center}.sf-q th{color:var(--muted);font-weight:600}
+.sf-big{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.sf-big>div{background:var(--surface2);border-radius:8px;padding:10px;text-align:center;display:flex;flex-direction:column}
+.sf-big b{font:800 36px/1.1 var(--f-display);color:var(--good)}.sf-big span{color:var(--ink);font-size:13px}.sf-big small{display:block;color:var(--muted)}
+.sf-scores{display:flex;flex-wrap:wrap;gap:6px}.sf-scores small{color:var(--muted);margin-left:4px}
+.sf-box{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sf-pl table{width:100%;border-collapse:collapse;font-size:12.5px}.sf-pl th,.sf-pl td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left}.sf-pl .n{text-align:right;font-variant-numeric:tabular-nums}
+.sf-pl{max-height:50vh;overflow:auto}
+@media (max-width:900px){
+  .simv-main{grid-template-columns:1fr 1fr}
+  .simv-fieldwrap{grid-column:1/-1;order:-1}
+  .simv-sb .sc{font-size:28px}.simv-sb .sbt b{font-size:15px}
+}
+@media (max-width:520px){
+  .simv-in{padding:8px 12px 20px;gap:10px}
+  .simv-sb .sbt{padding:6px 8px;gap:6px}.simv-sb .sbt img{width:24px;height:24px}.simv-sb .sbc{min-width:78px;padding:4px 8px}
+  .simv-cap .tx{font-size:14px}.simv-box{font-size:12px;padding:8px}
+  .sf-box{grid-template-columns:1fr}.sf-score b{font-size:44px}
+}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -2910,6 +2978,270 @@ function legNotes(leg) {
   }
   return { plus, minus, c, ev };
 }
+// ------------------------------------------------------------ game simulator (gamesim.py): every upcoming game played 2,000 times, snap by
+// snap, tuned to the betting lines. Here: a replay of the most typical game, and same-game parlay pricing (each leg keeps our own
+// chance; the sim's 2,000 games say how the legs move together)
+const SIMD = {};
+function loadSim(gid, then) {
+  if (SIMD[gid] === undefined) SIMD[gid] = fetch(DATA_BASE + 'sim/' + gid + '.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : false).catch(() => false).then(d => (SIMD[gid] = d));
+  if (SIMD[gid] instanceof Promise) { if (then) SIMD[gid].then(then); return null; }
+  return SIMD[gid] || null;
+}
+const hasSim = gid => SPORT === 'nfl' && !FFM && !!S.slate?.sim?.[gid];
+function simNinv(p) {   // inverse standard normal (Acklam)
+  p = Math.min(Math.max(p, 1e-9), 1 - 1e-9);
+  const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239],
+    b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572],
+    c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732984343734, 4.374664141464968, 2.938163982698783],
+    d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+  const tail = q => (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  if (p < 0.02425) return tail(Math.sqrt(-2 * Math.log(p)));
+  if (p > 1 - 0.02425) return -tail(Math.sqrt(-2 * Math.log(1 - p)));
+  const q = p - 0.5, r = q * q;
+  return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+}
+function simCol(doc, l) {   // the sim column behind a parlay leg, and which way it points
+  const C = doc.cols, f = (a, b) => C.findIndex(c => c[0] === a && c[1] === b);
+  let i = -1, s = 1;
+  if (l.kind === 'prop') { i = f(String(l.pid), l.m); s = l.side === 'under' ? -1 : 1; }
+  else if (l.kind === 'spread') { i = f('G', 'home_cover'); s = l.side === 'home' ? 1 : -1; }
+  else if (l.kind === 'ml') { i = f('G', 'home_win'); s = l.side === 'home' ? 1 : -1; }
+  else if (l.kind === 'total') { i = f('G', 'over'); s = l.side === 'over' ? 1 : -1; }
+  else if (l.kind === 'tt') { i = f('G', l.team === doc.home ? 'home_tt' : 'away_tt'); s = l.side === 'over' ? 1 : -1; }
+  return i < 0 ? null : { i, s };
+}
+function simR(doc, i, j) {
+  if (i === j) return 0.999;
+  const a = Math.min(i, j), b = Math.max(i, j), n = doc.cols.length;
+  return doc.corr[a * n - a * (a + 1) / 2 + (b - a - 1)] ?? 0;
+}
+function simChol(R) {
+  const n = R.length, L = R.map(() => new Float64Array(n));
+  for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) {
+    let s = R[i][j]; for (let k = 0; k < j; k++) s -= L[i][k] * L[j][k];
+    if (i === j) { if (s <= 1e-9) return null; L[i][i] = Math.sqrt(s); } else L[i][j] = s / L[j][j];
+  }
+  return L;
+}
+function simRng(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// N correlated draws (latent normals with the sim's correlations); each leg hits when its draw clears its own chance
+function simBits(doc, items, N) {
+  const k = items.length, R0 = items.map((x, a) => items.map((y, b) => a === b ? 1 : simR(doc, x.i, y.i) * x.s * y.s));
+  let L = null;
+  for (let sh = 1; sh > 0.2 && !L; sh *= 0.9) L = simChol(R0.map((r, a) => r.map((v, b) => a === b ? 1 : v * sh)));   // not positive-definite: shrink
+  if (!L) return null;
+  const h = items.map(x => simNinv(1 - x.p)), W = Math.ceil(N / 32), bits = items.map(() => new Uint32Array(W)), rnd = simRng(20261016), e = new Float64Array(k);
+  for (let n = 0; n < N; n++) {
+    for (let a = 0; a < k; a += 2) { const m = Math.sqrt(-2 * Math.log(rnd() || 1e-12)), v = 6.283185307179586 * rnd(); e[a] = m * Math.cos(v); if (a + 1 < k) e[a + 1] = m * Math.sin(v); }
+    for (let a = 0; a < k; a++) { let z = 0; const La = L[a]; for (let b = 0; b <= a; b++) z += La[b] * e[b]; if (z > h[a]) bits[a][n >>> 5] |= 1 << (n & 31); }
+  }
+  return { bits, N };
+}
+const simPop = x => { x -= x >>> 1 & 0x55555555; x = (x & 0x33333333) + (x >>> 2 & 0x33333333); return ((x + (x >>> 4) & 0x0F0F0F0F) * 0x01010101) >>> 24; };
+function simAnd(list, N) { let c = 0; for (let w = 0; w < list[0].length; w++) { let v = 0xFFFFFFFF; for (const b of list) v &= b[w]; c += simPop(v >>> 0); } return c / N; }
+// whole ticket: legs in the same simulated game priced together, other games multiply; null when a same-game group isn't covered
+function simJoint(legs, ps) {
+  const by = {}; legs.forEach((l, i) => (by[l.gid] ||= []).push(i));
+  let p = 1, any = false; const groups = [];
+  for (const [gid, ix] of Object.entries(by)) {
+    const pr = ix.reduce((a, i) => a * ps[i], 1);
+    if (ix.length < 2) { p *= pr; continue; }
+    const doc = SIMD[gid]; if (!doc || doc instanceof Promise) return null;
+    const items = ix.map(i => { const c = simCol(doc, legs[i]); return c && { ...c, p: ps[i] }; });
+    if (items.some(x => !x)) return null;
+    const sb = simBits(doc, items, 40000); if (!sb) return null;
+    const j = Math.min(Math.min(...ix.map(i => ps[i])), simAnd(sb.bits, sb.N));
+    groups.push({ gid, ix, joint: j, indep: pr }); p *= j; any = true;
+  }
+  return any ? { p, groups } : null;
+}
+const simPrefetch = legs => { const want = [...new Set(legs.map(l => l.gid))].filter(g => hasSim(g) && SIMD[g] === undefined && legs.filter(l => l.gid === g).length > 1);
+  want.forEach(g => loadSim(g, () => { renderParlay(); })); };
+// SGP builder: one set of draws for every candidate, then each combo is a quick AND
+function sgpSimPrep(g, C) {
+  C.forEach(x => { delete x.bits; delete x.N; });
+  const doc = hasSim(g.id) ? loadSim(g.id) : null; if (!doc) return;
+  const items = C.map(x => { const c = simCol(doc, x.l); return c ? { ...c, p: x.p, x } : null; }).filter(Boolean);
+  if (items.length < 3) return;
+  const sb = simBits(doc, items, 20000); if (!sb) return;
+  items.forEach((it, k) => { it.x.bits = sb.bits[k]; it.x.N = sb.N; });
+}
+
+// ------------------------------------------------------------ the replay: most typical of the 2,000 games, play by play
+const SIMV = { gid: null, i: 0, playing: false, speed: 1, timer: null, raf: null, final: false };
+const SIM_DELAY = { 1: 1500, 4: 380, 16: 95 };
+function simOpen(gid) {
+  const doc = loadSim(gid, d => d ? simOpen(gid) : toast('No simulation for this game yet'));
+  if (!doc) return;
+  Object.assign(SIMV, { gid, i: 0, final: false, last: document.activeElement });
+  let el = $('#simv');
+  if (!el) { document.body.insertAdjacentHTML('beforeend', '<div class="simv" id="simv" role="dialog" aria-modal="true" hidden></div>'); el = $('#simv'); }
+  const g = S.slate.games.find(x => x.id === gid), H = g.home, A = g.away;
+  el.setAttribute('aria-label', `Simulated game: ${A.abbr} at ${H.abbr}`);
+  el.style.setProperty('--sa', teamColor(A)); el.style.setProperty('--sh', teamColor(H));
+  const yl = []; for (let y = 5; y < 100; y += 5) yl.push(`<line x1="${100 + y * 10}" y1="0" x2="${100 + y * 10}" y2="534" class="${y % 10 ? 'y5' : 'y10'}"/>`);
+  const nums = [10, 20, 30, 40, 50, 40, 30, 20, 10].map((n, k) => `<text x="${200 + k * 100}" y="78">${n}</text><text x="${200 + k * 100}" y="486">${n}</text>`).join('');
+  const ticks = []; for (let y = 1; y < 100; y++) if (y % 5) ticks.push(`<line x1="${100 + y * 10}" y1="196" x2="${100 + y * 10}" y2="206"/><line x1="${100 + y * 10}" y1="328" x2="${100 + y * 10}" y2="338"/>`);
+  el.innerHTML = `<div class="simv-in">
+    <div class="simv-top"><span class="simv-tag">Simulated game · the most typical of ${doc.sum.n.toLocaleString()}</span><button class="simv-x" data-simclose aria-label="Close the simulation">✕</button></div>
+    <div class="simv-sb" id="simSb"></div>
+    <div class="simv-main">
+      <section class="simv-box" id="simBoxA" aria-label="${esc(A.abbr)} box score"></section>
+      <div class="simv-fieldwrap">
+        <svg class="simv-field" viewBox="0 0 1200 534" role="img" aria-label="Field: ${esc(A.abbr)} end zone on the left, ${esc(H.abbr)} on the right">
+          <rect x="0" y="0" width="1200" height="534" class="turf"/>${Array.from({ length: 10 }, (_, k) => `<rect x="${100 + k * 100}" y="0" width="50" height="534" class="turf2"/>`).join('')}
+          <rect x="0" y="0" width="100" height="534" fill="var(--sa)"/><rect x="1100" y="0" width="100" height="534" fill="var(--sh)"/>
+          <text class="ez" transform="translate(58 267) rotate(-90)">${esc(nick(A)).toUpperCase()}</text><text class="ez" transform="translate(1142 267) rotate(90)">${esc(nick(H)).toUpperCase()}</text>
+          <g class="lines">${yl.join('')}<line x1="100" y1="0" x2="100" y2="534" class="gl"/><line x1="1100" y1="0" x2="1100" y2="534" class="gl"/>${ticks.join('')}</g>
+          <g class="nums">${nums}</g>
+          <circle cx="600" cy="267" r="46" class="mid"/><text x="600" y="279" class="midt">${esc(H.abbr)}</text>
+          <line id="simFd" x1="0" y1="0" x2="0" y2="534" class="fd"/><line id="simLos" x1="0" y1="0" x2="0" y2="534" class="los"/>
+          <path id="simTrail" d="" class="trail"/>
+          <g id="simBall"><ellipse rx="15" ry="9" class="ball"/><line x1="-6" y1="0" x2="6" y2="0" class="lace"/></g>
+        </svg>
+        <div class="simv-cap" id="simCap"></div>
+      </div>
+      <section class="simv-box" id="simBoxH" aria-label="${esc(H.abbr)} box score"></section>
+    </div>
+    <div class="simv-ctrl">
+      <button class="btn" data-simplay id="simPlayBtn" aria-label="Pause">❚❚</button>
+      <div class="simv-speed" role="group" aria-label="Speed">${[1, 4, 16].map(s => `<button class="chip" data-simspeed="${s}" aria-pressed="${s === SIMV.speed}">${s}×</button>`).join('')}</div>
+      <input type="range" id="simScrub" min="0" max="${doc.typical.plays.length - 1}" value="0" aria-label="Jump to a play">
+      <button class="btn" data-simend>Final ⏭</button>
+    </div>
+    <div class="simv-final" id="simFinal" hidden></div>
+  </div>`;
+  el.hidden = false; document.body.classList.add('simopen');
+  simShow(0, false); simPlay(true);
+  $('#simPlayBtn')?.focus();
+}
+function simClose() {
+  clearTimeout(SIMV.timer); cancelAnimationFrame(SIMV.raf); SIMV.playing = false;
+  const el = $('#simv'); if (el) el.hidden = true; document.body.classList.remove('simopen');
+  SIMV.last?.focus?.();
+}
+function simPlay(on) {
+  SIMV.playing = on; clearTimeout(SIMV.timer);
+  const b = $('#simPlayBtn'); if (b) { b.textContent = on ? '❚❚' : '▶'; b.setAttribute('aria-label', on ? 'Pause' : 'Play'); }
+  if (on) SIMV.timer = setTimeout(simTick, SIM_DELAY[SIMV.speed]);
+}
+function simTick() {
+  const doc = SIMD[SIMV.gid]; if (!doc || !SIMV.playing) return;
+  if (SIMV.i >= doc.typical.plays.length - 1) { simFinal(); return; }
+  simShow(SIMV.i + 1, true);
+  SIMV.timer = setTimeout(simTick, SIM_DELAY[SIMV.speed]);
+}
+// field x for an offense (0 home, 1 away) with ydl yards to go: away attacks right, home attacks left
+const simX = (poss, ydl) => 100 + (poss === 1 ? 100 - ydl : ydl) * 10;
+const simLast = n => (n || '').replace(/ (Jr\.|Sr\.|II|III|IV)$/, '').split(' ').slice(-1)[0];
+function simClock(qtr, qs) { return `${qtr === 5 ? 'OT' : 'Q' + qtr} ${Math.floor(qs / 60)}:${String(qs % 60).padStart(2, '0')}`; }
+function simBoxAt(plays, i) {
+  const T = [{ P: {}, R: {}, C: {} }, { P: {}, R: {}, C: {} }], get = (o, k) => o[k] ||= { a: 0, c: 0, y: 0, td: 0, int: 0, n: 0 };
+  for (let k = 0; k <= i && k < plays.length; k++) {
+    const [, , poss, , , , kind, , yds, , , , , ex, a, b] = plays[k], t = T[poss], td = ex === 'TD' ? 1 : 0;
+    if (kind === 'pass') { const p = get(t.P, a); p.a++; p.c++; p.y += yds; p.td += td; const r = get(t.C, b); r.n++; r.y += yds; r.td += td; }
+    else if (kind === 'inc' || kind === 'away') get(t.P, a).a++;
+    else if (kind === 'int') { const p = get(t.P, a); p.a++; p.int++; }
+    else if (kind === 'run' || kind === 'scr') { const r = get(t.R, a); r.n++; r.y += yds; r.td += td; }
+  }
+  return T;
+}
+function simBoxHTML(t, team) {
+  const top = (o, n) => Object.entries(o).filter(([k]) => k && !/ others$/.test(k)).sort((x, y) => y[1].y - x[1].y).slice(0, n);
+  const qb = top(t.P, 1)[0], tdi = s => `${s.td ? ` · ${s.td} TD` : ''}${s.int ? ` · ${s.int} INT` : ''}`;
+  return `<h4>${logo(team.abbr, 18)}${esc(nick(team))}</h4>
+    <h5>Passing</h5>${qb ? `<p><b>${esc(simLast(qb[0]))}</b><span>${qb[1].c}/${qb[1].a} · ${qb[1].y} yds${tdi(qb[1])}</span></p>` : '<p class="note">–</p>'}
+    <h5>Rushing</h5>${top(t.R, 2).map(([n, s]) => `<p><b>${esc(simLast(n))}</b><span>${s.n} car · ${s.y} yds${tdi(s)}</span></p>`).join('') || '<p class="note">–</p>'}
+    <h5>Receiving</h5>${top(t.C, 4).map(([n, s]) => `<p><b>${esc(simLast(n))}</b><span>${s.n} rec · ${s.y} yds${tdi(s)}</span></p>`).join('') || '<p class="note">–</p>'}`;
+}
+function simShow(i, animate) {
+  const doc = SIMD[SIMV.gid], g = S.slate.games.find(x => x.id === SIMV.gid); if (!doc || !g) return;
+  const P = doc.typical.plays, e = P[i], nx = P[i + 1]; SIMV.i = i;
+  const [qtr, qs, poss, down, togo, ydl, kind, text, yds, cov, prs, , , ex] = e;
+  const teams = [g.home, g.away], off = teams[poss], def = teams[1 - poss];
+  const after = nx ? [nx[11], nx[12]] : doc.typical.score;
+  // scorebug
+  $('#simSb').innerHTML = `<div class="sbt${poss === 1 ? ' poss' : ''}">${logo(g.away.abbr, 30)}<b>${esc(nick(g.away))}</b><span class="sc">${after[1]}</span></div>
+    <div class="sbc"><b>${simClock(qtr, qs)}</b>${['pass', 'inc', 'run', 'scr', 'sack', 'away', 'int', 'pen'].includes(kind) ? `<small>${ord(down)} &amp; ${togo >= ydl ? 'Goal' : togo}</small>` : ''}</div>
+    <div class="sbt home${poss === 0 ? ' poss' : ''}"><span class="sc">${after[0]}</span><b>${esc(nick(g.home))}</b>${logo(g.home.abbr, 30)}</div>`;
+  // caption
+  const spot = ydl > 50 ? `${off.abbr} ${100 - ydl}` : ydl < 50 ? `${def.abbr} ${ydl}` : '50';
+  const dd = ['pass', 'inc', 'run', 'scr', 'sack', 'away', 'int', 'pen'].includes(kind) ? `<span class="dd" style="background:${esc(teamColor(off))}">${ord(down)} &amp; ${togo >= ydl ? 'Goal' : togo} · ${esc(spot)}</span>` : '';
+  const tags = [cov ? `<span class="tg">vs ${esc(cov)}</span>` : '', prs ? '<span class="tg hot">Pressured</span>' : '', ex === 'TD' ? '<span class="tg td">Touchdown</span>' : '', ex === 'INT' ? '<span class="tg hot">Interception</span>' : '', ex === 'FUM' ? '<span class="tg hot">Fumble lost</span>' : '', ex === 'FG' ? '<span class="tg td">Field goal</span>' : ''].join('');
+  $('#simCap').innerHTML = `${dd}<span class="tx">${esc(text)}</span>${tags}`;
+  // box scores
+  const B = simBoxAt(P, i); $('#simBoxA').innerHTML = simBoxHTML(B[1], g.away); $('#simBoxH').innerHTML = simBoxHTML(B[0], g.home);
+  const sc = $('#simScrub'); if (sc) sc.value = i;
+  // field: line of scrimmage, first-down line, the ball's path
+  const x0 = simX(poss, ydl), los = $('#simLos'), fd = $('#simFd');
+  const scrim = ['pass', 'inc', 'run', 'scr', 'sack', 'away', 'int', 'kneel'].includes(kind);
+  los.setAttribute('x1', x0); los.setAttribute('x2', x0); los.style.opacity = scrim ? 1 : 0;
+  const xf = simX(poss, ydl - togo); fd.setAttribute('x1', xf); fd.setAttribute('x2', xf); fd.style.opacity = scrim && togo < ydl ? 1 : 0;
+  let x1 = x0, arc = 0, cls = 'run';
+  const dir = poss === 1 ? 1 : -1, goal = poss === 1 ? 1140 : 60;
+  if (ex === 'TD') { x1 = goal; arc = kind === 'pass' ? 120 : 0; cls = 'td'; }
+  else if (kind === 'pass') { x1 = simX(poss, ydl - yds); arc = 40 + Math.min(150, Math.abs(yds) * 6); cls = 'comp'; }
+  else if (kind === 'inc' || kind === 'away') { x1 = x0 + dir * 120; arc = 90; cls = 'inc'; }
+  else if (kind === 'int') { x1 = x0 + dir * 150; arc = 110; cls = 'bad'; }
+  else if (kind === 'run' || kind === 'scr' || kind === 'sack' || kind === 'kneel') { x1 = simX(poss, ydl - yds); cls = kind === 'sack' ? 'bad' : 'run'; }
+  else if (kind === 'punt') { x1 = nx ? simX(nx[2], nx[5]) : x0 + dir * 400; arc = 200; cls = 'kick'; }
+  else if (kind === 'fg' || kind === 'fgx') { x1 = poss === 1 ? 1110 : 90; arc = 170; cls = kind === 'fg' ? 'td' : 'bad'; }
+  const y0 = 150 + (i * 53) % 234;
+  const ball = $('#simBall'), trail = $('#simTrail'), path = (xa, xb, h) => `M${xa} ${y0} Q${(xa + xb) / 2} ${y0 - 2 * h} ${xb} ${y0}`;
+  cancelAnimationFrame(SIMV.raf);
+  trail.setAttribute('class', 'trail ' + cls);
+  const still = !animate || SIMV.speed >= 16 || x0 === x1 && !arc || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (still) { ball.setAttribute('transform', `translate(${x1} ${y0})`); trail.setAttribute('d', x0 === x1 ? '' : path(x0, x1, arc)); return; }
+  const dur = SIMV.speed === 1 ? 750 : 300, t0 = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - t0) / dur), u = arc ? t : 1 - (1 - t) * (1 - t), x = x0 + (x1 - x0) * u, y = y0 - arc * 4 * t * (1 - t);
+    ball.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+    trail.setAttribute('d', path(x0, x, arc * t));
+    if (t < 1) SIMV.raf = requestAnimationFrame(step); else trail.setAttribute('d', path(x0, x1, arc));
+  };
+  SIMV.raf = requestAnimationFrame(step);
+}
+function simFinal() {
+  const doc = SIMD[SIMV.gid], g = S.slate.games.find(x => x.id === SIMV.gid); if (!doc || !g) return;
+  simShow(doc.typical.plays.length - 1, false); simPlay(false); SIMV.final = true;
+  const s = doc.sum, H = g.home, A = g.away, sc = doc.typical.score, q = doc.typical.q, pct = x => Math.round(x * 100) + '%';
+  const hFav = (s.mkt.hs ?? 0) <= 0, fav = hFav ? H : A, favW = hFav ? s.hw : 1 - s.hw - s.tie;
+  const favLine = s.mkt.hs != null ? (hFav ? s.mkt.hs : -s.mkt.hs) : null, favCov = s.hc != null ? (hFav ? s.hc : 1 - s.hc - (s.hpush || 0)) : null;
+  const mktW = s.mkt.pHome != null ? (hFav ? s.mkt.pHome : 1 - s.mkt.pHome) : null;
+  const B = simBoxAt(doc.typical.plays, doc.typical.plays.length - 1);
+  const ot = q[0][4] || q[1][4];
+  const box = $('#simFinal');
+  box.innerHTML = `<div class="sf-score"><span>Final${ot ? ' (OT)' : ''}</span><div>${logo(A.abbr, 44)}<b>${sc[1]}</b><i>–</i><b>${sc[0]}</b>${logo(H.abbr, 44)}</div>
+      <table class="sf-q"><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th>${ot ? '<th>OT</th>' : ''}</tr>
+        <tr><td>${esc(A.abbr)}</td>${q[1].slice(0, ot ? 5 : 4).map(x => `<td>${x}</td>`).join('')}</tr><tr><td>${esc(H.abbr)}</td>${q[0].slice(0, ot ? 5 : 4).map(x => `<td>${x}</td>`).join('')}</tr></table></div>
+    <h3>Across all ${s.n.toLocaleString()} sims</h3>
+    <div class="sf-big">
+      <div><b>${pct(favW)}</b><span>${esc(fav.abbr)} wins${mktW != null ? ` <small>market ${pct(mktW)}</small>` : ''}</span></div>
+      ${favCov != null ? `<div><b>${pct(favCov)}</b><span>${esc(fav.abbr)} covers ${fmtLine(favLine)}</span></div>` : ''}
+      ${s.ov != null ? `<div><b>${pct(s.ov)}</b><span>Over ${s.mkt.t}${s.tpush ? ` <small>push ${pct(s.tpush)}</small>` : ''}</span></div>` : ''}
+    </div>
+    <p class="note">The sim is tuned to the betting lines, so these land near the market by design; it isn't a pick on the side or total. What it adds: how the game tends to unfold, every player's full range, and which stats move together (it prices same-game parlays in the Parlay tab).</p>
+    <h3>Most common final scores</h3><div class="sf-scores">${s.scores.slice(0, 6).map(([k, v]) => { const [h, a] = k.split('-'); return `<span class="chip">${esc(A.abbr)} ${a} – ${esc(H.abbr)} ${h} <small>${(v * 100).toFixed(1)}%</small></span>`; }).join('')}</div>
+    <div class="sf-box"><div class="simv-box">${simBoxHTML(B[1], A)}</div><div class="simv-box">${simBoxHTML(B[0], H)}</div></div>
+    <details class="sf-pl"><summary>Every player's range in the sim</summary><table><tr><th>Player</th><th>Prop</th><th class="n">Line</th><th class="n">Low (10%)</th><th class="n">Median</th><th class="n">High (90%)</th><th class="n">Over</th></tr>
+      ${doc.players.flatMap(p => Object.entries(p.m).filter(([m]) => m !== 'Anytime TD').map(([m, v]) => `<tr><td>${esc(p.n)}</td><td>${esc(m)}</td><td class="n">${v.l}</td><td class="n">${v.q[0]}</td><td class="n">${v.q[2]}</td><td class="n">${v.q[4]}</td><td class="n">${pct(v.sim)}</td></tr>`)).join('')}</table>
+      <p class="note">Each player's line and chance are matched to ours before the 2,000 runs, so "Over" sits near our number; the low / high columns are the useful part for alternate lines.</p></details>
+    <div class="row" style="justify-content:center;gap:8px"><button class="btn" data-simagain>Watch again</button><button class="btn primary" data-sgpgame="${g.id}" data-simclose>Build SGP</button></div>`;
+  box.hidden = false;
+}
+document.addEventListener('click', e => {
+  const o = e.target.closest('[data-simopen]'); if (o) { simOpen(o.dataset.simopen); return; }
+  if (!SIMV.gid || $('#simv')?.hidden !== false) return;
+  if (e.target.closest('[data-simclose]')) { simClose(); return; }
+  if (e.target.closest('[data-simplay]')) { if (SIMV.final) { $('#simFinal').hidden = true; SIMV.final = false; simShow(0, false); } simPlay(!SIMV.playing); return; }
+  const sp = e.target.closest('[data-simspeed]');
+  if (sp) { SIMV.speed = +sp.dataset.simspeed; document.querySelectorAll('[data-simspeed]').forEach(b => b.setAttribute('aria-pressed', b === sp)); if (SIMV.playing) simPlay(true); return; }
+  if (e.target.closest('[data-simend]')) { simFinal(); return; }
+  if (e.target.closest('[data-simagain]')) { $('#simFinal').hidden = true; SIMV.final = false; simShow(0, false); simPlay(true); }
+});
+document.addEventListener('input', e => { if (e.target.id === 'simScrub') { simPlay(false); $('#simFinal').hidden = true; SIMV.final = false; simShow(+e.target.value, false); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#simv')?.hidden === false) simClose(); });
+
 // the book's usual cut on one leg: about 4.5% on standard -110 lines and yardage props, about 8% on anytime TDs (shopping the best US book)
 const legHold = l => l.m === 'Anytime TD' ? 0.08 : l.kind === 'prop' ? 0.05 : l.kind === 'ml' ? 0.04 : 0.045;
 // grade the whole ticket
@@ -2925,6 +3257,9 @@ function gradeReport(legs) {
     f *= Math.max(0.2, 1 + c.r * Math.sqrt((1 - ps[i]) * (1 - ps[j]) / (ps[i] * ps[j])));
   }
   p = Math.max(p * 0.25, Math.min(Math.min(...ps), p * f * Math.pow(1.08, pos) * Math.pow(0.8, neg)));   // legs that move together hit together
+  // same-game legs: the game simulator's 2,000 runs (our chance per leg, the sim's correlations) replace the pairwise estimate
+  const sj = simJoint(legs, ps);
+  if (sj) { p = sj.p; const cov = new Set(sj.groups.map(x => x.gid)); for (let k = W.length - 1; k >= 0; k--) { const w = W[k]; if (w.i != null && legs[w.i].gid === legs[w.j].gid && cov.has(legs[w.i].gid)) W.splice(k, 1); } }
   const d = legs.reduce((x, l) => x * amToDec(+l.odds || -110), 1), ev = p * d - 1, unpriced = legs.filter(l => !l.priced).length;
   // graded against an average ticket of the same shape, not against breaking even: every parlay pays the book's cut on each
   // leg (TD props a much bigger cut), so an absolute scale would call every TD parlay a D. 'vs' = how much better this
@@ -2937,6 +3272,12 @@ function gradeReport(legs) {
   const perLeg = Math.pow(legVal.reduce((a, b) => a * b, 1) * corr, 1 / n) - 1;
   const letter = perLeg >= 0.08 ? 'A' : perLeg >= 0.045 ? 'B' : perLeg >= -0.025 ? 'C' : perLeg >= -0.07 ? 'D' : 'F';
   const plus = notes.flatMap(x => x.plus), minus = notes.flatMap(x => x.minus);
+  for (const gr of sj?.groups || []) {
+    const g = S.slate.games.find(x => x.id === gr.gid), r = gr.joint / gr.indep, t = `${g.away.abbr} @ ${g.home.abbr}`;
+    const msg = `in our ${t} simulation these ${gr.ix.length} legs hit together ${Math.round(gr.joint * 100)}% of the time, vs ${Math.round(gr.indep * 100)}% if they were unrelated.`;
+    if (r >= 1.08) plus.push(`Same game, and they help each other: ${msg}`); else if (r <= 0.92) minus.push(`Same game, and they work against each other: ${msg}`);
+    else plus.push(`Same game: ${msg}`);
+  }
   W.forEach(w => (w.t === 'pos' ? plus : minus).push(w.t === 'pos' ? `Correlated: ${w.s} That raises your real odds, though some apps reprice same-game combos.` : `Conflict: ${w.s}`));
   if (n >= 5) minus.push(`${n} legs: every extra leg stacks another helping of the book's margin, so long parlays rarely pay off over time.`);
   // the weak link, and alternate lines that would make the ticket better
@@ -2957,7 +3298,7 @@ function gradeReport(legs) {
   });
   const kind = legs.every(l => l.m === 'Anytime TD') ? 'TD parlay' : n === 1 ? 'bet' : `${n}-leg parlay`;
   const summary = `${letter === 'A' ? `One of the better ${kind}s you can build.` : letter === 'B' ? `Better than the average ${kind}.` : letter === 'C' ? `About average for a ${kind}.` : letter === 'D' ? `Worse than the average ${kind}.` : `One of the worse ${kind}s you could build.`} We think it hits ${p < 0.01 ? 'under 1' : Math.round(p * 100)}% of the time (about 1 in ${Math.max(1, Math.round(1 / p)).toLocaleString()}); it pays ${fmtOdds(decToAm(d))} and fair would be ${fmtOdds(decToAm(1 / p))}.${p < 0.1 ? ' Still a lotto ticket: the grade says how good a lotto ticket, not that it will hit.' : ''}`;
-  return { letter, p, d, ev, vs, plus, minus, tips: tips.slice(0, 4), summary, unpriced, notes };
+  return { letter, p, d, ev, vs, plus, minus, tips: tips.slice(0, 4), summary, unpriced, notes, sim: sj };
 }
 
 const PAR_VIEW = { graded: false };
@@ -2982,6 +3323,7 @@ function sgpCandidates(g) {
   return out;
 }
 function sgpJoint(xs) {   // joint chance with every measured pairwise correlation applied
+  if (xs.length > 1 && xs.every(x => x.bits)) return Math.min(Math.min(...xs.map(x => x.p)), simAnd(xs.map(x => x.bits), xs[0].N));   // game simulator
   let p = xs.reduce((a, x) => a * x.p, 1), f = 1;
   for (let i = 0; i < xs.length; i++) for (let j = i + 1; j < xs.length; j++) {
     const c = pairCorr(xs[i].l, xs[j].l); if (!c || !c.n) continue;
@@ -2991,6 +3333,7 @@ function sgpJoint(xs) {   // joint chance with every measured pairwise correlati
 }
 function sgpBuild(g, mode) {
   const C = sgpCandidates(g); if (C.length < 3) return null;
+  sgpSimPrep(g, C);
   const sizes = mode === 'long' ? [4] : [3], combos = [];
   const pick = (start, cur, n) => {
     if (cur.length === n) {
@@ -3012,12 +3355,13 @@ function renderSGP() {
   if (!games.length) { box.innerHTML = ''; return; }
   if (!games.some(g => g.id === SGP.game)) SGP.game = games[0].id;
   const g = games.find(x => x.id === SGP.game), r = SGP.res;
+  if (hasSim(SGP.game)) loadSim(SGP.game);
   box.innerHTML = `<div class="sgp"><h3>Build me a same-game parlay</h3>
     <div class="row"><select id="sgpGame" aria-label="Game">${games.map(x => `<option value="${x.id}"${x.id === SGP.game ? ' selected' : ''}>${esc(x.away.abbr)} @ ${esc(x.home.abbr)} · ${kick(x)}</option>`).join('')}</select></div>
     <div class="modes"><button class="btn${SGP.mode === 'safe' ? ' primary' : ''}" data-sgp="safe">Safest 3</button><button class="btn${SGP.mode === 'value' ? ' primary' : ''}" data-sgp="value">Best value 3</button><button class="btn${SGP.mode === 'long' ? ' primary' : ''}" data-sgp="long">Long shot 4</button></div>
     ${r ? r.none ? `<div class="sgpres"><span class="note">Not enough strong reads in this game yet. Try another game, or check back when more props post.</span></div>` : `<div class="sgpres">
       <ul>${r.xs.map(x => `<li>${x.l.team ? logo(x.l.team, 20) : ''}<b>${esc(x.l.label)}</b><span>${Math.round(x.p * 100)}%</span></li>`).join('')}</ul>
-      <div class="tot"><span>Hits <b>${Math.round(r.p * 100)}%</b></span><span>Pays about <b>${fmtOdds(Math.round(decToAm(r.d)))}</b></span><span class="note">Legs that tend to win together were favored. Books reprice same-game parlays, so check your app's price.</span></div>
+      <div class="tot"><span>Hits <b>${Math.round(r.p * 100)}%</b></span><span>Pays about <b>${fmtOdds(Math.round(decToAm(r.d)))}</b></span><span class="note">${hasSim(SGP.game) && SIMD[SGP.game] ? 'Chances come from our 2,000-game simulation of this matchup, so legs that win together were favored.' : 'Legs that tend to win together were favored.'} Books reprice same-game parlays, so check your app's price.</span></div>
       <button class="btn primary" data-sgpload>Load into my parlay</button></div>` : '<p class="note" style="margin:8px 0 0">Pick a game and a style. We try every 3- or 4-leg mix of our strongest reads in that game and pick the best one.</p>'}</div>`;
 }
 document.addEventListener('click', e => {
@@ -3158,6 +3502,7 @@ document.addEventListener('click', e => {
 function renderParlay() {
   const box = $('#parlay'); if (!box) return;
   PAR.legs = PAR.legs.map(l => l.kind ? l : null).filter(Boolean);
+  simPrefetch(PAR.legs);
   let bk = null; try { bk = JSON.parse(store.get('edge-parlay-backup') || 'null'); } catch (e) {}
   const restore = bk?.length ? `<div class="bestbook" style="display:flex;gap:10px;align-items:center;justify-content:space-between">This is a shared parlay. Your own ${bk.length}-leg parlay is saved.<button class="btn small" data-restorepar>Restore my parlay</button></div>` : '';
   if (!PAR.legs.length) { box.innerHTML = `${restore}<div class="empty"><b>Your parlay is empty</b>Tap “+ Parlay” on any pick, prop, ladder rung or game, and the legs land here. Then grade it.</div>`; return; }
@@ -3607,6 +3952,7 @@ function card(g) {
       ${live ? `<button data-tab-go="live">Follow live</button>` : ''}
       ${S.lineups?.[g.id] ? `<button data-lineup="${g.id}">Lineups</button>` : ''}
       ${S.props?.[g.id]?.length ? `<button data-props-go="${g.id}">Props</button>` : ''}
+      ${pre && hasSim(g.id) ? `<button data-simopen="${g.id}">▶ Sim game</button>` : ''}
       ${pre && S.props?.[g.id]?.length ? `<button data-sgpgame="${g.id}">Build SGP</button>` : ''}
       ${pre ? `<button data-track="${g.id}">Track a bet</button>` : ''}
     </div>

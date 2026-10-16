@@ -855,6 +855,11 @@ def main():
     except Exception as e:
         import traceback; traceback.print_exc()
         print("report card failed", e, file=sys.stderr)
+    sim_idx = {}
+    try:   # play-by-play game sims (2,000 per game, anchored to the lines): replay, sim odds, same-game parlay correlations
+        import gamesim; sim_idx = gamesim.run(games, props, os.path.join(OUT, "sim"))
+    except Exception as e:
+        import traceback; traceback.print_exc(); print("game sims failed", e, file=sys.stderr)
     lu = lineups(games)
     chunks, lchunks, pchunks = chunk(props), chunk(lu), chunk(pages)
     for f in os.listdir(OUT):
@@ -883,7 +888,7 @@ def main():
     try:   # price gaps across books and Kalshi (arbitrage), each leg with how old its price is
         import arbs; gaps = arbs.find(games, props, (odds_meta or {}).get("at"))
     except Exception as e: print("arbs failed", e, file=sys.stderr); gaps = []
-    slate = {"updatedAt": now, "propParts": len(chunks), "analytics": team_an, "season": season, "week": week, "seasonType": stype, "odds": odds_meta, "report": report, "games": games, "arbs": gaps}
+    slate = {"updatedAt": now, "propParts": len(chunks), "analytics": team_an, "season": season, "week": week, "seasonType": stype, "odds": odds_meta, "report": report, "games": games, "arbs": gaps, "sim": sim_idx}
     save(os.path.join(OUT, "slate.json"), slate)
     try:   # group push alerts (ntfy): line moves, QBs out, TD prices posting, weekly recap
         import alerts
