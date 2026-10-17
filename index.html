@@ -1174,6 +1174,15 @@ body.simopen{overflow:hidden}
 .mbchips .chip{flex:none;font-variant-numeric:tabular-nums}.mbchips .chip.base{border-color:var(--accent)}
 .slipcard .sc-legs li .legmark{display:inline-flex;gap:4px;margin-left:auto}.slipcard .sc-legs li .legmark + .ck{margin-left:8px}
 .slipcard .sc-legs li .legmark button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font-weight:800;cursor:pointer}
+
+/* college early leans: actionable rows */
+.leanlist{display:grid;gap:8px;margin:6px 0 10px}
+.leanrow{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.leanrow .leanic{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:800 9px var(--f-body);background:var(--accent-soft);color:var(--accent)}
+.leanwho{min-width:0}.leanwho b{display:block;font:700 17px var(--f-display);letter-spacing:.3px}.leanwho small{display:block;color:var(--muted);font-size:12px;line-height:1.35}
+.leanacts{display:flex;flex-direction:column;gap:6px;align-items:stretch}.leanacts .addp,.leanacts .btn{white-space:nowrap;text-align:center}
+.leanhow>summary{cursor:pointer;color:var(--accent);font-size:13px;margin:4px 0}
+@media (max-width:420px){.leanrow{grid-template-columns:28px minmax(0,1fr)}.leanacts{grid-column:1/-1;flex-direction:row}.leanacts>*{flex:1}}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -2226,16 +2235,25 @@ function cfbFlagsSection() {
   const row = (lbl, d) => `<tr><td>${lbl}</td><td class="n">${d.n}</td><td class="n">${r3(d.moved)} <small>${pc(d.moved)}</small></td><td class="n">${r3(d.flag)} <small>${pc(d.flag)}</small></td><td class="n">${r3(d.close)} <small>${pc(d.close)}</small></td></tr>`;
   const bt = (lbl, b) => `<tr><td>${lbl}</td><td class="n">${b.n}</td><td class="n">${Math.round(b.moved * 100)}%</td><td class="n">${(b.open * 100).toFixed(1)}%</td><td class="n">${(b.close * 100).toFixed(1)}%</td></tr>`;
   const now = (S.slate.games || []).filter(g => g.state === 'pre' && g.lean?.length).sort((a, b) => new Date(a.date) - new Date(b.date));
-  const list = now.map(g => g.lean.map(f => `<li><b>${esc(f.text)}</b> · ${esc(g.away.abbr)} @ ${esc(g.home.abbr)} <small>${kick(g)} · ${f.edge} off</small></li>`).join('')).join('');
+  // each lean as a leg: "UCLA -1.5" -> that team's spread at that line, "Over 43.5" -> the total
+  const legOf = (g, f) => { const m = (f.text || '').match(/^(Over|Under)\s+([\d.]+)/i);
+    if (f.kind === 'total' || m) return m ? `${g.id}|total|${m[1].toLowerCase()}|||${m[2]}` : null;
+    const t = (f.text || '').split(' ')[0], side = t === g.home.abbr ? 'home' : t === g.away.abbr ? 'away' : null, ln = (f.text || '').match(/([+-][\d.]+|PK)\s*$/i);
+    return side ? `${g.id}|spread|${side}|||${ln && ln[1].toUpperCase() !== 'PK' ? ln[1] : 0}` : null; };
+  const list = now.map(g => g.lean.map(f => { const lg = legOf(g, f), tm = f.kind === 'total' ? null : (f.text || '').split(' ')[0];
+    return `<div class="leanrow">${tm && (tm === g.home.abbr || tm === g.away.abbr) ? logo(tm, 28) : '<span class="leanic">O/U</span>'}
+      <div class="leanwho"><b>${esc(f.text)}</b><small>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</small><small>Our number is ${f.edge} pts off the line${f.open != null ? ` (opened ${esc(String(f.open))})` : ''}</small></div>
+      <div class="leanacts">${lg ? `<button class="addp" data-addleg="${esc(lg)}">+ Parlay</button>` : ''}<button class="btn small" data-track="${g.id}">Track</button></div></div>`; }).join('')).join('');
   const past = (F.past || []).slice(0, 12).map(f => { const ln = f.line, hit = f.kind === 'side' ? (f.hs - f.as + ln) * (f.pick === 'home' ? 1 : -1) : (f.hs + f.as - ln) * (f.pick === 'over' ? 1 : -1);
     return `<li><b class="${hit > 0 ? 'pos' : hit < 0 ? 'neg' : ''}">${hit > 0 ? 'W' : hit < 0 ? 'L' : 'P'}</b> ${esc(f.text)} · ${esc(f.a)} ${f.as}-${f.hs} ${esc(f.h)}</li>`; }).join('');
   return `<details class="rc cfbrec" open><summary class="rc-h"><b>Early leans</b><small>${now.length ? `${now.reduce((a, g) => a + g.lean.length, 0)} this week` : 'none open'} · record ${r3(F.rec.side.flag)} sides, ${r3(F.rec.total.flag)} totals ▾</small></summary>
-    ${list ? `<ul class="flaglist">${list}</ul>` : '<p class="note">No early leans open right now. They show up when lines open, usually Sunday.</p>'}
+    ${list ? `<div class="leanlist">${list}</div>` : '<p class="note">No early leans open right now. They show up when lines open, usually Sunday.</p>'}
+    <details class="leanhow"><summary>How these have done</summary>
     <p class="note">Power 4 games (FBS vs FBS) where our number is ${F.edge}+ points off both the opening line and today's line. Our number predicts which way college lines move, but it doesn't beat the closing line, so any edge is in betting early. Totals use our mixed total (points ratings plus run/pass matchups) and are skipped in 12+ mph wind.</p>
     <table class="flagrec"><tr><th></th><th class="n">Flags</th><th class="n">Line moved our way</th><th class="n">At the flagged line</th><th class="n">At the close</th></tr>${row('Sides, 2026', F.rec.side)}${row('Totals, 2026', F.rec.total)}</table>
     <table class="flagrec"><tr><th>Backtest</th><th class="n">Games</th><th class="n">Moved our way</th><th class="n">At the opener</th><th class="n">At the close</th></tr>${bt('Sides (' + F.bt.side.games + ')', F.bt.side)}${bt('Totals (' + F.bt.total.games + ')', F.bt.total)}</table>
     <p class="note">${esc(F.bt.side.test)}. Breaking even takes 52.4% at -110.</p>
-    ${past ? `<details><summary>Recent graded leans</summary><ul class="flaglist">${past}</ul></details>` : ''}</details>`;
+    ${past ? `<details><summary>Recent graded leans</summary><ul class="flaglist">${past}</ul></details>` : ''}</details></details>`;
 }
 function cfbReportCard() {   // college: how our number has done against the closing line
   const R = S.slate?.cfbReport;
@@ -6164,7 +6182,8 @@ function navTidy() {
   document.body.classList.toggle('haslive', live);
   const off = navOff(), cur = store.get('edge-tab') || 'board';
   // while a game is on, Live takes Picks' spot in the bar (Picks moves to More); otherwise Live waits in More
-  const main = new Set(NAV_MAIN.filter(t => !off.has(t) && t !== (live ? 'picks' : 'live')));
+  const avail = NAV_MAIN.filter(t => !off.has(t));
+  const main = new Set(avail.filter(t => t !== (live ? (avail.length > 5 ? 'picks' : null) : 'live')));
   for (const b of document.querySelectorAll('nav [data-tab]')) { b.classList.toggle('nav-main', main.has(b.dataset.tab)); b.classList.toggle('nav-off', off.has(b.dataset.tab)); }
   const more = $('#navMore'); if (more) more.setAttribute('aria-current', main.has(cur) ? 'false' : 'true');
   return { main, off, cur };
