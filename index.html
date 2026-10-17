@@ -1148,6 +1148,15 @@ body.simopen{overflow:hidden}
   .tdrow{grid-template-columns:30px minmax(0,1fr) auto;grid-template-areas:"logo who pct" "tags tags tags" "price price add" "log log log";gap:8px 10px;padding:12px 2px}
   .tdrow .who b{font-size:17px}.tdrow .pct{font-size:26px}
 }
+
+/* TDs tab Due view */
+.tdrow .tdtags .tddue{flex-basis:100%;display:flex;flex-direction:column;gap:3px;margin-top:2px;padding:8px 10px;border-radius:8px;background:var(--surface2);border:1px solid var(--line)}
+.tdrow .tdtags .tddue p{margin:0;font-size:12.5px;line-height:1.4}.tdrow .tdtags .tddue .mchip{height:22px;margin-left:4px;vertical-align:middle}
+.tdrow .tdtags .tddue .val{color:var(--good);font-weight:700}
+.duenote{margin:4px 0 8px}
+
+/* Teams tables: "hl" marks teams playing this week; keep them table rows (a generic .hl card style was turning them into stacked boxes) */
+.teams-t tr.hl{display:table-row;padding:0;border-radius:0;background:none;gap:0}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1195,18 +1204,18 @@ body.simopen{overflow:hidden}
     <div class="hdr-btns"><button class="hdr-btn" id="fbBtn" aria-label="Send feedback" title="Something off? Tell us"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></button><button class="hdr-btn" id="helpBtn" aria-label="How the app works">?</button></div>
   </div>
   <nav role="tablist">
-    <button role="tab" id="tab-picks" data-tab="picks" aria-selected="false">Picks</button>
     <button role="tab" id="tab-board" data-tab="board" aria-selected="true">Games</button>
+    <button role="tab" id="tab-picks" data-tab="picks" aria-selected="false">Picks</button>
     <button role="tab" id="tab-live" data-tab="live" aria-selected="false">Live</button>
-    <button role="tab" id="tab-sims" data-tab="sims" aria-selected="false">Sims</button>
     <button role="tab" id="tab-props" data-tab="props" aria-selected="false">Props</button>
-    <button role="tab" id="tab-fantasy" data-tab="fantasy" aria-selected="false">Fantasy</button>
     <button role="tab" id="tab-tds" data-tab="tds" aria-selected="false">TDs</button>
     <button role="tab" id="tab-parlay" data-tab="parlay" aria-selected="false">Parlay</button>
     <button role="tab" id="tab-bets" data-tab="bets" aria-selected="false">My Bets</button>
+    <button role="tab" id="tab-fantasy" data-tab="fantasy" aria-selected="false">Fantasy</button>
     <span class="navsep" aria-hidden="true"></span>
-    <button role="tab" id="tab-shop" data-tab="shop" aria-selected="false">Line Shop</button>
     <button role="tab" id="tab-moves" data-tab="moves" aria-selected="false">Moves</button>
+    <button role="tab" id="tab-sims" data-tab="sims" aria-selected="false">Sims</button>
+    <button role="tab" id="tab-shop" data-tab="shop" aria-selected="false">Line Shop</button>
     <button role="tab" id="tab-lineups" data-tab="lineups" aria-selected="false">Lineups</button>
     <button role="tab" id="tab-players" data-tab="players" aria-selected="false">Players</button>
     <button role="tab" id="tab-teams" data-tab="teams" aria-selected="false">Teams</button>
@@ -1321,6 +1330,7 @@ body.simopen{overflow:hidden}
         <button class="chip" data-tv="off" aria-pressed="true">Offense</button>
         <button class="chip" data-tv="def" aria-pressed="false">Defense</button>
         <button class="chip" data-tv="dvp" aria-pressed="false">Defense vs position</button>
+        <button class="chip" data-tv="tdd" aria-pressed="false">TD defense</button>
         <button class="chip" data-tv="tr" aria-pressed="false">Betting trends</button>
         <button class="chip" data-tv="sep" aria-pressed="false">Receivers: open vs targeted</button>
       </div>
@@ -1344,6 +1354,7 @@ body.simopen{overflow:hidden}
   <div id="view-parlay" hidden>
     <div class="toolbar"><h2 style="margin:0">Parlay builder</h2></div>
     <p class="note">Add legs from anywhere (picks, props, the TDs tab, alternate-line ladders, game details), switch any leg to an alternate line, enter your app's odds if they differ, then grade it.</p>
+    <div id="safeBox"></div>
     <div id="sgpBox"></div>
     <div id="parlay"></div>
   </div>
@@ -1493,6 +1504,23 @@ function shop(g) {
 
 // ------------------------------------------------------------ analytics (nflverse)
 const AN = () => S.slate?.analytics?.teams || {};
+// a defense's touchdown tendencies vs one position (sync: dvp[pos].td / .l3 and rzd): season and last 3 games, ranks 1 = allows the most.
+// score ~1 = league average; blends TDs allowed to the position (60%) with red-zone TD rate allowed (40%), last 3 games weighted 60%
+function defTrend(opp, pg) {
+  const an = AN(), t = an[opp], d = t?.dvp?.[pg]; if (!d || d.td == null) return null;
+  const all = Object.values(an), mean = a => { const v = a.filter(x => x != null); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; };
+  const lgTd = mean(all.map(x => x.dvp?.[pg]?.td)), lgRz = mean(all.map(x => x.rzd?.pct)), rz = t.rzd || {};
+  const td3 = d.l3?.td ?? d.td, rz3 = rz.l3 ?? rz.pct;
+  const tdF = lgTd ? (0.4 * d.td + 0.6 * td3) / lgTd : 1, rzF = lgRz && rz.pct != null ? (0.4 * rz.pct + 0.6 * rz3) / lgRz : 1;
+  const score = 0.6 * tdF + 0.4 * rzF;
+  return { pg, td: d.td, tdRk: d.rk?.td, td3: d.l3?.td, td3Rk: d.l3?.rk?.td, rz: rz.pct, rzRk: rz.rk?.pct, rz3: rz.l3, rz3Rk: rz.rk?.l3, lgTd, lgRz, score,
+    verdict: score >= 1.15 ? 'soft' : score <= 0.85 ? 'tough' : 'avg' };
+}
+function defTrendTxt(opp, dt) {
+  if (!dt) return '';
+  const pc = v => v == null ? '–' : Math.round(v * 100) + '%';
+  return `${esc(opp)} allow ${dt.td.toFixed(1)} ${dt.pg} TDs a game (${ord(dt.tdRk)} most)${dt.td3 != null ? `, ${dt.td3.toFixed(1)} over the last 3 (${ord(dt.td3Rk)})` : ''} · red zone: ${pc(dt.rz)} of trips end in TDs (${ord(dt.rzRk)} most)${dt.rz3 != null ? `, ${pc(dt.rz3)} last 3` : ''}`;
+}
 const ord = n => n == null ? '–' : n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
 const pctS = v => v == null ? '–' : Math.round(v * 100) + '%';
 const epaS = v => v == null ? '–' : (v > 0 ? '+' : '') + v.toFixed(2);
@@ -1648,7 +1676,15 @@ function renderTeams() {
   if (!teams.length) { box.innerHTML = '<div class="empty"><b>No analytics yet</b>Team efficiency appears after the next sync.</div>'; $('#tm-note').textContent = ''; return; }
   const wk = new Set((S.slate.games || []).filter(g => g.week === S.week).flatMap(g => [g.home.abbr, g.away.abbr]));
   let cols, val, rank, fmt;
-  if (TM.view === 'dvp') {
+  if (TM.view === 'tdd') {
+    cols = [['RB', 'td', 'RB TD'], ['RB', 'l3', 'RB TD last 3'], ['WR', 'td', 'WR TD'], ['WR', 'l3', 'WR TD last 3'], ['TE', 'td', 'TE TD'], ['TE', 'l3', 'TE TD last 3'],
+      ['RZ', 'pct', 'Red zone TD%'], ['RZ', 'l3', 'Red zone last 3']].map(([p, k, l]) => ({ id: p + '.' + k, l }));
+    const pick = (t, c) => { const [p, k] = c.id.split('.'); if (p === 'RZ') return { v: an[t].rzd?.[k], r: an[t].rzd?.rk?.[k] };
+      const d = an[t].dvp?.[p]; return k === 'l3' ? { v: d?.l3?.td, r: d?.l3?.rk?.td } : { v: d?.td, r: d?.rk?.td }; };
+    val = (t, c) => pick(t, c).v; rank = (t, c) => pick(t, c).r;
+    fmt = (v, c) => v == null ? '–' : c.id.startsWith('RZ') ? Math.round(v * 100) + '%' : (+v).toFixed(1);
+    $('#tm-note').textContent = 'Touchdowns each defense gives up per game to each position, this season and over its last 3 games, plus the share of opponents\' red-zone trips that ended in a touchdown. 1st = allows the most (softest). Highlighted teams play in the selected week. Tap a column to sort.';
+  } else if (TM.view === 'dvp') {
     cols = DVP_COLS.map(([p, k, l]) => ({ id: p + '.' + k, l }));
     val = (t, c) => { const [p, k] = c.id.split('.'); return an[t].dvp?.[p]?.[k]; };
     rank = (t, c) => { const [p, k] = c.id.split('.'); return an[t].dvp?.[p]?.rk?.[k]; };
@@ -3129,6 +3165,12 @@ function legNotes(leg) {
     if (r) { const good = leg.side === 'over' ? r <= 8 : r >= 25, bad = leg.side === 'over' ? r >= 25 : r <= 8;
       if (good) plus.push(leg.side === 'over' ? `Good matchup for ${pl.n}: the ${nick(opp)} are among the softest against ${dp}s.` : `The matchup helps this under: the ${nick(opp)} are among the toughest against ${dp}s.`);
       if (bad) minus.push(leg.side === 'over' ? `Tough matchup for ${pl.n}: the ${nick(opp)} are among the toughest against ${dp}s.` : `The matchup works against this under: the ${nick(opp)} give up a lot to ${dp}s.`); }
+    {   // lately (last 3 games), when it tells a different story than the season numbers
+      const l3 = AN()[opp.abbr]?.dvp?.[dp]?.l3, k3 = ['td', 'fp', 'yds'].includes(dk) ? dk : leg.m === 'Anytime TD' ? 'td' : 'yds', r3 = l3?.rk?.[k3];
+      const what = k3 === 'td' ? 'touchdowns' : k3 === 'fp' ? 'fantasy points' : 'yards';
+      if (r3 && r3 <= 5 && !(r && r <= 8)) (leg.side === 'over' ? plus : minus).push(`Lately soft: over the last 3 games the ${nick(opp)} have given up the ${ord(r3)}-most ${dp} ${what}.`);
+      if (r3 && r3 >= 28 && !(r && r >= 25)) (leg.side === 'over' ? minus : plus).push(`Lately tough: over the last 3 games the ${nick(opp)} have given up the ${ord(33 - r3)}-fewest ${dp} ${what}.`);
+    }
     if (pr.vol && Math.abs(pr.vol - 1) >= 0.02) { const helps = (pr.vol > 1) === (leg.side === 'over'), tl = g.proj?.tilt?.[pl.side];
       (helps ? plus : minus).push(`Game script ${helps ? 'helps' : 'works against'} ${leg.label}: the ${nick(pl.side === 'home' ? g.home : g.away)} should ${tl > 0 ? 'throw' : 'run'} more than usual.`); }
     const inj = (pl.side === 'home' ? g.home : g.away).inj.find(i => i.n === pl.n);
@@ -3212,6 +3254,82 @@ function renderSims() {
 // the sim's correlations. The joint chance is the point: it's still a long way from a sure thing, and it isn't an edge.
 const SAFE_MIN = 0.84, SAFE_VOL = 50, SIMSAFE = { open: new Set() };
 const nkey = n => ffKey(n);   // same name key as the fantasy tab
+
+// ------------------------------------------------------------ slate-wide safe parlay at a target price: lower alt lines both we and Kalshi
+// put at 84%+ (safeLegs rules), from every game; same-game legs priced together with that game's sim; the joint chance the more
+// cautious of ours and Kalshi's lands near the price the user asked for (default -130), fewest legs and best-traded lines first
+const SAFEP = { target: -130, res: null, busy: false };
+try { const t = +store.get('edge-safe-target'); if (t) SAFEP.target = t; } catch {}
+async function safeSlateBuild() {
+  const games = (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > Date.now() && S.props?.[g.id]?.length);
+  await Promise.all(games.filter(g => hasSim(g.id)).map(g => new Promise(r => { const d = loadSim(g.id, r); if (d || SIMD[g.id] === false) r(d); })));
+  const pool = [];
+  for (const g of games) {
+    const doc = hasSim(g.id) ? SIMD[g.id] : null;
+    const L = safeLegs(g).map(x => { const l = makeLeg(g.id, 'prop', 'over', x.pl.id, x.pr.m); if (!l) return null; l.line = x.r.l; refreshLeg(l);
+      const c = doc ? simCol(doc, l) : null; return { ...x, l, c, gid: g.id }; }).filter(Boolean);
+    const seen = new Set(), top = []; for (const x of L) { if (seen.has(x.pl.id)) continue; seen.add(x.pl.id); top.push(x); if (top.length >= 3) break; }
+    const withC = top.filter(x => x.c);
+    if (doc && withC.length >= 2) {
+      const bo = simBits(doc, withC.map(x => ({ ...x.c, p: x.ours })), 20000), bk = simBits(doc, withC.map(x => ({ ...x.c, p: x.k })), 20000);
+      if (bo && bk) withC.forEach((x, k) => { x.bo = bo.bits[k]; x.bk = bk.bits[k]; x.N = bo.N; });
+    }
+    pool.push(...top);
+  }
+  const joint = (legs, key, pk) => { const by = {}; legs.forEach(x => (by[x.gid] ||= []).push(x)); let p = 1;
+    for (const xs of Object.values(by)) p *= xs.length === 1 ? xs[0][pk] : xs.every(x => x[key]) ? simAnd(xs.map(x => x[key]), xs[0].N) : xs.reduce((a, x) => a * x[pk], 1);
+    return p; };
+  const q = impl(SAFEP.target), res = [];
+  const pick = (st, cur, n) => {
+    if (cur.length === n) { const legs = cur.map(i => pool[i]), po = joint(legs, 'bo', 'ours'), pk = joint(legs, 'bk', 'k'), lo = Math.min(po, pk);
+      if (Math.abs(lo - q) <= 0.03) res.push({ legs, po, pk, lo, games: new Set(legs.map(x => x.gid)).size, vol: Math.min(...legs.map(x => x.r.v || 0)), gap: Math.max(...legs.map(x => Math.abs(x.ours - x.k))) });
+      return; }
+    for (let i = st; i < pool.length; i++) { if (cur.filter(j => pool[j].gid === pool[i].gid).length >= 2) continue; cur.push(i); pick(i + 1, cur, n); cur.pop(); }
+  };
+  for (const n of [2, 3, 4]) pick(0, [], n);
+  if (res.length < 3) {   // 5 legs only when shorter tickets can't reach the price, from the 22 safest legs (keeps it quick on a phone)
+    const keep = pool.map((x, i) => [x, i]).sort((a, b) => Math.min(b[0].ours, b[0].k) - Math.min(a[0].ours, a[0].k)).slice(0, 22).map(z => z[1]);
+    const sub = (st, cur) => { if (cur.length === 5) { const legs = cur.map(i => pool[i]), po = joint(legs, 'bo', 'ours'), pk = joint(legs, 'bk', 'k'), lo = Math.min(po, pk);
+        if (Math.abs(lo - q) <= 0.03) res.push({ legs, po, pk, lo, games: new Set(legs.map(x => x.gid)).size, vol: Math.min(...legs.map(x => x.r.v || 0)), gap: Math.max(...legs.map(x => Math.abs(x.ours - x.k))) }); return; }
+      for (let j = st; j < keep.length; j++) { const i = keep[j]; if (cur.filter(c => pool[c].gid === pool[i].gid).length >= 2) continue; cur.push(i); sub(j + 1, cur); cur.pop(); } };
+    sub(0, []);
+  }
+  // fewest legs, then every Kalshi line well traded, then we and Kalshi agree leg by leg, then closest to the target
+  const score = r => -r.legs.length * 10 + Math.min(r.vol, 300) / 100 - r.gap * 20 - Math.abs(r.lo - q) * 30;
+  res.sort((a, b) => score(b) - score(a));
+  const out = [], used = new Set();   // three different tickets (no shared leg) so there's a real choice
+  for (const r of res) { const ids = r.legs.map(x => x.l.id); if (ids.some(i => used.has(i))) continue; out.push(r); ids.forEach(i => used.add(i)); if (out.length >= 3) break; }
+  return { pool: pool.length, found: res.length, out };
+}
+function renderSafeSlate() {
+  const box = $('#safeBox'); if (!box) return;
+  if (COL || NBA || !S.slate) { box.innerHTML = ''; return; }
+  const r = SAFEP.res, pc = p => Math.round(p * 100) + '%';
+  box.innerHTML = `<div class="sgp safeslate"><h3>Safe parlay at your price</h3>
+    <div class="row" style="gap:8px;align-items:end">
+      <label class="note">Target odds <input id="safeTarget" inputmode="numeric" value="${SAFEP.target}" style="width:80px"></label>
+      <button class="btn primary" data-safebuild ${SAFEP.busy ? 'disabled' : ''}>${SAFEP.busy ? 'Building…' : 'Build it'}</button></div>
+    ${!r ? `<p class="note" style="margin:8px 0 0">Uses lower lines that both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+ from every game, no Questionable players and no passing legs in windy games, then finds the fewest legs that land near your price. Same-game legs are priced with that game's simulation.</p>`
+      : !r.out.length ? `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)} from today's ${r.pool} safe legs. Try a price closer to −150 or +100.</p>`
+      : r.out.map((t, i) => `<div class="sgpres">
+        <ul>${t.legs.map(x => { const g = S.slate.games.find(z => z.id === x.gid); return `<li>${logo(x.pl.tm || (x.pl.side === 'home' ? g.home.abbr : g.away.abbr), 20)}<b>${esc(x.l.label)}</b><span>ours ${pc(x.ours)} · Kalshi ${pc(x.k)}</span></li>`; }).join('')}</ul>
+        <div class="tot"><span>Hits <b>${pc(t.po)}</b> (ours) · <b>${pc(t.pk)}</b> (Kalshi)</span><span>Fair <b>${fmtOdds(fairAm(t.lo))}</b></span><span class="note">${t.games === t.legs.length ? 'every leg a different game' : 'includes same-game legs, priced with the sim'}</span></div>
+        <button class="btn${i ? '' : ' primary'}" data-safeload="${i}">Load into my parlay</button></div>`).join('') + `<p class="note" style="margin:6px 0 0">Take it only if your book pays the fair price or better. Safer, not free: about ${Math.round((1 - r.out[0].lo) * 10)} in 10 of these still miss.</p>`}
+  </div>`;
+}
+document.addEventListener('click', async e => {
+  if (e.target.closest('[data-safebuild]')) {
+    const t = +($('#safeTarget')?.value || '').replace(/[^\d+-]/g, ''); if (t && Math.abs(t) >= 100) { SAFEP.target = t; store.set('edge-safe-target', String(t)); }
+    SAFEP.busy = true; renderSafeSlate();
+    try { SAFEP.res = await safeSlateBuild(); } finally { SAFEP.busy = false; renderSafeSlate(); }
+    return;
+  }
+  const ld = e.target.closest('[data-safeload]');
+  if (ld && SAFEP.res?.out?.[+ld.dataset.safeload]) {
+    if (PAR.legs.length) store.set('edge-parlay-backup', JSON.stringify(PAR.legs));
+    PAR.legs = SAFEP.res.out[+ld.dataset.safeload].legs.map(x => x.l); saveParlay(); renderSlip(); renderParlay(); toast(`Loaded a ${PAR.legs.length}-leg safe parlay`);
+  }
+});
 function safeLegs(g) {
   const q = new Set(['home', 'away'].flatMap(sd => (g[sd].inj || []).filter(i => i.s === 'Questionable').map(i => nkey(i.n))));
   const windy = !g.indoor && g.wx && (g.wx.wind >= 15 || g.wx.gust >= 25), out = [];
@@ -3703,7 +3821,13 @@ function renderTD() {
   if (!c.length) { box.innerHTML = `<div class="tdb"><div class="tdb-h"><span class="note">Anytime touchdown props show up here once books post them.</span></div></div>`; return; }
   const games = [...new Map(c.map(x => [x.g.id, x.g])).values()].sort((a, b) => new Date(a.date) - new Date(b.date));
   if (TDB.game !== 'all') c = c.filter(x => x.g.id === TDB.game);
-  if (TDB.pos !== 'all') c = c.filter(x => posGroup(x.pl.p) === TDB.pos);
+  // Due: no TD in 2+ straight games this season while still getting 1.2+ red-zone looks a game, ranked by how soft the
+  // opponent has been at allowing TDs to his position lately (and how much red-zone work he gets)
+  const drought = x => { const yr = x.last[0]?.y; let n = 0; for (const r of x.last) { if (r.y !== yr || r.n > 0) break; n++; } return n; };
+  c = c.map(x => ({ ...x, dry: drought(x), dt: defTrend(x.opp.abbr, posGroup(x.pl.p)) }));
+  const DUE = TDB.pos === 'due';
+  if (DUE) c = c.filter(x => x.pl.p !== 'QB' && x.dry >= 2 && (x.rz ?? 0) >= 1.2);
+  else if (TDB.pos !== 'all') c = c.filter(x => posGroup(x.pl.p) === TDB.pos);
   const FIRST = TDB.kind === 'first';
   // first TD: value when our chance beats Kalshi's price (after its fee) by 1+ point and 15%+, since these are long shots
   const ftVal = x => x.ft != null && x.ftCost != null && x.ft - x.ftCost >= 0.01 && x.ft / x.ftCost >= 1.15;
@@ -3711,10 +3835,15 @@ function renderTD() {
   const muF = x => x.w ? x.w.rz * (1 + (x.w.dvp - 1) / 2) : 1;
   c.sort(TDB.sort === 'value' ? (a, b) => (b.edge ?? -9) - (a.edge ?? -9) || b.p - a.p
     : TDB.sort === 'matchup' ? (a, b) => (b.p >= 0.2) - (a.p >= 0.2) || muF(b) - muF(a) || b.p - a.p : (a, b) => b.p - a.p);
+  if (DUE) c.sort((a, b) => (b.dt?.score ?? 1) * Math.min(b.rz, 4) - (a.dt?.score ?? 1) * Math.min(a.rz, 4));
   // the matchup in plain words: red-zone defense, how they give up TDs, the position matchup, and his scoring looks
   const mu = (x, full) => { const w = x.w; if (!w) return '';
     const f = w.rz * (1 + (w.dvp - 1) / 2), cls = f >= 1.06 ? 'great' : f <= 0.94 ? 'tough' : 'neutral';
     const bits = [`<span class="mchip ${cls}">${cls === 'great' ? 'Soft TD matchup' : cls === 'tough' ? 'Tough TD matchup' : 'Average matchup'}</span>`];
+    const dt = x.dt;
+    if (dt?.td3Rk && dt.td3Rk <= 5) bits.push(`<span class="mchip great" title="${esc(defTrendTxt(nick(x.opp), dt))}">Lately soft vs ${esc(dt.pg)}s</span>`);
+    else if (dt?.td3Rk && dt.td3Rk >= 28) bits.push(`<span class="mchip tough" title="${esc(defTrendTxt(nick(x.opp), dt))}">Lately tough vs ${esc(dt.pg)}s</span>`);
+    if (dt) bits.push(defTrendTxt(nick(x.opp), dt));
     if (w.glb) bits.push(`<span class="mchip glb" title="${Math.round(w.gls * 100)}% of his team's carries inside the 5">Goal-line back · ${Math.round(w.gls * 100)}%</span>`);
     if (x.rzRk) bits.push(`${esc(x.opp.abbr)} red-zone D ${ord(x.rzRk)}${x.rzRk >= 24 ? ' (leaky)' : x.rzRk <= 8 ? ' (stingy)' : ''}`);
     const pg = esc(posGroup(x.pl.p));
@@ -3750,13 +3879,19 @@ function renderTD() {
     return `<div class="tdlog">${mm}${mu(x, true)}${svg}<div class="tbl"><table><tr><th>Game</th><th>TD</th>${rec ? '<th>Tgt</th><th>Rec</th><th>Yds</th>' : '<th>Car</th><th>Yds</th><th>Rec</th>'}<th>Snap</th></tr>${rows}</table></div>
       <p class="note" style="margin:6px 0 0">Games where he recorded a stat, newest first in the table.</p></div>`; };
   const tdS = x => x.gp != null ? `${x.td} TD in ${x.gp} games this year${x.gPrev ? ` · ${x.tdPrev} in ${x.gPrev} last year` : ''}` : '';
+  const dueLine = x => {
+    const k = (x.pr.alt || []).find(a => a.l === 0.5), km = k ? kMid(k) : null, dt = x.dt;
+    const pv = x.book && km != null ? (impl(x.book.o) < km - 0.005 ? `<span class="val">${esc(x.book.n)} ${fmtOdds(x.book.o)} beats Kalshi's fair ${fmtOdds(fairAm(km))}</span>` : `Best book ${fmtOdds(x.book.o)} vs Kalshi's fair ${fmtOdds(fairAm(km))}${impl(x.book.o) > km + 0.02 ? ': bet it on Kalshi instead' : ''}`) : '';
+    const v = dt ? `<span class="mchip ${dt.verdict === 'soft' ? 'great' : dt.verdict === 'tough' ? 'tough' : 'neutral'}">${dt.verdict === 'soft' ? 'Defense helps' : dt.verdict === 'tough' ? 'Defense says no' : 'Average defense'}</span>` : '';
+    return `<div class="tddue"><p><b>No TD in ${x.dry} straight</b> · ${x.rz.toFixed(1)} red-zone looks a game${x.w?.ez >= 0.5 ? ` · ${x.w.ez} end-zone targets a game` : ''} ${v}</p>
+      ${dt ? `<p class="note">${defTrendTxt(nick(x.opp), dt)}</p>` : ''}${pv ? `<p class="note">${pv}</p>` : ''}</div>`; };
   const tdKick = g => new Date(g.date).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
   const nTd = PAR.legs.length;
   box.innerHTML = `<div class="tdb"><details class="howto"><summary>How these chances work</summary><span class="note">Our chance each player scores: his scoring rate (this season and last), red-zone, end-zone and goal-line looks, and his share of the offense times his team's expected points (mostly the betting market's implied team total), adjusted for the defense's red-zone record, whether it gives up TDs through the air or on the ground, its TDs allowed to his position, and game script.</span></details>
     <div class="tdb-bar">
       <select id="tdbGame" aria-label="Game"><option value="all">All upcoming games</option>${games.map(g => `<option value="${g.id}"${TDB.game === g.id ? ' selected' : ''}>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</option>`).join('')}</select>
       <div class="tdkind" role="group" aria-label="Market"><button data-tdkind="any" aria-pressed="${!FIRST}">Anytime</button><button data-tdkind="first" aria-pressed="${FIRST}">First TD</button></div>
-      ${['all', 'RB', 'WR', 'TE', 'QB'].map(k => `<button class="chip" data-tdpos="${k}" aria-pressed="${TDB.pos === k}">${k === 'all' ? 'All' : k}</button>`).join('')}
+      ${['all', 'due', 'RB', 'WR', 'TE', 'QB'].map(k => `<button class="chip${k === 'due' ? ' duechip' : ''}" data-tdpos="${k}" aria-pressed="${TDB.pos === k}">${k === 'all' ? 'All' : k === 'due' ? 'Due' : k}</button>`).join('')}
       <select id="tdbSort" aria-label="Sort"><option value="chance"${TDB.sort === 'chance' ? ' selected' : ''}>Most likely</option><option value="value"${TDB.sort === 'value' ? ' selected' : ''}>Biggest gap vs price</option><option value="matchup"${TDB.sort === 'matchup' ? ' selected' : ''}>Softest matchup</option></select>
     </div>
     ${FIRST ? `<p class="note ftnote">First TD of the game: each player's share of all the touchdowns expected in the game. Tested on weeks 1-4 against Kalshi's first-TD prices: ours were slightly more accurate (51 first TDs, so still a small sample). Books rarely let you parlay these, so bet them one at a time and small: even the favorite usually hits less than 1 in 6.</p>` : ''}
@@ -3764,6 +3899,8 @@ function renderTD() {
       <button class="btn small" data-tdquick="safe2">Safest 2</button><button class="btn small" data-tdquick="safe3">Safest 3</button>
       <button class="btn small" data-tdquick="spread">Top scorer, 4 games</button><button class="btn small" data-tdquick="value">Biggest gaps 3</button>
       ${nTd ? `<button class="btn small primary" data-tab-go="parlay" style="margin-left:auto">Open parlay (${nTd}) →</button>` : ''}</div>`}
+    ${DUE ? `<p class="note duenote">Due = no touchdown in 2+ straight games this season but still getting 1.2+ red-zone looks a game. Ranked by how soft the opponent has been at giving up touchdowns to his position (this season and the last 3 games) and how much red-zone work he gets. A drought alone predicts nothing in our tests; it's the work plus the matchup that matters. Books know usage too, so compare the price with Kalshi's.</p>` : ''}
+    ${!c.length && DUE ? '<div class="empty"><b>Nobody due right now</b>No player with a 2+ game drought is getting enough red-zone work.</div>' : ''}
     ${c.slice(0, TDB.n).map(x => { const on = inPar(x.g.id, x.pl.id);
       // three tidy lines: name + chance | form and matchup tags | prices + add (phones keep the full width for lines 2-3)
       const beats = FIRST ? ftVal(x) : x.edge != null && x.edge >= x.edgeMin;
@@ -3775,7 +3912,7 @@ function renderTD() {
         <span class="tdlogo">${logo(x.team.abbr, 30)}</span>
         <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${tdKick(x.g)}</small>${tdS(x) ? `<small>${esc(tdS(x))}</small>` : ''}</div>
         <div class="pct">${FIRST ? (x.ft * 100).toFixed(1) : Math.round(x.p * 100)}%<small>${FIRST ? 'first TD' : 'to score'}</small></div>
-        <div class="tdtags">${l10(x)}${mu(x)}</div>
+        <div class="tdtags">${l10(x)}${mu(x)}${DUE ? dueLine(x) : ''}</div>
         <div class="tdprice">${price}${beats ? '<span class="val">Beats price</span>' : ''}</div>
         ${FIRST ? '' : `<button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>`}
         ${TDB.open.has(x.pl.id) && x.last.length ? tdLog(x) : ''}</div>`; }).join('')}
@@ -4234,6 +4371,7 @@ function card(g) {
     if (out.length) badges.push(`<span class="b ${qb ? 'r' : 'y'}">${esc(t.abbr)}: ${out.length} out${qb ? ', including the starting QB' : ''}</span>`);
   }
   if (CFB && pre) for (const side of ['away', 'home']) { const q = g.qb?.[side]; if (q) badges.push(`<span class="b y" title="${esc(q.new)} started last game; ${esc(q.old)} started ${q.starts} of ${q.games}. College has no injury feed, so this is based on who actually played.">${esc(g[side].abbr)}: new QB ${esc(q.new)}</span>`); }
+  if (g.sit?.div && !COL) badges.push(`<span class="b" title="Since 2015 division games have been a bit tighter and lower scoring, and underdogs covered 52%; small enough that the line already prices it.">Division game</span>`);
   if (g.shop) badges.push(`<span class="b">${g.shop.books.length} books compared</span>`);
   const open = S.open.has(g.id);
   return `<article class="card${open ? ' open' : ''}" id="g${g.id}" style="--ta:${teamColor(A)};--th:${teamColor(H)}">
@@ -5877,7 +6015,7 @@ queueMicrotask(() => {
 function renderAll() { normProps(); navTidy(); renderSync(); renderBoard(); renderMoves(); renderSims(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderFantasy(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
 
 // ------------------------------------------------------------ tab bar tidy-up (phones): main tabs + More
-const NAV_MAIN = ['board', 'picks', 'live', 'props', 'sims', 'parlay'];
+const NAV_MAIN = ['board', 'picks', 'live', 'props', 'tds', 'parlay'];   // phone bar; everything else is under More (Sims also opens from each game card)
 function navOff() {   // tabs this mode doesn't have (CSS hides them on desktop; the phone bar needs it spelled out)
   const off = new Set(COL ? ['props', 'tds', 'sims', 'lineups', 'players', 'teams', 'fantasy'] : NBA ? ['tds', 'sims', 'lineups', 'players', 'teams'] : SPORT === 'nfl' ? ['fantasy'] : []);
   if (document.body.classList.contains('easy')) ['shop', 'lineups', 'players', 'teams'].forEach(t => off.add(t));
@@ -5921,7 +6059,7 @@ function setTab(t) {
   if (t === 'sims') renderSims();
   if (t === 'moves') renderMoves();
   navTidy();
-  if (t === 'parlay') renderSGP();
+  if (t === 'parlay') { renderSGP(); renderSafeSlate(); }
 }
 document.querySelector('nav').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { setTab(b.dataset.tab); store.set('edge-tab-chosen', '1'); } });
 setInterval(() => { if (S.live && !S.localLive) renderLive(); }, 60000);

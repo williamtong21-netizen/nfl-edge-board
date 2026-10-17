@@ -96,7 +96,7 @@ def situations(games, season, co=None):
                 d = max(-7, min(7, hr - ar)); pts["home"] += REST_PT * d; pts["away"] -= REST_PT * d
                 more, less = (H, A) if d > 0 else (A, H)
                 notes.append({"k": "rest", "s": f"{more} comes in rested: {int(max(hr, ar))} days since its last game to {less}'s {int(min(hr, ar))}.", "pts": round(REST_PT * abs(d) * 2, 2), "team": more})
-            if row.get("div_game") == "1": notes.append({"k": "div", "s": f"{A} at {H} is a division game. Rivals who meet twice a year tend to keep it closer and a bit lower scoring.", "pts": 0})
+            if row.get("div_game") == "1": notes.append({"k": "div", "s": f"{A} at {H} is a division game. Since 2015 these have been a bit tighter and lower scoring (about half a point under the closing total vs other games) and underdogs covered 52% (51% otherwise), small enough that the line already prices it.", "pts": 0})
         neutral = bool(g.get("neutral"))
         if neutral:
             from projections import HFA

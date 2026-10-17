@@ -53,13 +53,14 @@ def team_analytics(season):
     pbp = [p for p in pbp if p.get("season_type") == "REG"]
     side = {"off": defaultdict(lambda: defaultdict(list)), "def": defaultdict(lambda: defaultdict(list))}
     games = {"off": defaultdict(set), "def": defaultdict(set)}
-    drives = defaultdict(lambda: {"rz": False, "td": False})
+    drives = defaultdict(lambda: {"rz": False, "td": False, "d": None, "wk": 0})
     tds = {"off": defaultdict(lambda: defaultdict(int)), "def": defaultdict(lambda: defaultdict(int))}   # passing / rushing TDs
     for p in pbp:
         pos, dfn = p.get("posteam"), p.get("defteam")
         if not pos or not dfn: continue
         pos, dfn = fix(pos), fix(dfn)
         key = (p["game_id"], pos, p.get("drive"))
+        drives[key]["d"] = dfn; drives[key]["wk"] = int(f(p.get("week")) or 0)
         yl = f(p.get("yardline_100"))
         if yl is not None and yl <= 20: drives[key]["rz"] = True
         if p.get("touchdown") == "1" and fix(p.get("td_team") or "") == pos:
@@ -112,10 +113,16 @@ def team_analytics(season):
     # defense vs position, from weekly player stats (what each defense allows to each position)
     ws = [w for w in rows(f"stats_player/stats_player_week_{season}.csv", 6 * 3600) if w.get("season_type") == "REG"]
     agg = defaultdict(lambda: defaultdict(float)); dg = defaultdict(set)
+    per = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))   # (defense, position) -> game -> stat
+    wk_of = {}
     for w in ws:
         d, pg = fix(w.get("opponent_team") or ""), w.get("position_group")
         if not d or pg not in ("QB", "RB", "WR", "TE"): continue
-        dg[d].add(w["game_id"]); a = agg[(d, pg)]
+        dg[d].add(w["game_id"]); a = agg[(d, pg)]; wk_of[w["game_id"]] = int(f(w.get("week")) or 0)
+        pg_ = per[(d, pg)][w["game_id"]]
+        pg_["fp"] += f(w.get("fantasy_points_ppr")) or 0; pg_["yds"] += (f(w.get("receiving_yards")) or 0) + (f(w.get("rushing_yards")) or 0)
+        pg_["rec"] += f(w.get("receptions")) or 0
+        pg_["td"] += (f(w.get("receiving_tds")) or 0) + (f(w.get("rushing_tds")) or 0)
         a["fp"] += f(w.get("fantasy_points_ppr")) or 0
         a["yds"] += f(w.get("receiving_yards")) or 0; a["rec"] += f(w.get("receptions")) or 0; a["tgt"] += f(w.get("targets")) or 0
         a["ryd"] += f(w.get("rushing_yards")) or 0; a["car"] += f(w.get("carries")) or 0
@@ -131,7 +138,33 @@ def team_analytics(season):
             tbl = {d: v[pg] for d, v in dvp.items() if pg in v}
             rk = ranks(tbl, k, True)  # 1 = allows the most = softest matchup
             for d in tbl: tbl[d].setdefault("rk", {})[k] = rk.get(d)
+    # last 3 games (recent tendencies): per game averages, ranked the same way (1 = allows the most)
+    for (d, pg), gm in per.items():
+        last = sorted(dg[d], key=lambda g: wk_of.get(g, 0))[-3:]
+        if pg not in dvp[d]: continue
+        dvp[d][pg]["l3"] = {k: round(sum(gm.get(g, {}).get(k, 0) for g in last) / max(1, len(last)), 2) for k in ("td", "fp", "yds", "rec")}
+        dvp[d][pg]["l3"]["g"] = len(last)
+    for pg in ("QB", "RB", "WR", "TE"):
+        for k in ("td", "fp", "yds"):
+            tbl = {d: v[pg]["l3"] for d, v in dvp.items() if pg in v and "l3" in v[pg]}
+            rk = ranks(tbl, k, True)
+            for d in tbl: tbl[d].setdefault("rk", {})[k] = rk.get(d)
     for d, v in dvp.items(): res.setdefault(d, {})["dvp"] = v
+    # red zone: share of opponents' red-zone trips that ended in a touchdown, season and last 3 games
+    rzg = defaultdict(lambda: defaultdict(lambda: [0, 0])); rzw = {}
+    for (gid, _, _), dv in drives.items():
+        if not dv["d"] or not dv["rz"]: continue
+        rzg[dv["d"]][gid][0] += 1; rzg[dv["d"]][gid][1] += dv["td"]; rzw[gid] = dv["wk"]
+    rzt = {}
+    for d, gm in rzg.items():
+        last = sorted(gm, key=lambda g: rzw.get(g, 0))[-3:]
+        tr, td_ = sum(v[0] for v in gm.values()), sum(v[1] for v in gm.values())
+        tr3, td3 = sum(gm[g][0] for g in last), sum(gm[g][1] for g in last)
+        rzt[d] = {"pct": round(td_ / tr, 3) if tr else None, "trips": tr, "l3": round(td3 / tr3, 3) if tr3 else None, "trips3": tr3}
+    for k in ("pct", "l3"):
+        rk = ranks({d: v for d, v in rzt.items() if v[k] is not None}, k, True)   # 1 = lets the most trips become TDs
+        for d in rzt: rzt[d].setdefault("rk", {})[k] = rk.get(d)
+    for d, v in rzt.items(): res.setdefault(d, {})["rzd"] = v
     return {"season": season, "plays": len(pbp), "teams": res}
 
 
