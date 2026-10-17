@@ -1125,6 +1125,29 @@ body.simopen{overflow:hidden}
 .mv-r{display:flex;gap:8px;align-items:baseline;font-size:13px}.mv-r .b{flex:none}.mv-r a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:2px}
 .mv-r.near a,.mv-r.near>span:last-child>b{font-weight:700}
 .b.g{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+
+/* TDs tab rows: logo | name + chance, then form / matchup tags, then prices + add; phones give lines 2-3 the full width */
+.tdrow{display:grid;grid-template-columns:34px minmax(0,1fr) auto;grid-template-areas:"logo who pct" "logo tags tags" "logo price add" "log log log";gap:8px 12px;align-items:start;padding:14px 4px;border-top:1px solid var(--line)}
+.tdrow .tdlogo{grid-area:logo;padding-top:2px}.tdrow .tdlogo img{display:block}
+.tdrow .who{grid-area:who;min-width:0}
+.tdrow .who b{display:block;font:700 18px/1.15 var(--f-display);letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tdrow .who small{display:block;color:var(--muted);font-size:12.5px;line-height:1.35;margin-top:2px}
+.tdrow .pct{grid-area:pct;text-align:right;font:800 28px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.tdrow .pct small{display:block;font:600 10.5px var(--f-body);letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.tdrow .tdtags{grid-area:tags;display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.tdrow .tdtags .mu{display:contents}
+.tdrow .tdtags .tdl10btn,.tdrow .tdtags .mchip{display:inline-flex;align-items:center;gap:5px;height:26px;margin:0;padding:0 10px;border-radius:999px;font:600 12px var(--f-body);white-space:nowrap}
+.tdrow .tdtags .tdl10btn{background:var(--surface2);border:1px solid var(--line);color:var(--ink);cursor:pointer}
+.tdrow .tdprice{grid-area:price;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;font-size:12.5px;color:var(--muted);min-width:0}
+.tdrow .tdprice b{color:var(--ink);font-variant-numeric:tabular-nums}
+.tdrow .tdprice .kxlink{padding:1px 8px;font-size:12px}
+.tdrow .tdprice .val{color:var(--good);font-weight:700}
+.tdrow .addp{grid-area:add;justify-self:end;align-self:center;padding:5px 14px !important;font-size:12.5px !important;white-space:nowrap}
+.tdrow .tdlog{grid-area:log}
+@media (max-width:520px){
+  .tdrow{grid-template-columns:30px minmax(0,1fr) auto;grid-template-areas:"logo who pct" "tags tags tags" "price price add" "log log log";gap:8px 10px;padding:12px 2px}
+  .tdrow .who b{font-size:17px}.tdrow .pct{font-size:26px}
+}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -3692,7 +3715,7 @@ function renderTD() {
   const mu = (x, full) => { const w = x.w; if (!w) return '';
     const f = w.rz * (1 + (w.dvp - 1) / 2), cls = f >= 1.06 ? 'great' : f <= 0.94 ? 'tough' : 'neutral';
     const bits = [`<span class="mchip ${cls}">${cls === 'great' ? 'Soft TD matchup' : cls === 'tough' ? 'Tough TD matchup' : 'Average matchup'}</span>`];
-    if (w.glb) bits.push(`<span class="mchip glb">Goal-line back · ${Math.round(w.gls * 100)}% of team's carries inside the 5</span>`);
+    if (w.glb) bits.push(`<span class="mchip glb" title="${Math.round(w.gls * 100)}% of his team's carries inside the 5">Goal-line back · ${Math.round(w.gls * 100)}%</span>`);
     if (x.rzRk) bits.push(`${esc(x.opp.abbr)} red-zone D ${ord(x.rzRk)}${x.rzRk >= 24 ? ' (leaky)' : x.rzRk <= 8 ? ' (stingy)' : ''}`);
     const pg = esc(posGroup(x.pl.p));
     if (x.dvpRk <= 10) bits.push(`allows lots of ${pg} TDs (${ord(x.dvpRk)} most)`); else if (x.dvpRk >= 23) bits.push(`allows few ${pg} TDs (${ord(x.dvpRk)})`);
@@ -3704,7 +3727,7 @@ function renderTD() {
   // scored / didn't score in each of his last 10 games (newest on the left); a mark where the season changes
   const l10 = x => { if (!x.last.length) return '';
     const hit = x.last.filter(r => r.n > 0).length, open = TDB.open.has(x.pl.id);
-    return `<button class="tdl10btn" data-tdlog="${esc(x.pl.id)}" aria-expanded="${open}">Scored in <b>${hit} of last ${x.last.length}</b> ${open ? '▴' : '▾'}</button>`; };
+    return `<button class="tdl10btn" data-tdlog="${esc(x.pl.id)}" aria-expanded="${open}">Scored in <b>${hit}/${x.last.length}</b> ${open ? '▴' : '▾'}</button>`; };
   const tdLog = x => {
     const g = [...x.last].reverse(), max = Math.max(1, ...g.map(r => r.n));   // oldest on the left, newest on the right
     const W = 360, H = 150, L = 20, B = 32, T = 22, bw = (W - L - 8) / g.length, y = v => T + (H - T - B) * (1 - v / max);
@@ -3726,7 +3749,8 @@ function renderTD() {
     const mm = x.pr.pModel != null && x.pr.pMkt != null ? `<p class="note" style="margin:0 0 6px">Our model <b>${Math.round(x.pr.pModel * 100)}%</b> · the books <b>${Math.round(x.pr.pMkt * 100)}%</b> · we show the blend, <b>${Math.round(x.p * 100)}%</b></p>` : '';
     return `<div class="tdlog">${mm}${mu(x, true)}${svg}<div class="tbl"><table><tr><th>Game</th><th>TD</th>${rec ? '<th>Tgt</th><th>Rec</th><th>Yds</th>' : '<th>Car</th><th>Yds</th><th>Rec</th>'}<th>Snap</th></tr>${rows}</table></div>
       <p class="note" style="margin:6px 0 0">Games where he recorded a stat, newest first in the table.</p></div>`; };
-  const tdS = x => x.gp != null ? `${x.td} TD in ${x.gp} G this year${x.gPrev ? ` · ${x.tdPrev} in ${x.gPrev} last year` : ''}` : '';
+  const tdS = x => x.gp != null ? `${x.td} TD in ${x.gp} games this year${x.gPrev ? ` · ${x.tdPrev} in ${x.gPrev} last year` : ''}` : '';
+  const tdKick = g => new Date(g.date).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
   const nTd = PAR.legs.length;
   box.innerHTML = `<div class="tdb"><details class="howto"><summary>How these chances work</summary><span class="note">Our chance each player scores: his scoring rate (this season and last), red-zone, end-zone and goal-line looks, and his share of the offense times his team's expected points (mostly the betting market's implied team total), adjusted for the defense's red-zone record, whether it gives up TDs through the air or on the ground, its TDs allowed to his position, and game script.</span></details>
     <div class="tdb-bar">
@@ -3741,11 +3765,19 @@ function renderTD() {
       <button class="btn small" data-tdquick="spread">Top scorer, 4 games</button><button class="btn small" data-tdquick="value">Biggest gaps 3</button>
       ${nTd ? `<button class="btn small primary" data-tab-go="parlay" style="margin-left:auto">Open parlay (${nTd}) →</button>` : ''}</div>`}
     ${c.slice(0, TDB.n).map(x => { const on = inPar(x.g.id, x.pl.id);
-      return `<div class="tdrow">${logo(x.team.abbr, 26)}
-        <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${kick(x.g)}${tdS(x) ? ' · ' + esc(tdS(x)) : ''}</small>${l10(x)}${mu(x)}</div>
-        ${FIRST ? `<div class="pct">${(x.ft * 100).toFixed(1)}%<small>fair ${fmtOdds(fairAm(x.ft))}${x.ftCost != null ? ` · ${x.ftUrl ? `<a class="kxlink" href="${esc(x.ftUrl)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(centsAm(x.ftCost))} ↗</a>` : `Kalshi ${fmtOdds(centsAm(x.ftCost))}`}` : ''}${ftVal(x) ? ' · <span class="val">beats price</span>' : ''}<br>anytime ${Math.round(x.pr.pOver * 100)}%</small></div>
-        <span></span>` : `<div class="pct">${Math.round(x.p * 100)}%<small>fair ${fmtOdds(fairAm(x.p))}${x.book ? ` · <b>${esc(x.book.n)} ${fmtOdds(x.book.o)}</b>` : ''}${x.price != null ? ` · ${x.pr.kx ? `<a class="kxlink" href="${esc(x.pr.kx)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(x.price)} ↗</a>` : `Kalshi ${fmtOdds(x.price)}`}` : ''}${x.edge != null && x.edge >= x.edgeMin ? ' · <span class="val">beats price</span>' : ''}</small></div>
-        <button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>`}
+      // three tidy lines: name + chance | form and matchup tags | prices + add (phones keep the full width for lines 2-3)
+      const beats = FIRST ? ftVal(x) : x.edge != null && x.edge >= x.edgeMin;
+      const kx = (url, am) => url ? `<a class="kxlink" href="${esc(url)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(am)} ↗</a>` : `<span>Kalshi <b>${fmtOdds(am)}</b></span>`;
+      const price = FIRST
+        ? `<span>Fair <b>${fmtOdds(fairAm(x.ft))}</b></span>${x.ftCost != null ? kx(x.ftUrl, centsAm(x.ftCost)) : ''}<span>Anytime <b>${Math.round(x.pr.pOver * 100)}%</b></span>`
+        : `<span>Fair <b>${fmtOdds(fairAm(x.p))}</b></span>${x.book ? `<span>${esc(x.book.n)} <b>${fmtOdds(x.book.o)}</b></span>` : ''}${x.price != null ? kx(x.pr.kx, x.price) : ''}`;
+      return `<div class="tdrow">
+        <span class="tdlogo">${logo(x.team.abbr, 30)}</span>
+        <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${tdKick(x.g)}</small>${tdS(x) ? `<small>${esc(tdS(x))}</small>` : ''}</div>
+        <div class="pct">${FIRST ? (x.ft * 100).toFixed(1) : Math.round(x.p * 100)}%<small>${FIRST ? 'first TD' : 'to score'}</small></div>
+        <div class="tdtags">${l10(x)}${mu(x)}</div>
+        <div class="tdprice">${price}${beats ? '<span class="val">Beats price</span>' : ''}</div>
+        ${FIRST ? '' : `<button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>`}
         ${TDB.open.has(x.pl.id) && x.last.length ? tdLog(x) : ''}</div>`; }).join('')}
     ${c.length > TDB.n ? `<button class="showmore" data-tdmore>Show more players (${c.length - TDB.n} left)</button>` : ''}
     <p class="note" style="margin-top:8px">"Fair" is the price that would be break-even at our chance. If your book pays more than that, the leg is worth it on its own. Touchdowns are long shots: even a 4-leg ticket of strong scorers usually misses, so size it small.</p></div>`;
