@@ -1157,6 +1157,23 @@ body.simopen{overflow:hidden}
 
 /* Teams tables: "hl" marks teams playing this week; keep them table rows (a generic .hl card style was turning them into stacked boxes) */
 .teams-t tr.hl{display:table-row;padding:0;border-radius:0;background:none;gap:0}
+
+/* enter a bet you already placed */
+.mbet{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 14px}
+.mbet>summary{cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;list-style:none}.mbet>summary::-webkit-details-marker{display:none}
+.mbet>summary b{font:700 16px var(--f-display);letter-spacing:.4px;text-transform:uppercase}.mbet>summary::after{content:"▾";margin-left:auto;color:var(--muted)}.mbet[open]>summary::after{content:"▴"}
+.mbform{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:12px;align-items:end}
+.mbform label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}.mbform .full,.mbform .mbkinds,.mbform>.note{grid-column:1/-1}
+.mbform input,.mbform select{width:100%;min-height:38px;font-size:15px}
+.mbkinds{display:flex;flex-wrap:wrap;gap:6px}
+.mbform [data-mbadd]{min-height:38px}
+.mbline{display:flex;flex-direction:column;gap:6px}
+.mbstep{display:flex;gap:6px;max-width:240px}.mbstep input{text-align:center;font:700 17px var(--f-display)}
+.mbstep button{flex:none;width:42px;min-height:38px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font:800 18px var(--f-body);cursor:pointer}
+.mbchips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin;align-items:center}.mbchips .note{flex:none;white-space:nowrap}
+.mbchips .chip{flex:none;font-variant-numeric:tabular-nums}.mbchips .chip.base{border-color:var(--accent)}
+.slipcard .sc-legs li .legmark{display:inline-flex;gap:4px;margin-left:auto}.slipcard .sc-legs li .legmark + .ck{margin-left:8px}
+.slipcard .sc-legs li .legmark button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font-weight:800;cursor:pointer}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1354,6 +1371,7 @@ body.simopen{overflow:hidden}
   <div id="view-parlay" hidden>
     <div class="toolbar"><h2 style="margin:0">Parlay builder</h2></div>
     <p class="note">Add legs from anywhere (picks, props, the TDs tab, alternate-line ladders, game details), switch any leg to an alternate line, enter your app's odds if they differ, then grade it.</p>
+    <div id="manualBox"></div>
     <div id="safeBox"></div>
     <div id="sgpBox"></div>
     <div id="parlay"></div>
@@ -1977,7 +1995,7 @@ const LIVE_COLS = ['passingYards', 'passingTouchdowns', 'interceptions', 'rushin
 function parsePlayers(sum) {
   const out = {};
   for (const team of sum?.boxscore?.players || []) for (const cat of team.statistics || []) {
-    if (NBA) {   // one stat table per team: points, rebounds, assists, "3PM-3PA"
+    if (NBA || CBB) {   // one stat table per team: points, rebounds, assists, "3PM-3PA"
       for (const a of cat.athletes || []) {
         const p = out[a.athlete.id] ||= { n: a.athlete.displayName, tm: team.team.abbreviation, s: {} };
         (cat.keys || []).forEach((k, i) => { const v = a.stats?.[i];
@@ -2727,13 +2745,16 @@ async function refreshBoxes(gids) {   // games on open tickets that have started
 }
 setInterval(() => { if (!$('#view-bets').hidden) renderBets(); }, 30e3);
 // one leg's status: pre (not started), live (with progress), hit, miss, push, void (player didn't play)
+const pKey = n => (n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\b(jr|sr|ii|iii|iv)\b/g, '').replace(/[^a-z]/g, '');
 function legStatus(l) {
+  if (l.kind === 'custom') return { st: l.res || 'pre' };   // "something else": the user marks it
   const bx = boxFor(l.gid); if (!bx || bx.state === 'pre') return { st: 'pre' };
   const fin = bx.state === 'post';
   if (l.kind === 'prop') {
     const keys = LIVE_STAT[l.m]; if (!keys) return { st: 'pre' };
-    const ps = bx.players?.[l.pid];
-    if (!ps) return fin ? { st: 'void' } : { st: 'live', v: 0 };
+    // a typed-in player (no prop line in our data): find him in the box score by name
+    const ps = bx.players?.[l.pid] || (l.pname ? Object.values(bx.players || {}).find(x => pKey(x.n) === pKey(l.pname)) : null);
+    if (!ps) return l.pname && !fin ? { st: 'live', v: 0, L: l.m === 'Anytime TD' ? 0.5 : +l.line } : fin ? { st: l.pname ? 'pre' : 'void' } : { st: 'live', v: 0 };
     const v = keys.reduce((a, k) => a + (ps.s?.[k] || 0), 0), L = l.m === 'Anytime TD' ? 0.5 : +l.line, over = l.side !== 'under';
     if (over && v > L) return { st: 'hit', v };
     if (!over && v > L) return { st: 'miss', v };
@@ -2763,6 +2784,7 @@ function gradeParlay(b) {
 }
 function parlayLegResults(b) {
   return (b.legs || []).map(l => {
+    if (l.kind === 'custom') return legOK(l.res) === 'pending' ? 'pending' : legOK(l.res);
     if (l.kind === 'prop') return legOK(legStatus(l).st);
     if (l.kind === 'tt') { const r = S.results?.games?.[l.gid]; if (!r || r.st !== 'post' || r.hs == null) return 'pending'; const pts = l.team === r.h ? r.hs : r.as, d = pts - l.line;
       return d === 0 ? 'push' : (d > 0) === (l.side === 'over') ? 'win' : 'loss'; }
@@ -3045,7 +3067,12 @@ function renderAltPicks() {
 // A leg is any line, main or alternate: {id, gid, kind: spread|ml|total|tt|prop, side, line, odds, book, priced, ...}
 function findProp(gid, pid, m) { const pl = S.props?.[gid]?.find(x => x.id === pid); return { pl, pr: pl?.props.find(x => x.m === m) }; }
 function legRungs(leg) {
+  const r = legRungs0(leg);
+  return leg.line != null && leg.kind !== 'ml' && !r.includes(+leg.line) ? [...r, +leg.line].sort((a, b) => a - b) : r;
+}
+function legRungs0(leg) {
   const g = S.slate?.games.find(x => x.id === leg.gid); if (!g) return [];
+  if (leg.kind === 'custom' || leg.kind === 'prop' && !leg.pid) return [];
   if (leg.kind === 'prop') { const { pr } = findProp(leg.gid, leg.pid, leg.m); return pr ? propRungs(pr).map(r => r.l) : []; }
   if (leg.kind === 'total') { const s = new Set((g.kalshi?.total || []).map(r => r.l)); if (g.odds?.t != null) for (let d = -6; d <= 6; d++) s.add(+(g.odds.t + d).toFixed(1));
     (g.shop?.books || []).forEach(b => b.t != null && s.add(b.t)); return [...s].filter(x => g.odds?.t == null || Math.abs(x - g.odds.t) <= 12).sort((a, b) => a - b); }
@@ -3107,7 +3134,8 @@ function legLabel(leg, g) {
   if (leg.kind === 'ml') return `${g[leg.side].abbr} moneyline`;
   if (leg.kind === 'total') return `${leg.side === 'over' ? 'Over' : 'Under'} ${leg.line}`;
   if (leg.kind === 'tt') return `${leg.team} ${leg.side === 'over' ? 'over' : 'under'} ${leg.line} points`;
-  const { pl } = findProp(leg.gid, leg.pid, leg.m);
+  if (leg.kind === 'custom') return leg.label;
+  const { pl } = leg.pid ? findProp(leg.gid, leg.pid, leg.m) : { pl: { n: leg.pname } };
   if (leg.m === 'Anytime TD') return `${pl?.n || ''} ${leg.line > 1 ? (leg.side === 'over' ? Math.ceil(leg.line) + '+ TDs' : 'under ' + Math.ceil(leg.line) + ' TDs') : leg.side === 'over' ? 'anytime TD' : 'no TD'}`;
   return `${pl?.n || ''} ${leg.side === 'over' ? 'o' : 'u'}${leg.line} ${leg.m.toLowerCase()}`;
 }
@@ -3125,7 +3153,7 @@ function makeLeg(gid, kind, side, pid, m, line) {
 }
 function refreshLeg(leg) {
   const g = S.slate?.games.find(x => x.id === leg.gid); if (!g) return leg;
-  const pr = legPrice(leg, g);
+  const pr = leg.kind === 'custom' || leg.kind === 'prop' && !leg.pid ? null : legPrice(leg, g);
   leg.priced = !!pr || leg.manual;
   if (!leg.manual) {
     if (pr) { leg.odds = pr.odds; leg.book = pr.book; leg.est = false; }
@@ -3136,6 +3164,7 @@ function refreshLeg(leg) {
   return leg;
 }
 function legChance(leg) {
+  if (leg.kind === 'custom' || leg.kind === 'prop' && !leg.pid) return null;   // entered by hand, nothing to price it against
   const g = S.slate?.games.find(x => x.id === leg.gid); if (!g) return null;
   let ours;
   if (leg.kind === 'prop') { const { pr } = findProp(leg.gid, leg.pid, leg.m); const c = pr && propChance(pr, leg.line); ours = c == null ? null : leg.side === 'over' ? c : 1 - c; }
@@ -3931,13 +3960,121 @@ document.addEventListener('click', e => {
   const lg = e.target.closest('[data-tdlog]'); if (lg) { const id = lg.dataset.tdlog; TDB.open.has(id) ? TDB.open.delete(id) : TDB.open.add(id); renderTD(); }
 });
 
+
+// ------------------------------------------------------------ enter a bet that's already placed: any game on the slate (live and final too),
+// spread / moneyline / total / team total / player prop / anything else, at the line and odds the user actually got
+const MB = { kind: 'spread', open: false };
+const MB_STATS = () => NBA || CBB ? ['Points', 'Rebounds', 'Assists', 'Threes']
+  : ['Pass yds', 'Pass TD', 'Completions', 'Rush yds', 'Carries', 'Rec yds', 'Receptions', 'Rush+rec yds', 'Pass+rush yds', 'Anytime TD', 'INT', 'Long rec'];
+function mbGames() {
+  const rank = g => g.state === 'in' ? 0 : g.state === 'pre' ? 1 : 2;
+  return (S.slate?.games || []).slice().sort((a, b) => rank(a) - rank(b) || new Date(a.date) - new Date(b.date));
+}
+function renderManual() {
+  const box = $('#manualBox'); if (!box || !S.slate) return;
+  const games = mbGames(), gid = $('#mbGame')?.value ?? (games[0]?.id || ''), g = games.find(x => x.id === gid), k = MB.kind;
+  const st = x => x.state === 'in' ? 'live' : x.state === 'post' ? 'final' : new Date(x.date).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  const players = g ? [...new Set([...(S.props?.[g.id] || []).map(p => p.n), ...Object.values(boxFor(g.id)?.players || {}).map(p => p.n)])].sort() : [];
+  const teamSel = g ? `<label>Team<select id="mbSide"><option value="away">${esc(g.away.abbr)}</option><option value="home">${esc(g.home.abbr)}</option></select></label>` : '';
+  const ou = `<label>Pick<select id="mbOU"><option value="over">Over</option><option value="under">Under</option></select></label>`;
+  // the line they got: type it, step it by half a point, or tap one of the lines around the pre-game number
+  const line = (ph, req) => `<div class="mbline full"><span class="note">Line you got</span>
+      <div class="mbstep"><button type="button" data-mbstep="-0.5" aria-label="Half a point lower">−</button><input id="mbLine" inputmode="decimal" placeholder="${ph}"${req ? ' required' : ''}><button type="button" data-mbstep="0.5" aria-label="Half a point higher">+</button></div>
+      <div class="mbchips" id="mbChips"></div></div>`;
+  const fields = !g && k !== 'custom' ? '<p class="note">Pick a game, or choose "Something else" to type the bet in.</p>'
+    : k === 'spread' ? teamSel + line('-6.5', true)
+    : k === 'ml' ? teamSel
+    : k === 'total' ? ou + line('47.5', true)
+    : k === 'tt' ? teamSel + ou + line('24.5', true)
+    : k === 'prop' ? `<label class="full">Player<input id="mbPlayer" list="mbPlayers" placeholder="Start typing a name" autocomplete="off"><datalist id="mbPlayers">${players.map(n => `<option value="${esc(n)}">`).join('')}</datalist></label>
+        <label>Stat<select id="mbStat">${MB_STATS().map(m => `<option>${esc(m)}</option>`).join('')}</select></label>${ou}${line('e.g. 225.5', false)}`
+    : `<label class="full">The bet<input id="mbDesc" placeholder="e.g. ${COL ? 'Alabama -3.5 1st half' : 'Mahomes 2+ TD passes'}"></label>`;
+  box.innerHTML = `<details class="mbet"${MB.open ? ' open' : ''}><summary><b>Enter a bet you already placed</b><span class="note">Any game, even one that's started</span></summary>
+    <div class="mbform">
+      <label class="full">Game<select id="mbGame"><option value=""${gid === '' ? ' selected' : ''}>Not on this list</option>${games.map(x => `<option value="${x.id}"${x.id === gid ? ' selected' : ''}>${esc(x.away.abbr)} @ ${esc(x.home.abbr)} · ${st(x)}</option>`).join('')}</select></label>
+      <div class="mbkinds" role="group" aria-label="Bet type">${[['spread', 'Spread'], ['ml', 'Moneyline'], ['total', 'Total'], ['tt', 'Team total'], ['prop', 'Player prop'], ['custom', 'Something else']].map(([v, l]) => `<button class="chip" data-mbkind="${v}" aria-pressed="${k === v}">${l}</button>`).join('')}</div>
+      ${fields}
+      ${g || k === 'custom' ? `<label>Odds you got<input id="mbOdds" inputmode="numeric" placeholder="-110"></label><button class="btn primary" data-mbadd>Add leg</button>` : ''}
+    </div>
+    <p class="note" style="margin:8px 0 0">Live games show the pre-game line as the starting point; tap the line you actually got (or type it). Add each leg, then enter your book's odds for the whole ticket and your bet amount below and tap <b>Track it</b>. Spreads, moneylines, totals and player stats grade themselves from the live box score; "something else" legs you mark ✓ or ✕ on the ticket.</p>
+  </details>`;
+  mbChips();
+}
+// the pre-game number for what's selected (closing line once a game starts), and alternate lines around it in half points
+function mbBase() {
+  const g = S.slate?.games.find(x => x.id === $('#mbGame')?.value); if (!g) return null;
+  const r = S.results?.games?.[g.id] || {}, o = g.odds || {}, side = $('#mbSide')?.value, k = MB.kind;
+  const hs = o.hs ?? r.cs, t = o.t ?? r.ct;
+  if (k === 'spread') return hs == null ? null : { v: side === 'home' ? hs : -hs, step: 0.5, span: 7, lbl: 'pre-game' };
+  if (k === 'total') return t == null ? null : { v: t, step: 0.5, span: NBA || CBB ? 12 : 10, lbl: 'pre-game total' };
+  if (k === 'tt') { if (t == null || hs == null) return null; const mine = side === 'home' ? (t - hs) / 2 : (t + hs) / 2; return { v: Math.round(mine * 2) / 2 - 0.5, step: 0.5, span: 7, lbl: 'implied' }; }
+  if (k === 'prop') {
+    const name = ($('#mbPlayer')?.value || '').trim(), m = $('#mbStat')?.value, pl = (S.props?.[g.id] || []).find(p => pKey(p.n) === pKey(name)), pr = pl?.props.find(x => x.m === m);
+    if (!pr || pr.l == null || m === 'Anytime TD') return null;
+    const alts = [...new Set([pr.l, ...(pr.alt || []).map(a => a.l)])].sort((a, b) => a - b);
+    return { v: pr.l, list: alts.length > 2 ? alts : null, step: pr.l >= 100 ? 5 : pr.l >= 20 ? 2.5 : 1, span: pr.l >= 100 ? 50 : pr.l >= 20 ? 20 : 3, lbl: 'pre-game prop' };
+  }
+  return null;
+}
+function mbChips() {
+  const box = $('#mbChips'); if (!box) return;
+  const b = mbBase(); if (!b) { box.innerHTML = ''; return; }
+  const fmt = v => MB.kind === 'spread' ? fmtLine(v) : String(v);
+  const vals = b.list || Array.from({ length: Math.round(b.span / b.step) * 2 + 1 }, (_, i) => Math.round((b.v - b.span + i * b.step) * 2) / 2);
+  const cur = $('#mbLine')?.value;
+  box.innerHTML = `<span class="note">${esc(b.lbl)} ${fmt(b.v)} · tap yours:</span>` + vals.map(v => `<button type="button" class="chip${v === b.v ? ' base' : ''}" data-mbline="${v}" aria-pressed="${cur !== '' && +cur === v}">${fmt(v)}</button>`).join('');
+  const at = box.querySelector('[aria-pressed="true"]') || box.querySelector('.base');   // open centered on their pick (or the pre-game line)
+  if (at) requestAnimationFrame(() => { box.scrollLeft = at.offsetLeft - box.offsetLeft - box.clientWidth / 2 + at.offsetWidth / 2; });
+}
+function mbAdd() {
+  const gid = $('#mbGame').value, g = S.slate.games.find(x => x.id === gid), k = MB.kind;
+  const num = id => { const v = ($(id)?.value || '').trim().replace(/[^\d.+-]/g, ''); return v === '' ? null : +v; };
+  const odds = num('#mbOdds'), line = num('#mbLine'), side = $('#mbSide')?.value, ou = $('#mbOU')?.value;
+  const sub = g ? `${g.away.abbr} @ ${g.home.abbr} · entered by you` : 'entered by you';
+  const fin = leg => { leg.manual = true; leg.entered = true; leg.priced = odds != null; leg.odds = odds ?? -110; leg.book = null; return leg; };
+  let leg = null;
+  if (k === 'custom') { const d = ($('#mbDesc')?.value || '').trim(); if (!d) return toast('Type the bet first');
+    leg = fin({ gid: gid || null, kind: 'custom', label: d, sub, id: 'custom|' + Date.now() }); }
+  else if (!g) return toast('Pick the game first');
+  else if (['spread', 'total', 'tt'].includes(k) && line == null) return toast('Enter the line you got');
+  else if (k === 'prop') {
+    const name = ($('#mbPlayer')?.value || '').trim(), m = $('#mbStat').value; if (!name) return toast('Type the player');
+    if (m !== 'Anytime TD' && line == null) return toast('Enter the line you got');
+    const L = m === 'Anytime TD' ? (line ?? 0.5) : line, pl = (S.props?.[gid] || []).find(p => pKey(p.n) === pKey(name)), pr = pl?.props.find(x => x.m === m);
+    leg = fin({ gid, kind: 'prop', side: ou, pid: pr ? pl.id : null, pname: pl?.n || name, m, line: L, team: pl?.tm || null });
+    leg.label = legLabel(leg, g); leg.sub = sub; leg.id = [gid, 'prop', ou, leg.pid || pKey(name), m, L].join('|');
+  } else {
+    leg = fin({ gid, kind: k, side: k === 'total' ? ou : k === 'tt' ? ou : side, line: k === 'ml' ? null : line, team: k === 'tt' ? g[side].abbr : k === 'total' ? null : g[side].abbr });
+    leg.label = legLabel(leg, g); leg.sub = sub; leg.id = [gid, k, leg.side, leg.team || '', '', leg.line ?? ''].join('|');
+  }
+  if (PAR.legs.some(l => l.id === leg.id)) return toast('That leg is already in');
+  PAR.legs.push(leg); saveParlay(); renderSlip(); renderParlay(); toast(`Added: ${leg.label}`);
+  for (const id of ['#mbLine', '#mbOdds', '#mbPlayer', '#mbDesc']) { const el = $(id); if (el) el.value = ''; }
+}
+document.addEventListener('click', e => {
+  const kb = e.target.closest('[data-mbkind]'); if (kb) { MB.kind = kb.dataset.mbkind; MB.open = true; renderManual(); return; }
+  if (e.target.closest('[data-mbadd]')) { MB.open = true; mbAdd(); return; }
+  const ml = e.target.closest('[data-mbline]'); if (ml) { $('#mbLine').value = ml.dataset.mbline; mbChips(); return; }
+  const sp = e.target.closest('[data-mbstep]');
+  if (sp) { const inp = $('#mbLine'), b = mbBase(), cur = inp.value === '' ? (b?.v ?? 0) : +inp.value; inp.value = Math.round((cur + +sp.dataset.mbstep) * 2) / 2; mbChips(); return; }
+  const sm = e.target.closest('.mbet > summary'); if (sm) { MB.open = !sm.parentElement.open; }
+  const lr = e.target.closest('[data-legres]');
+  if (lr && S.db) { const [id, i, r] = lr.dataset.legres.split('|'), b = (S.bets || []).find(x => x.id === id); if (!b) return;
+    const legs = b.legs.map((l, j) => j === +i ? { ...l, res: r } : l);
+    S.db.collection('bets').doc(id).update({ legs }).then(() => { b.legs = legs; renderBets(); }).catch(err => toast('Could not save: ' + (err.message || err.code))); }
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'mbGame') { MB.open = true; renderManual(); return; }
+  if (['mbSide', 'mbStat', 'mbPlayer'].includes(e.target.id)) mbChips();
+});
+document.addEventListener('input', e => { if (e.target.id === 'mbLine') mbChips(); });
 function renderParlay() {
   const box = $('#parlay'); if (!box) return;
   PAR.legs = PAR.legs.map(l => l.kind ? l : null).filter(Boolean);
   simPrefetch(PAR.legs);
   let bk = null; try { bk = JSON.parse(store.get('edge-parlay-backup') || 'null'); } catch (e) {}
   const restore = bk?.length ? `<div class="bestbook" style="display:flex;gap:10px;align-items:center;justify-content:space-between">This is a shared parlay. Your own ${bk.length}-leg parlay is saved.<button class="btn small" data-restorepar>Restore my parlay</button></div>` : '';
-  if (!PAR.legs.length) { box.innerHTML = `${restore}<div class="empty"><b>Your parlay is empty</b>Tap “+ Parlay” on any pick, prop, ladder rung or game, and the legs land here. Then grade it.</div>`; return; }
+  if (!PAR.legs.length) { box.innerHTML = `${restore}<div class="empty"><b>Your parlay is empty</b>Tap “+ Parlay” on any pick, prop, ladder rung or game, or enter a bet you already placed above. Then grade it or track it.</div>`; return; }
   const units = +(store.get('edge-parlay-units') || 1), rep = gradeReport(PAR.legs), d = PAR.legs.reduce((x, l) => x * amToDec(+l.odds || -110), 1);
   box.innerHTML = `${restore}<div class="pbuild">
     ${PAR.legs.map((l, i) => { const c = legChance(l), rungs = legRungs(l);
@@ -5573,15 +5710,16 @@ function slipCard({ b, res, p }) {
   const legs = b.legs?.length ? b.legs : [{ label: pickText(b), team: null }];
   const kind = b.market === 'parlay' ? (b.label || `${legs.length}-leg parlay`) : ({ spread: 'Spread', ml: 'Moneyline', total: 'Total' })[b.market] || 'Bet';
   const plS = st != null ? (p > 0 ? '+' : p < 0 ? '−' : '') + usd(p * (st / (+b.units || 1))) : (p > 0 ? '+' : '') + p.toFixed(2) + 'u';
-  const tl = ticketLegs(b), stats = tl.map(legStatus);
+  const tl = ticketLegs(b), stats = legs.map(l => l.kind ? legStatus(l) : { st: 'pre' });
   const legRow = (l, i) => { const t = l.team || null, parts = (l.label || '').split(/ (anytime TD|o[\d.]+.*|u[\d.]+.*|moneyline)$/), x = stats[i] || { st: 'pre' };
     const fmtV = v => Number.isInteger(v) ? v : (+v).toFixed(1);
     const prog = x.st === 'live' && x.L != null ? `<span class="prog">${fmtV(x.v)} / ${x.L}<span class="bar"><i style="width:${Math.min(100, Math.round(x.v / x.L * 100))}%"></i></span></span>`
       : x.st === 'live' && x.d != null ? `<span class="prog">${x.v != null ? fmtV(x.v) + ' pts · ' : ''}${x.d > 0 ? 'covering' : x.d < 0 ? 'not yet' : 'even'}</span>`
       : (x.st === 'hit' || x.st === 'miss') && x.v != null && l.m !== 'Anytime TD' ? `<span class="prog">${fmtV(x.v)}</span>` : '';
-    return `<li class="${x.st}">${t ? logo(t, 22) : ''}<b>${esc(parts[0] || l.label)}</b><span>${esc(parts[1] || '')}</span>${prog}<i class="ck ${x.st}" aria-label="${x.st}">${x.st === 'hit' ? '✓' : x.st === 'miss' ? '✕' : ''}</i></li>`; };
+    const mark = l.kind === 'custom' && res === 'pending' && S.canWrite ? `<span class="legmark"><button data-legres="${esc(b.id)}|${i}|hit" aria-label="Mark ${esc(l.label)} as hit">✓</button><button data-legres="${esc(b.id)}|${i}|miss" aria-label="Mark ${esc(l.label)} as missed">✕</button></span>` : '';
+    return `<li class="${x.st}">${t ? logo(t, 22) : ''}<b>${esc(parts[0] || l.label)}</b><span>${esc(parts[1] || '')}</span>${prog}${mark}<i class="ck ${x.st}" aria-label="${x.st}">${x.st === 'hit' ? '✓' : x.st === 'miss' ? '✕' : ''}</i></li>`; };
   const nHit = stats.filter(x => x.st === 'hit').length, nMiss = stats.filter(x => x.st === 'miss').length, nLive = stats.filter(x => x.st === 'live').length;
-  const liveLine = res === 'pending' && (nHit || nMiss || nLive) ? `<div class="sc-live">${nMiss ? `✕ Busted · ${nMiss} leg${nMiss > 1 ? 's' : ''} missed` : `${nHit} of ${tl.length} hit${nLive ? ` · ${nLive} live` : ''} · ${tl.length - nHit} to go`}</div>` : '';
+  const liveLine = res === 'pending' && (nHit || nMiss || nLive) ? `<div class="sc-live">${nMiss ? `✕ Busted · ${nMiss} leg${nMiss > 1 ? 's' : ''} missed` : `${nHit} of ${legs.length} hit${nLive ? ` · ${nLive} live` : ''} · ${legs.length - nHit} to go`}</div>` : '';
   return `<article class="slipcard r-${res}">
     <div class="sc-top"><div><b>${esc(kind)}</b><br><small>${new Date(b.placedAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}${b.book ? ' · ' + esc(b.book) : ''}</small></div>
       <span class="sc-badge">${res === 'pending' ? 'Live ticket' : res === 'win' ? 'Cashed!' : res === 'loss' ? 'Busted' : res}</span></div>
@@ -5589,7 +5727,7 @@ function slipCard({ b, res, p }) {
       <div class="win"><small>${res === 'win' ? 'Won' : 'To win'}</small><b>${win != null ? usd(win) : ((+b.units) * (dec(+b.odds) - 1)).toFixed(2) + 'u'}</b></div></div>
     <div class="sc-odds">${fmtOdds(+b.odds)}${legs.length > 1 ? ` · ${legs.length} legs` : ''}</div>
     ${liveLine}<ul class="sc-legs">${legs.map(legRow).join('')}</ul>
-    ${res === 'pending' ? `<div style="padding:0 14px">${sendButtons(ticketLegs(b), 'ticket', b.book)}</div>` : ''}
+    ${res === 'pending' && !legs.some(l => l.entered) ? `<div style="padding:0 14px">${sendButtons(ticketLegs(b), 'ticket', b.book)}</div>` : ''}
     ${res === 'pending' && S.canWrite ? `<div class="stake-row" style="margin:6px 14px 0"><label>Bet ($)<input class="sc-stake" data-id="${esc(b.id)}" inputmode="decimal" value="${b.stake ?? ''}" placeholder="amount" style="width:90px"></label>
       <label>Odds<input class="sc-oddsin" data-id="${esc(b.id)}" inputmode="numeric" value="${fmtOdds(+b.odds)}" style="width:100px"></label></div>` : ''}
     <div class="sc-foot"><button class="sc-share" data-share="${esc(b.id)}">Share ↗</button><span>${res === 'pending' ? 'Waiting on kickoff' : `<span class="sc-pl ${p > 0 ? 'pos' : p < 0 ? 'neg' : ''}">${plS}</span>`}</span>
@@ -6059,7 +6197,7 @@ function setTab(t) {
   if (t === 'sims') renderSims();
   if (t === 'moves') renderMoves();
   navTidy();
-  if (t === 'parlay') { renderSGP(); renderSafeSlate(); }
+  if (t === 'parlay') { renderManual(); renderSGP(); renderSafeSlate(); }
 }
 document.querySelector('nav').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { setTab(b.dataset.tab); store.set('edge-tab-chosen', '1'); } });
 setInterval(() => { if (S.live && !S.localLive) renderLive(); }, 60000);
