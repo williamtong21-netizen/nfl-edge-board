@@ -1008,6 +1008,7 @@ nav [data-tab="fantasy"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 nav [data-tab="tds"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20.5 3.5C14 2 6.9 4.3 4 9.5 2.6 12 2.8 16.4 3.5 20.5 7.6 21.2 12 21.4 14.5 20 19.7 17.1 22 10 20.5 3.5zM9 16.4l-1.4-1.4 7.4-7.4 1.4 1.4z'/%3E%3C/svg%3E")}
 nav [data-tab="parlay"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l10 5-10 5L2 7zm-7.6 8.8L12 14.6l7.6-3.8L22 12l-10 5L2 12zm0 5L12 19.6l7.6-3.8L22 17l-10 5L2 17z'/%3E%3C/svg%3E")}
 nav [data-tab="bets"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 6a2 2 0 012-2h14a2 2 0 012 2v3a3 3 0 000 6v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3a3 3 0 000-6zm6 1v2h2V7zm0 4v2h2v-2zm0 4v2h2v-2z'/%3E%3C/svg%3E")}
+nav [data-tab="moves"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 17.6L8.6 11l4 4 6.3-6.3-2.4-2.4H23v6.5l-2.4-2.4-8 8-4-4L3.4 19z'/%3E%3C/svg%3E")}
 nav [data-tab="shop"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 12V3h9l11 11-9 9zm5-6.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z'/%3E%3C/svg%3E")}
 nav [data-tab="lineups"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 3h18v18H3zm2 2v6h14V5zm0 8v6h14v-6zm6-6h2v2h-2zm0 8h2v2h-2z'/%3E%3C/svg%3E")}
 nav [data-tab="players"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='8' cy='8' r='3.5'/%3E%3Ccircle cx='17' cy='9' r='3'/%3E%3Cpath d='M1 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5zm14.5 0c0-2.2-.7-4-2-5.3 1.1-.5 2.3-.7 3.5-.7 3.6 0 6 2.2 6 6z'/%3E%3C/svg%3E")}
@@ -1100,6 +1101,24 @@ body.simopen{overflow:hidden}
   .simv-cap .tx{font-size:14px}.simv-box{font-size:12px;padding:8px}
   .sf-box{grid-template-columns:1fr}.sf-score b{font-size:44px}
 }
+
+/* Moves tab: line movement since open, last 6 / 24 hours, key numbers */
+.mv-now{margin:0 0 12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.mv-now h3{margin:0 6px 0 0}
+.mv-list{display:grid;gap:8px}
+.mv-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mv-card.big{border-color:color-mix(in srgb,var(--warn) 55%,var(--line))}
+.mv-h{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:minmax(150px,1.2fr) repeat(3,minmax(0,1fr));gap:10px;align-items:center;padding:10px 12px}
+.mv-h:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.mv-g{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;min-width:0}.mv-g b{font:700 15px var(--f-display);letter-spacing:.5px}.mv-g small{flex-basis:100%;color:var(--muted);font-size:12px}
+.mv-c{display:flex;flex-direction:column;min-width:0}.mv-c i{font-style:normal;color:var(--muted);font-size:11px;letter-spacing:1px;text-transform:uppercase}
+.mv-c b{font:700 15px var(--f-display);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mv-c small{color:var(--muted);font-size:12px}
+.mv-c b.mv-24{font:600 13px var(--f-body)}
+.mv-d{font-weight:700}.mv-d.up{color:var(--good)}.mv-d.dn{color:var(--bad)}.mv-d0{color:var(--muted)}
+.mv-flags{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 10px}
+.mv-x{border-top:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.mv-sparks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.mv-tl{width:100%;border-collapse:collapse;font-size:12.5px}.mv-tl th,.mv-tl td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left}.mv-tl .n{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:640px){.mv-h{grid-template-columns:1fr 1fr;gap:8px 12px}.mv-g{grid-column:1/-1}}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1158,6 +1177,7 @@ body.simopen{overflow:hidden}
     <button role="tab" id="tab-bets" data-tab="bets" aria-selected="false">My Bets</button>
     <span class="navsep" aria-hidden="true"></span>
     <button role="tab" id="tab-shop" data-tab="shop" aria-selected="false">Line Shop</button>
+    <button role="tab" id="tab-moves" data-tab="moves" aria-selected="false">Moves</button>
     <button role="tab" id="tab-lineups" data-tab="lineups" aria-selected="false">Lineups</button>
     <button role="tab" id="tab-players" data-tab="players" aria-selected="false">Players</button>
     <button role="tab" id="tab-teams" data-tab="teams" aria-selected="false">Teams</button>
@@ -1278,6 +1298,12 @@ body.simopen{overflow:hidden}
     </div>
     <p class="note" id="tm-note"></p>
     <div class="panel scroll" id="teams"></div>
+  </div>
+
+  <div id="view-moves" hidden>
+    <h2>Line moves</h2>
+    <p class="note" id="movesNote"></p>
+    <div id="moves"></div>
   </div>
 
   <div id="view-shop" hidden>
@@ -5207,6 +5233,90 @@ $('#pf-pos').addEventListener('click', e => {
 });
 
 // ------------------------------------------------------------ line shop
+// ------------------------------------------------------------ Moves tab: every line since it opened (open -> now), what moved in the last
+// 6 and 24 hours, key numbers crossed and favorites flipped; history = one snapshot per sync whenever a line changed
+const MV = { sort: 'big', open: new Set() };
+const MV_KEYS = () => SPORT === 'nfl' ? { sp: [3, 7, 10, 14], tot: [37, 41, 44, 47, 51] } : COL && !CBB ? { sp: [3, 7, 10, 14, 17, 21], tot: [] } : { sp: [], tot: [] };
+const mvFav = (g, hs) => hs == null ? '–' : hs === 0 ? 'Pick ’em' : hs < 0 ? `${g.home.abbr} ${fmtLine(hs)}` : `${g.away.abbr} ${fmtLine(-hs)}`;
+const mvNoVig = (h, a) => { const p = m => m == null ? null : m < 0 ? -m / (100 - m) : 100 / (m + 100), x = p(h), y = p(a); return x == null || y == null ? null : x / (x + y); };
+function moveData(g) {
+  const o = g.odds; if (!o || o.hs == null && o.t == null) return null;
+  const snaps = (S.hist?.snaps || []).filter(s => s.g[g.id]).map(s => ({ t: +new Date(s.t), v: s.g[g.id] }));
+  const first = snaps[0]?.v || [];
+  const open = [o.hso ?? first[0], o.to ?? first[1], o.hmlo ?? first[2], o.amlo ?? first[3]], cur = [o.hs, o.t, o.hml, o.aml];
+  // the line as of N hours ago: the last snapshot at or before then; unknown (null) if history doesn't reach back that far
+  const at = hrs => { const cut = Date.now() - hrs * 3600e3; let v = null; for (const s of snaps) if (s.t <= cut) v = s.v; return v || [null, null]; };
+  const d = (a, b) => a != null && b != null ? Math.round((b - a) * 10) / 10 : null;
+  const v6 = at(6), v24 = at(24);
+  const m = { g, snaps, open, cur, sp: d(open[0], cur[0]), tt: d(open[1], cur[1]), sp6: d(v6[0], cur[0]), tt6: d(v6[1], cur[1]), sp24: d(v24[0], cur[0]), tt24: d(v24[1], cur[1]),
+    w0: mvNoVig(open[2], open[3]), w1: mvNoVig(cur[2], cur[3]), flags: [] };
+  const K = MV_KEYS(), keys = (a, b, ks, what) => { if (a == null || b == null || a === b) return [];
+    const x = Math.abs(a), y = Math.abs(b), lo = Math.min(x, y), hi = Math.max(x, y);
+    return ks.filter(k => k >= lo && k <= hi && x !== y).map(k => y === k ? `${what}onto ${k}` : x === k ? `${what}off ${k}` : `${what}crossed ${k}`); };
+  const cap1 = t => t[0].toUpperCase() + t.slice(1);
+  if (open[0] != null && cur[0] != null && open[0] * cur[0] < 0) m.flags.push({ t: 'flip', s: `Favorite flipped: opened ${mvFav(g, open[0])}` });
+  for (const t of keys(open[0], cur[0], K.sp, 'spread ')) m.flags.push({ t: 'key', s: cap1(t) });
+  for (const t of keys(open[1], cur[1], K.tot, 'total ')) m.flags.push({ t: 'key', s: cap1(t) });
+  const fast = SPORT === 'nfl' ? [1.5, 2] : [2, 3];
+  if (Math.abs(m.sp6 || 0) >= fast[0] || Math.abs(m.tt6 || 0) >= fast[1]) m.flags.push({ t: 'fast', s: 'Moving now (last 6 hours)' });
+  m.score = Math.abs(m.sp || 0) + 0.6 * Math.abs(m.tt || 0);
+  m.score24 = Math.abs(m.sp24 || 0) + 0.6 * Math.abs(m.tt24 || 0);
+  return m;
+}
+function mvDelta(v, unit = '') { return v == null || v === 0 ? '<span class="mv-d0">no change</span>' : `<span class="mv-d ${v > 0 ? 'up' : 'dn'}">${v > 0 ? '▲' : '▼'} ${Math.abs(v)}${unit}</span>`; }
+function mvSpreadTxt(m) {   // which team the spread moved toward (home spread up = the away side got more points)
+  const g = m.g; if (!m.sp) return 'no change';
+  const t = m.sp > 0 ? g.away : g.home; return `${Math.abs(m.sp)} toward ${esc(nick(t))}`;
+}
+function mvWhy(m) {   // possible reasons already in our data: players out, QB changes
+  const g = m.g, out = [];
+  for (const sd of ['away', 'home']) {
+    const o = (g[sd].inj || []).filter(i => isOut(i.s) && (i.r || i.p === 'QB')).slice(0, 2);
+    if (o.length) out.push(`${g[sd].abbr}: ${o.map(i => `${i.n} (${i.p}) ${i.s.toLowerCase()}`).join(', ')}`);
+    const q = g.qb?.[sd]; if (q) out.push(`${g[sd].abbr}: QB change, ${q.new} started over ${q.old}`);
+  }
+  return out;
+}
+function renderMoves() {
+  const box = $('#moves'); if (!box) return;
+  const sl = S.slate; if (!sl) { box.innerHTML = ''; return; }
+  const rows = sl.games.filter(g => g.state === 'pre').map(moveData).filter(Boolean);
+  const hasHist = (S.hist?.snaps || []).length > 0;
+  $('#movesNote').innerHTML = `Every ${SPORT === 'nfl' ? 'game' : 'game with a line'}: where the spread and total opened, where they are now, and what moved in the last 6 and 24 hours. Big moves usually mean injury news or sharp money, and the best number is often gone once a move shows up here. Lines are checked every sync (about every 3 hours, more often on game days)${SPORT === 'nfl' || NBA ? '; big NFL and NBA moves also go to the group alerts channel' : ''}.${hasHist ? '' : ' <b>History started recording today</b>, so for now each game shows open → now, and the 6- and 24-hour columns fill in as the line moves.'}`;
+  if (!rows.length) { box.innerHTML = '<div class="empty"><b>No upcoming lines</b>Lines show up here once books post them.</div>'; return; }
+  const sorts = { big: (a, b) => b.score - a.score, now: (a, b) => b.score24 - a.score24, kick: (a, b) => new Date(a.g.date) - new Date(b.g.date) };
+  rows.sort(sorts[MV.sort]);
+  const now = rows.filter(m => m.flags.some(f => f.t === 'fast'));
+  box.innerHTML = `<div class="row" style="gap:6px;margin-bottom:10px" role="group" aria-label="Sort">
+      ${[['big', 'Biggest since open'], ['now', 'Biggest last 24h'], ['kick', 'Kickoff']].map(([k, l]) => `<button class="chip" data-mvsort="${k}" aria-pressed="${MV.sort === k}">${l}</button>`).join('')}</div>
+    ${now.length ? `<div class="mv-now"><h3>Moving now</h3>${now.map(m => `<button class="chip" data-mvjump="${m.g.id}">${esc(m.g.away.abbr)} @ ${esc(m.g.home.abbr)}${m.sp6 ? ` · ${Math.abs(m.sp6)} toward ${esc(m.sp6 > 0 ? m.g.away.abbr : m.g.home.abbr)}` : ''}${m.tt6 ? ` · total ${m.tt6 > 0 ? '▲' : '▼'}${Math.abs(m.tt6)}` : ''}</button>`).join('')}</div>` : ''}
+    <div class="mv-list">${rows.map(m => {
+      const g = m.g, open = MV.open.has(g.id), why = mvWhy(m);
+      const fav = m.cur[0] == null ? null : m.cur[0] <= 0 ? g.home : g.away, wNow = m.w1 == null ? null : (m.cur[0] <= 0 ? m.w1 : 1 - m.w1), wOpen = m.w0 == null ? null : (m.cur[0] <= 0 ? m.w0 : 1 - m.w0);
+      return `<article class="mv-card${m.score >= 3 ? ' big' : ''}" id="mv${g.id}">
+        <button class="mv-h" data-mvopen="${g.id}" aria-expanded="${open}">
+          <span class="mv-g">${logo(g.away.abbr, 22)}${logo(g.home.abbr, 22)}<b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b><small>${kick(g)}</small></span>
+          <span class="mv-c"><i>Spread</i><b>${esc(mvFav(g, m.open[0]))} → ${esc(mvFav(g, m.cur[0]))}</b><small>${mvSpreadTxt(m)}</small></span>
+          <span class="mv-c"><i>Total</i><b>${m.open[1] ?? '–'} → ${m.cur[1] ?? '–'}</b><small>${mvDelta(m.tt)}</small></span>
+          <span class="mv-c"><i>Last 24h</i><b class="mv-24">${m.sp24 == null && m.tt24 == null ? 'Not tracked yet' : `${m.sp24 ? `${Math.abs(m.sp24)} toward ${esc(nick(m.sp24 > 0 ? g.away : g.home))}` : 'Spread steady'} · ${m.tt24 ? `total ${m.tt24 > 0 ? '▲' : '▼'}${Math.abs(m.tt24)}` : 'total steady'}`}</b><small>${wNow != null && fav ? `${esc(fav.abbr)} win ${Math.round(wOpen * 100)}% → ${Math.round(wNow * 100)}%` : ''}</small></span>
+        </button>
+        ${m.flags.length ? `<div class="mv-flags">${m.flags.map(f => `<span class="b ${f.t === 'fast' ? 'r' : f.t === 'flip' ? 'r' : 'y'}">${esc(f.s)}</span>`).join('')}</div>` : ''}
+        ${open ? `<div class="mv-x">
+          ${why.length ? `<p class="note"><b>Possibly related:</b> ${why.map(esc).join(' · ')}</p>` : '<p class="note">Nothing in our injury or lineup data explains it; check the news before betting against the move.</p>'}
+          <div class="mv-sparks">${spark(g, 0, g.home.abbr + ' spread', fmtLine)}${spark(g, 1, 'Total', v => v ?? '–')}</div>
+          ${m.snaps.length ? `<table class="mv-tl"><tr><th>When</th><th>Spread</th><th class="n">Total</th><th class="n">${esc(g.away.abbr)} ML</th><th class="n">${esc(g.home.abbr)} ML</th></tr>
+            <tr><td>Open</td><td>${esc(mvFav(g, m.open[0]))}</td><td class="n">${m.open[1] ?? '–'}</td><td class="n">${fmtOdds(m.open[3])}</td><td class="n">${fmtOdds(m.open[2])}</td></tr>
+            ${m.snaps.slice(-12).map(s => `<tr><td>${new Date(s.t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</td><td>${esc(mvFav(g, s.v[0]))}</td><td class="n">${s.v[1] ?? '–'}</td><td class="n">${fmtOdds(s.v[3])}</td><td class="n">${fmtOdds(s.v[2])}</td></tr>`).join('')}</table>` : ''}
+          <div class="row" style="gap:6px"><button class="btn small" data-go="${g.id}">Open game</button>${g.state === 'pre' && g.odds ? `<button class="btn small" data-addleg="${g.id}|spread|${m.sp > 0 ? 'away' : 'home'}">+ Parlay: side it moved to</button><button class="btn small" data-addleg="${g.id}|total|${m.tt < 0 ? 'under' : 'over'}">+ Parlay: ${m.tt < 0 ? 'under' : 'over'}</button>` : ''}</div>
+        </div>` : ''}
+      </article>`; }).join('')}</div>`;
+}
+document.addEventListener('click', e => {
+  const s = e.target.closest('[data-mvsort]'); if (s) { MV.sort = s.dataset.mvsort; renderMoves(); return; }
+  const o = e.target.closest('[data-mvopen]'); if (o) { const id = o.dataset.mvopen; MV.open.has(id) ? MV.open.delete(id) : MV.open.add(id); renderMoves(); return; }
+  const j = e.target.closest('[data-mvjump]'); if (j) { MV.open.add(j.dataset.mvjump); renderMoves(); $('#mv' + j.dataset.mvjump)?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
+});
+
 function renderShop() {
   const sl = S.slate, box = $('#shop');
   if (!sl) { box.innerHTML = ''; $('#shopNote').textContent = ''; return; }
@@ -5708,7 +5818,7 @@ queueMicrotask(() => {
   if (NBA && ['tds', 'sims', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
   if (SPORT === 'nfl' && store.get('edge-tab') === 'fantasy') setTab('board');   // fantasy moved to its own mode
 });
-function renderAll() { normProps(); navTidy(); renderSync(); renderBoard(); renderSims(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderFantasy(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
+function renderAll() { normProps(); navTidy(); renderSync(); renderBoard(); renderMoves(); renderSims(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderFantasy(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
 
 // ------------------------------------------------------------ tab bar tidy-up (phones): main tabs + More
 const NAV_MAIN = ['board', 'picks', 'live', 'props', 'sims', 'parlay'];
@@ -5748,11 +5858,12 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#moreS
 
 function setTab(t) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
-  for (const v of ['live', 'picks', 'board', 'sims', 'lineups', 'props', 'fantasy', 'players', 'teams', 'shop', 'tds', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
+  for (const v of ['live', 'picks', 'board', 'sims', 'lineups', 'props', 'fantasy', 'players', 'teams', 'shop', 'moves', 'tds', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
   store.set('edge-tab', t);
   if (t === 'fantasy') lgBoot();
   if (t === 'tds') renderTD();   // props may have loaded since it last drew
   if (t === 'sims') renderSims();
+  if (t === 'moves') renderMoves();
   navTidy();
   if (t === 'parlay') renderSGP();
 }

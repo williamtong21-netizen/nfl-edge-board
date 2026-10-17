@@ -695,6 +695,27 @@ def lineups(games):
     return res
 
 
+def line_history(games, season, keep_days=30):
+    """College / NBA / college basketball line history (the NFL keeps its own inline): one snapshot per run, only for games
+    whose spread, total or moneylines changed; kept in DATA, and the hosted copy carries just the games on the slate."""
+    path = os.path.join(DATA, f"history_{season}.json")
+    try: hist = json.load(open(path, encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError): hist = {"season": season, "snaps": []}
+    lines = {g["id"]: [g["odds"].get("hs"), g["odds"].get("t"), g["odds"].get("hml"), g["odds"].get("aml")]
+             for g in games if g.get("odds") and g.get("state") == "pre"}
+    last = {}
+    for sn in hist["snaps"]: last.update(sn["g"])
+    changed = {k: v for k, v in lines.items() if last.get(k) != v}
+    now = datetime.now(timezone.utc)
+    if changed: hist["snaps"].append({"t": now.isoformat(timespec="seconds"), "g": changed})
+    cut = (now - timedelta(days=keep_days)).isoformat(timespec="seconds")
+    hist["snaps"] = [sn for sn in hist["snaps"] if sn["t"] >= cut]
+    save(path, hist)
+    ids = {g["id"] for g in games}
+    snaps = [{"t": sn["t"], "g": {k: v for k, v in sn["g"].items() if k in ids}} for sn in hist["snaps"]]
+    return {"season": season, "snaps": [sn for sn in snaps if sn["g"]]}
+
+
 def chunk(rows, limit=180_000):
     """Split a {game_id: data} map into dicts that stay under the db's 256 KiB document limit."""
     chunks, cur = [], {}

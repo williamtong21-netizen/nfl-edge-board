@@ -139,7 +139,7 @@ def main():
     slate = {"updatedAt": now, "sport": "cfb", "propParts": 0, "analytics": None, "season": season, "week": week,
              "seasonType": sb["season"].get("type", 2), "odds": odds_meta, "report": None, "cfbModel": model_note, "cfbReport": report(res), "cfbFlags": flags, "games": games}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
-    sync.save(os.path.join(sync.OUT, "history.json"), {"season": season, "snaps": []})
+    sync.save(os.path.join(sync.OUT, "history.json"), sync.line_history(games, season))   # Moves tab
     sync.save(os.path.join(sync.OUT, "results.json"), res)
     sync.save(os.path.join(sync.OUT, "manifest.json"), [{"collection": "slate", "doc_id": "current", "file": "slate.json"}])
     print(json.dumps({"sport": "cfb", "season": season, "week": week, "games": len(games),

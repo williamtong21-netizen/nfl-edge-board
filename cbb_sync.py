@@ -95,7 +95,7 @@ def main():
              "odds": {"source": "ESPN (DraftKings)"}, "report": None, "cfbModel": model_note, "cfbReport": report(res), "games": games}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
     sync.save(os.path.join(sync.OUT, "results.json"), res)
-    if not os.path.exists(os.path.join(sync.OUT, "history.json")): sync.save(os.path.join(sync.OUT, "history.json"), {"season": season, "snaps": []})
+    sync.save(os.path.join(sync.OUT, "history.json"), sync.line_history(games, season))   # Moves tab
     sync.save(os.path.join(sync.OUT, "manifest.json"), [{"collection": "slate", "doc_id": "current", "file": "slate.json"},
                                                         {"collection": "results", "doc_id": str(season), "file": "results.json"}])
     print(json.dumps({"sport": "cbb", "season": season, "games": len(games), "with_odds": sum(1 for g in games if g.get("odds")), "kalshi": nk}))

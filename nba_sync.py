@@ -218,7 +218,7 @@ def main():
              "odds": {"source": "ESPN (DraftKings)"}, "report": None, "nbaModel": {"mktW": MKT_W}, "games": games, "arbs": gaps}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
     sync.save(os.path.join(sync.OUT, "props-0.json"), {"sync": stamp, "part": 0, "games": props})
-    if not os.path.exists(os.path.join(sync.OUT, "history.json")): sync.save(os.path.join(sync.OUT, "history.json"), {"season": season, "snaps": []})
+    sync.save(os.path.join(sync.OUT, "history.json"), sync.line_history(games, season))   # Moves tab
     res = record(games, season)
     sync.save(os.path.join(sync.OUT, "results.json"), res)
     sync.save(os.path.join(sync.OUT, "manifest.json"), [{"collection": "slate", "doc_id": "current", "file": "slate.json"},
