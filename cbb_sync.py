@@ -90,12 +90,15 @@ def main():
     try: nk = kalshi.apply(games, {})
     except Exception as ex: print("kalshi failed", ex, file=sys.stderr); nk = 0
     res = record(games, season)
+    hist = sync.line_history(games, season)   # Moves tab
+    try: import moves; moves.explain(games, hist["snaps"], "basketball/mens-college-basketball")
+    except Exception as ex: print("move reasons failed", ex, file=sys.stderr)
     stamp = now.isoformat(timespec="seconds")
     slate = {"updatedAt": stamp, "sport": "cbb", "propParts": 0, "analytics": None, "season": season, "week": None, "seasonType": stype,
              "odds": {"source": "ESPN (DraftKings)"}, "report": None, "cfbModel": model_note, "cfbReport": report(res), "games": games}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
     sync.save(os.path.join(sync.OUT, "results.json"), res)
-    sync.save(os.path.join(sync.OUT, "history.json"), sync.line_history(games, season))   # Moves tab
+    sync.save(os.path.join(sync.OUT, "history.json"), hist)
     sync.save(os.path.join(sync.OUT, "manifest.json"), [{"collection": "slate", "doc_id": "current", "file": "slate.json"},
                                                         {"collection": "results", "doc_id": str(season), "file": "results.json"}])
     print(json.dumps({"sport": "cbb", "season": season, "games": len(games), "with_odds": sum(1 for g in games if g.get("odds")), "kalshi": nk}))

@@ -135,11 +135,14 @@ def main():
         cfb_flags.alert(st, games, cfg, os.path.join(sync.DATA, f"cfb_flags_{season}.json"))
     except Exception as e:
         import traceback; traceback.print_exc(); print("cfb flags failed", e, file=sys.stderr)
+    hist = sync.line_history(games, season)   # Moves tab
+    try: import moves; moves.explain(games, hist["snaps"], "football/college-football")
+    except Exception as e: print("move reasons failed", e, file=sys.stderr)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     slate = {"updatedAt": now, "sport": "cfb", "propParts": 0, "analytics": None, "season": season, "week": week,
              "seasonType": sb["season"].get("type", 2), "odds": odds_meta, "report": None, "cfbModel": model_note, "cfbReport": report(res), "cfbFlags": flags, "games": games}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
-    sync.save(os.path.join(sync.OUT, "history.json"), sync.line_history(games, season))   # Moves tab
+    sync.save(os.path.join(sync.OUT, "history.json"), hist)
     sync.save(os.path.join(sync.OUT, "results.json"), res)
     sync.save(os.path.join(sync.OUT, "manifest.json"), [{"collection": "slate", "doc_id": "current", "file": "slate.json"}])
     print(json.dumps({"sport": "cfb", "season": season, "week": week, "games": len(games),

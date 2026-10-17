@@ -1119,6 +1119,12 @@ body.simopen{overflow:hidden}
 .mv-sparks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
 .mv-tl{width:100%;border-collapse:collapse;font-size:12.5px}.mv-tl th,.mv-tl td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left}.mv-tl .n{text-align:right;font-variant-numeric:tabular-nums}
 @media (max-width:640px){.mv-h{grid-template-columns:1fr 1fr;gap:8px 12px}.mv-g{grid-column:1/-1}}
+
+.mv-top{margin:0;padding:0 12px 10px;font-size:13px}
+.mv-j,.mv-rs{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.mv-r{display:flex;gap:8px;align-items:baseline;font-size:13px}.mv-r .b{flex:none}.mv-r a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:2px}
+.mv-r.near a,.mv-r.near>span:last-child>b{font-weight:700}
+.b.g{background:var(--good-soft);color:var(--good);border-color:var(--good)}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -5277,6 +5283,23 @@ function mvWhy(m) {   // possible reasons already in our data: players out, QB c
   }
   return out;
 }
+const mvAgo = t => { const h = (Date.now() - new Date(t)) / 3600e3; return h < 1 ? 'just now' : h < 24 ? Math.round(h) + 'h ago' : Math.round(h / 24) + 'd ago'; };
+const mvWhen = t => new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+const MV_KIND = { news: 'News', media: 'Video', inj: 'Injury', lineup: 'Lineup', weather: 'Weather' };
+function mvJumpTxt(g, j) {
+  const sp = j.sp ? `${Math.abs(j.sp)} toward ${esc(nick(j.sp > 0 ? g.away : g.home))}` : '', tt = j.tt ? `total ${j.tt > 0 ? '▲' : '▼'}${Math.abs(j.tt)}` : '';
+  const when = j.t0 ? `between ${mvWhen(j.t0)} and ${mvWhen(j.t1)}` : `between the open and ${mvWhen(j.t1)} (before we started tracking)`;
+  return `<li><b>${[sp, tt].filter(Boolean).join(', ')}</b> <span class="note">${when}</span></li>`;
+}
+function mvReasons(m) {   // the sync's reasons (news timed against the move, injuries, lineup, weather); older data: injuries / QB only
+  const w = m.g.why;
+  if (!w) { const r = mvWhy(m); return r.length ? `<p class="note"><b>Possibly related:</b> ${r.map(esc).join(' · ')}</p>` : ''; }
+  const items = (w.items || []).map(x => `<li class="mv-r ${x.near ? 'near' : ''}"><span class="b ${x.kind === 'inj' ? 'r' : x.kind === 'weather' ? 'y' : ''}">${MV_KIND[x.kind] || 'News'}</span>
+      <span>${x.team ? `<b>${esc(x.team)}</b> ` : ''}${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.text)}</a>` : esc(x.text)}${x.t ? ` <span class="note">· ${mvAgo(x.t)}</span>` : ''}${x.near ? ' <span class="b g">Right before the move</span>' : ''}</span></li>`).join('');
+  return `${(w.jumps || []).length ? `<div><h3>When it moved</h3><ul class="mv-j">${w.jumps.map(j => mvJumpTxt(m.g, j)).join('')}</ul></div>` : ''}
+    <div><h3>Possible reasons</h3>${items ? `<ul class="mv-rs">${items}</ul>` : '<p class="note">No injury, lineup, weather or team news in our feeds explains it. A move with no news usually comes from betting action (often sharp money), though it can also be news not reported yet.</p>'}</div>`;
+}
+const mvTop = m => { const it = m.g.why?.items?.[0]; if (it) return it.text; const r = mvWhy(m); return r[0] || null; };
 function renderMoves() {
   const box = $('#moves'); if (!box) return;
   const sl = S.slate; if (!sl) { box.innerHTML = ''; return; }
@@ -5301,8 +5324,9 @@ function renderMoves() {
           <span class="mv-c"><i>Last 24h</i><b class="mv-24">${m.sp24 == null && m.tt24 == null ? 'Not tracked yet' : `${m.sp24 ? `${Math.abs(m.sp24)} toward ${esc(nick(m.sp24 > 0 ? g.away : g.home))}` : 'Spread steady'} · ${m.tt24 ? `total ${m.tt24 > 0 ? '▲' : '▼'}${Math.abs(m.tt24)}` : 'total steady'}`}</b><small>${wNow != null && fav ? `${esc(fav.abbr)} win ${Math.round(wOpen * 100)}% → ${Math.round(wNow * 100)}%` : ''}</small></span>
         </button>
         ${m.flags.length ? `<div class="mv-flags">${m.flags.map(f => `<span class="b ${f.t === 'fast' ? 'r' : f.t === 'flip' ? 'r' : 'y'}">${esc(f.s)}</span>`).join('')}</div>` : ''}
+        ${mvTop(m) ? `<p class="mv-top">Possible reason: ${esc(mvTop(m))}${(m.g.why?.items?.length || 0) > 1 ? ` <span class="note">+${m.g.why.items.length - 1} more</span>` : ''}</p>` : m.g.why && m.score >= 2 ? '<p class="mv-top note">No news found; likely betting action</p>' : ''}
         ${open ? `<div class="mv-x">
-          ${why.length ? `<p class="note"><b>Possibly related:</b> ${why.map(esc).join(' · ')}</p>` : '<p class="note">Nothing in our injury or lineup data explains it; check the news before betting against the move.</p>'}
+          ${mvReasons(m) || '<p class="note">Nothing in our injury or lineup data explains it; check the news before betting against the move.</p>'}
           <div class="mv-sparks">${spark(g, 0, g.home.abbr + ' spread', fmtLine)}${spark(g, 1, 'Total', v => v ?? '–')}</div>
           ${m.snaps.length ? `<table class="mv-tl"><tr><th>When</th><th>Spread</th><th class="n">Total</th><th class="n">${esc(g.away.abbr)} ML</th><th class="n">${esc(g.home.abbr)} ML</th></tr>
             <tr><td>Open</td><td>${esc(mvFav(g, m.open[0]))}</td><td class="n">${m.open[1] ?? '–'}</td><td class="n">${fmtOdds(m.open[3])}</td><td class="n">${fmtOdds(m.open[2])}</td></tr>

@@ -948,6 +948,9 @@ def main():
     try:   # price gaps across books and Kalshi (arbitrage), each leg with how old its price is
         import arbs; gaps = arbs.find(games, props, (odds_meta or {}).get("at"))
     except Exception as e: print("arbs failed", e, file=sys.stderr); gaps = []
+    try:   # Moves tab: when each line jumped and the news / injuries / lineup / weather that may explain it
+        import moves; moves.explain(games, hist_out["snaps"], "football/nfl")
+    except Exception as e: print("move reasons failed", e, file=sys.stderr)
     slate = {"updatedAt": now, "propParts": len(chunks), "analytics": team_an, "season": season, "week": week, "seasonType": stype, "odds": odds_meta, "report": report, "games": games, "arbs": gaps, "sim": sim_idx, "simCard": sim_card}
     save(os.path.join(OUT, "slate.json"), slate)
     try:   # group push alerts (ntfy): line moves, QBs out, TD prices posting, weekly recap

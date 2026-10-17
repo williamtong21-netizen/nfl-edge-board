@@ -213,12 +213,15 @@ def main():
         except (FileNotFoundError, ValueError): cfg = {}
         alerts.run([g for g in games if not g.get("pre_season")], props, None, cfg, os.path.join(sync.DATA, "alerts_state.json"), label="NBA", gaps=gaps)
     except Exception as ex: print("alerts failed", ex, file=sys.stderr)
+    hist = sync.line_history(games, season)   # Moves tab
+    try: import moves; moves.explain(games, hist["snaps"], "basketball/nba")
+    except Exception as ex: print("move reasons failed", ex, file=sys.stderr)
     stamp = now.isoformat(timespec="seconds")
     slate = {"updatedAt": stamp, "sport": "nba", "propParts": 1, "analytics": None, "season": season, "week": None, "seasonType": stype,
              "odds": {"source": "ESPN (DraftKings)"}, "report": None, "nbaModel": {"mktW": MKT_W}, "games": games, "arbs": gaps}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
     sync.save(os.path.join(sync.OUT, "props-0.json"), {"sync": stamp, "part": 0, "games": props})
-    sync.save(os.path.join(sync.OUT, "history.json"), sync.line_history(games, season))   # Moves tab
+    sync.save(os.path.join(sync.OUT, "history.json"), hist)
     res = record(games, season)
     sync.save(os.path.join(sync.OUT, "results.json"), res)
     sync.save(os.path.join(sync.OUT, "manifest.json"), [{"collection": "slate", "doc_id": "current", "file": "slate.json"},
