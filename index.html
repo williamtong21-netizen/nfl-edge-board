@@ -2843,10 +2843,19 @@ const fairOf = (price, other) => { const a = impl(price), b = impl(other); retur
 const blend = (ours, fair) => ours == null ? null : fair == null ? ours : 0.5 * ours + 0.5 * fair;
 const evS = e => e == null ? '' : `${e >= 0 ? '+' : ''}${(e * 100).toFixed(1)}% EV`;
 // our chance a side wins at a given number: spreads/totals from the projected score, moneylines from our win chance
+// games without our own projection (college, college basketball): the market's own numbers, so parlays still get a chance per leg
+// and a grade. Spread of results around the line by sport: margin / total (NFL 13.5 / 13, college football 16 / 15, NBA 12.5 / 17, CBB 11 / 14)
+const MKT_SD = () => CFB ? [16, 15] : CBB ? [11, 14] : NBA ? [12.5, 17] : [13.5, 13];
+function mktProj(g) {
+  const o = g.odds || {}; if (o.hs == null && o.t == null && o.hml == null) return null;
+  const margin = o.hs != null ? -o.hs : null, ph = o.hml != null && o.aml != null ? (() => { const a = prob(o.hml), b = prob(o.aml); return a / (a + b); })() : margin != null ? normCdf(margin / MKT_SD()[0]) : null;
+  return { margin, total: o.t ?? null, pHome: ph, mkt: true };
+}
 function ourChance(g, kind, side, line) {
-  const p = g.proj; if (!p) return null;
-  if (kind === 'spread') { const m = side === 'home' ? p.margin : -p.margin; return normCdf((m + line) / 13.5); }
-  if (kind === 'total') { const z = (line - p.total) / 13; return side === 'over' ? 1 - normCdf(z) : normCdf(z); }
+  const p = g.proj || mktProj(g); if (!p) return null;
+  const [sdM, sdT] = g.proj ? [13.5, 13] : MKT_SD();
+  if (kind === 'spread') { if (p.margin == null) return null; const m = side === 'home' ? p.margin : -p.margin; return normCdf((m + line) / sdM); }
+  if (kind === 'total') { if (p.total == null) return null; const z = (line - p.total) / sdT; return side === 'over' ? 1 - normCdf(z) : normCdf(z); }
   if (kind === 'ml') return side === 'home' ? p.pHome : 1 - p.pHome;
   return null;
 }
