@@ -237,8 +237,8 @@ def prop_projections(props, games, an, season):
     lg = {}
     for d in teams.values():
         for pos, v in (d.get("dvp") or {}).items():
-            for k, x in v.items():
-                if k != "rk": lg.setdefault((pos, k), []).append(x)
+            for k, x in v.items():   # plain per-game numbers only (skips the rank table and the last-3-games block)
+                if isinstance(x, (int, float)): lg.setdefault((pos, k), []).append(x)
     lg = {k: sum(v) / len(v) for k, v in lg.items() if v}
     rzs = [d["def"]["rz"] for d in teams.values() if (d.get("def") or {}).get("rz") is not None]
     lg_rz = sum(rzs) / len(rzs) if rzs else None
