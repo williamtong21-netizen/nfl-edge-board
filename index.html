@@ -4945,7 +4945,17 @@ const SLP_TM = { WAS: 'WSH' };   // Sleeper team codes that differ from ESPN's
 const LG = { user: store.get('edge-slp-user') || '', league: store.get('edge-slp-league') || '', leagues: null, data: null, err: '', busy: false, need: '',
   an: { team: '', give: new Set(), get: new Set() } };
 const lgName = l => /nig/i.test(l.name || '') ? 'GSO League' : l.name || 'League';   // league names with slurs never shown
-const slp = p => fetch(SLP + p).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+// Sleeper calls retry twice on a dropped connection or a busy server (a league load fires ~15 requests at once on a phone)
+const slp = async (p, tries = 3) => {
+  for (let i = 0; ; i++) {
+    let r = null;
+    try { r = await fetch(SLP + p); } catch (e) { if (i >= tries - 1) throw new Error('NET'); }
+    if (r && r.ok) return r.json();
+    if (r && ((r.status < 500 && r.status !== 429) || i >= tries - 1)) throw new Error(String(r.status));
+    await new Promise(res => setTimeout(res, 600 * (i + 1)));
+  }
+};
+const lgErr = e => e.message === 'NET' || /failed to fetch|load failed|network/i.test(e.message) ? 'Couldn\'t reach Sleeper (the connection dropped). Tap the league again to retry.' : e.message;
 const FLEX_OK = { FLEX: ['RB', 'WR', 'TE'], SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'], REC_FLEX: ['WR', 'TE'], WRRB_FLEX: ['RB', 'WR'] };
 async function lgConnect(name) {
   LG.busy = true; LG.err = ''; renderLeague();
@@ -4958,10 +4968,11 @@ async function lgConnect(name) {
     if (!LG.leagues.length) throw new Error(`No ${season} NFL leagues for ${LG.user} on Sleeper`);
     if (!LG.leagues.some(l => l.league_id === LG.league)) LG.league = LG.leagues.length === 1 ? LG.leagues[0].league_id : '';
     if (LG.league) await lgLoad(LG.league);
-  } catch (e) { LG.err = e.message === '404' ? 'Sleeper didn\'t find that username.' : e.message; }
+  } catch (e) { LG.err = e.message === '404' ? 'Sleeper didn\'t find that username.' : lgErr(e); }
   LG.busy = false; renderLeague();
 }
-const ffVals = () => fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null);
+const ffVals = () => fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null)
+  .catch(() => new Promise(res => setTimeout(res, 800)).then(() => fetch(DATA_BASE + 'ff_values.json', { cache: 'no-cache' })).then(r => r.ok ? r.json() : null));
 async function lgLoad(id) {
   LG.busy = true; if (!LG.data) renderLeague();
   try {
@@ -4984,7 +4995,7 @@ async function lgLoad(id) {
     if (mine) LG.data.mu = { week: wkNow, opp: opp?.roster_id, pts: { ...(mine.players_points || {}), ...(opp?.players_points || {}) }, mine: mine.points, theirs: opp?.points,
       oppStarters: opp?.starters || [] };
     if (!LG.leagues) LG.leagues = [league];
-  } catch (e) { LG.err = e.message; LG.data = null; }
+  } catch (e) { LG.err = lgErr(e); LG.data = null; }
   LG.busy = false; renderLeague();
 }
 // Yahoo: the sync pulls the league; you pick your team once on this device
