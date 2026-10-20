@@ -887,7 +887,7 @@ def main():
             pb = load("prop_backtest.json", {})
             todo = [w for w in range(1, (week or 1) + 1) if str(w) not in pb and td_backtest.ready(w)][:1]
             for w in todo:
-                pb[str(w)] = td_backtest.summarize(prop_backtest.build(w), projections.MKT_PROP_W)
+                pb[str(w)] = td_backtest.summarize(prop_backtest.build(w), projections.MKT_PROP_W, td_backtest.PROP_EDGE)
             if todo: save(os.path.join(DATA, "prop_backtest.json"), pb)
             if report is not None: report["pbt"] = pb
         except Exception as e:
@@ -899,7 +899,7 @@ def main():
             todo = [w for w in range(1, (week or 1) + 1) if str(w) not in pb2 and td_backtest.ready(w)][:1]
             for w in todo:
                 rs = prop_backtest.build(w, prop_backtest.SERIES2)
-                pb2[str(w)] = {**td_backtest.summarize(rs, projections.MKT_PROP_W), "mk": prop_backtest.by_market(rs)}
+                pb2[str(w)] = {**td_backtest.summarize(rs, projections.MKT_PROP_W, td_backtest.PROP_EDGE), "mk": prop_backtest.by_market(rs)}
             if todo: save(os.path.join(DATA, "prop_backtest2.json"), pb2)
             if report is not None: report["pbt2"] = pb2
         except Exception as e:

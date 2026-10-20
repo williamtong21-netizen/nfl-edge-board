@@ -218,19 +218,23 @@ def ready(week):
     return sum(1 for w in st if i(w.get("week")) == week) > 200
 
 
-def summarize(rows_, wt):
+EDGE = 0.03      # TD value bet: our number beats the price by 3+ points after the fee
+PROP_EDGE = 0.05  # yardage / other props need 5+ (3 lost 8% over the 2025 replay, 5 made 8%)
+
+
+def summarize(rows_, wt, edge=EDGE):
     """One week's scorecard: accuracy for our model, Kalshi and the blend the app uses, and the $10 value-bet results."""
     for r in rows_: r["blend"] = wt * r["mid"] + (1 - wt) * r["p"]
     out = {"n": len(rows_), "scored": sum(r["scored"] for r in rows_), "wt": wt}
     for key in ("p", "mid", "blend"):
         out[key] = {"sse": round(sum((r[key] - r["scored"]) ** 2 for r in rows_), 4)}
     for key in ("p", "blend"):
-        n, w, pl = bets(rows_, key); out[key].update({"bets": n, "won": w, "pl": round(pl, 2)})
+        n, w, pl = bets(rows_, key, edge); out[key].update({"bets": n, "won": w, "pl": round(pl, 2)})
     # the week's best calls for the recap card: value bets on "he scores" that cashed, biggest payout first
     hits = []
     for r in rows_:
         cost = r["ask"] + fee(r["ask"])
-        if r["scored"] and r["blend"] - cost >= 0.03:
+        if r["scored"] and r["blend"] - cost >= edge:
             hits.append({"n": r["n"], "team": r.get("team"), "game": r.get("game"), "cost": round(cost, 3), "won": round(10 * (1 - cost) / cost, 2)})
     out["hits"] = sorted(hits, key=lambda h: -h["won"])[:5]
     return out
@@ -246,8 +250,8 @@ def score(rows_, key):
 def fee(p): return 0.07 * p * (1 - p)
 
 
-def bets(rows_, key, edge=0.03, stake=10):
-    """Flat $10 on whichever side our number says Kalshi has mispriced by 3+ points after the fee."""
+def bets(rows_, key, edge=EDGE, stake=10):
+    """Flat $10 on whichever side our number says Kalshi has mispriced by `edge`+ after the fee."""
     pl, n, w = 0.0, 0, 0
     for r in rows_:
         p, yes_cost, no_cost = r[key], r["ask"] + fee(r["ask"]), (1 - r["bid"]) + fee(1 - r["bid"])

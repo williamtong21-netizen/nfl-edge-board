@@ -178,7 +178,8 @@ MKT_PROP_W = 0.6  # yardage / reception props: weight on the market's chance (ou
 # passing yards too, after the full 2025 replay (weeks 5-18): our pass-yds leans hit 46%; 85% market beat 60% (0.2446 vs 0.2476)
 MKT_PROP_W_BY = {"Rush yds": 0.85, "Carries": 0.85, "Rush+rec yds": 0.85, "Pass yds": 0.85, "Pass+rush yds": 0.85}
 GAME_MKT_W = 1.0  # game margin / total: weight on the market line (our team model added nothing over 2024-26; see game_backtest.py)
-MKT_TD_W = 0.6    # TD chance: weight on the market's own chance; 0.6 tested best on weeks 1-4 of 2026 (td_backtest.py)
+MKT_TD_W = 0.75   # TD chance: weight on the market's own chance. More market was more accurate in both 2025 (3,834 player-games)
+                  # and 2026 weeks 1-6 (1,607); value bets lost in 2025 and won in 2026 at every setting, so 0.75 keeps a few
 # the model's own TD chance, recalibrated: over 2025 weeks 1-11 it read long shots too low (said 7%, they scored 10%)
 # and 45-60% players too high (said 51%, scored 43%). logit(p') = A + B x logit(p), fit on 2025, and it also improved
 # the held-out 2026 weeks (Brier 0.1507 -> 0.1497). td_backtest.py applies the same.
@@ -419,6 +420,10 @@ def prop_projections(props, games, an, season):
                     blend_m = lambda ours, m: round(max(0.03, min(0.97, (1 - wm) * ours + wm * m)), 3)
                     ours_l = chance(pr["l"])
                     pr["pModel"] = ours_l
+                    # the market's own read at the main line (books' de-vigged prices, else Kalshi), so picks can require it to agree
+                    mk = sorted(mkt_at(b["l"], b["o"], b["u"]) for b in pr.get("books", []) if b.get("l") == pr["l"] and b.get("o") and b.get("u"))
+                    mk = mk[len(mk) // 2] if mk else mkt_at(pr["l"])
+                    if mk != 0.5: pr["pMkt"] = round(mk, 3)
                     pr["pOver"] = blend_m(ours_l, mkt_at(pr["l"]))
                     for b in pr.get("books", []): b["p"] = blend_m(chance(b["l"]), mkt_at(b["l"], b.get("o"), b.get("u")))   # each book's own line
                 pr["mx"] = round(mult, 2)
