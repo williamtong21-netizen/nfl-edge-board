@@ -21,8 +21,8 @@ import bisect, json, math, os, random, sys, time, zlib
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 TABLES = os.path.join(os.environ.get("EDGE_DATA") or os.path.join(ROOT, "data"), "sim_tables.json")
-VERSION = 5   # bump when the engine changes so every game re-simulates
-N_SIMS, CAL_ROUNDS, CAL_N, POLISH_N = 2000, 12, 500, 1500
+VERSION = 6   # bump when the engine changes so every game re-simulates
+N_SIMS, CAL_ROUNDS, CAL_N, POLISH_N, POLISH_ROUNDS = 2000, 12, 500, 1500, 7
 ST = ("att", "cmp", "pyd", "ptd", "int", "car", "ryd", "rtd", "tgt", "rec", "cyd", "ctd", "lng")
 S = {k: i for i, k in enumerate(ST)}
 MKT = {"Pass yds": ("pyd",), "Pass att": ("att",), "Completions": ("cmp",), "Pass TD": ("ptd",), "INT": ("int",),
@@ -39,6 +39,7 @@ TWO_PT_CHART = {-2, -5, -9, -10, -12, -16, 1, 5, 12}   # margin after the six, w
 TWO_PT_BASE, TWO_PT_P = 0.03, 0.48
 SHOCK_SD, PACE_SD = 0.095, 0.0  # game-day form: one side plays better than expected, the other worse (sim margins were tighter than real; totals already matched)
 FGMODE_S, FGMODE_P, FGTIE_S, OT_FG_P = 110, 0.8, 90, 0.9  # play-for-the-FG window (seconds left in the 4th) and make chance needed
+K_FIN, K_SUS = (0.4, 2.0), (0.6, 1.5)   # points knob ranges (red-zone finishing, money-down sustain)
 CLOCK_K = 1.08    # runoff per snap vs the table: penalties, replay reviews and injuries also run clock (tuned to 2025 snaps)
 SQ2 = math.sqrt(2)
 Phi = lambda x: 0.5 * math.erfc(-x / SQ2)
@@ -515,6 +516,16 @@ def pois_mean(line, p):
     return (lo + hi) / 2
 
 
+def _pts_knobs(tm, f):
+    """move a team's points by factor f: red-zone finishing first, whatever its range can't take through drive sustain.
+    The ranges are wide on purpose: with the old 0.6-1.6 / 0.8-1.35 a big underdog's knobs sat on the floor (and a big
+    favorite's on the ceiling) while the dog still scored 1-2 points too many, so sim margins came up ~0.7 short of the
+    spread and every 55%+ spread call landed on the dog."""
+    want = tm.k_fin * f
+    tm.k_fin = max(K_FIN[0], min(K_FIN[1], want))
+    if want != tm.k_fin: tm.k_sus = max(K_SUS[0], min(K_SUS[1], tm.k_sus * want / tm.k_fin))
+
+
 def calibrate(sim, seed, rounds=CAL_ROUNDS, n=CAL_N):
     H, A = sim.H, sim.A
     cl = lambda x, a, b: max(a, min(b, x))
@@ -531,9 +542,7 @@ def calibrate(sim, seed, rounds=CAL_ROUNDS, n=CAL_N):
             ti = 0 if side == "home" else 1
             pts = sum(r[0][ti] for r in res) / len(res)
             # points: red-zone finishing first (a realistic 0.6-1.6 range), the rest through drive sustain on money downs
-            want = tm.k_fin * cl((tm.pts_target / max(1, pts)) ** (1.4 * dmp), 0.75, 1.35)
-            tm.k_fin = cl(want, 0.6, 1.6)
-            if want != tm.k_fin: tm.k_sus = cl(tm.k_sus * (want / tm.k_fin) ** 0.5, 0.8, 1.35)
+            _pts_knobs(tm, cl((tm.pts_target / max(1, pts)) ** (1.4 * dmp), 0.75, 1.35))
             q = tm.qb
             def fac(p, m, jitter=False):
                 l, po = p.lines[m]
@@ -567,15 +576,13 @@ def calibrate(sim, seed, rounds=CAL_ROUNDS, n=CAL_N):
                     p.tdw = cl(p.tdw * cl(orr, 0.6, 1.6) ** (0.8 * dmp), 0.2, 5)
     # polish: points only (red-zone finishing, then drive sustain), with the player knobs now fixed; the same 1,500 games
     # every round so each change reflects the knob, not new random games
-    for rd in range(4):
+    for rd in range(POLISH_ROUNDS):
         sim.prep()
         rng = random.Random(seed + 100)
         res = [sim.game(rng) for _ in range(POLISH_N)]
         for ti, tm in ((0, H), (1, A)):
             pts = sum(r[0][ti] for r in res) / len(res)
-            want = tm.k_fin * cl((tm.pts_target / max(1, pts)) ** 1.3, 0.8, 1.25)
-            tm.k_fin = cl(want, 0.6, 1.6)
-            if want != tm.k_fin: tm.k_sus = cl(tm.k_sus * (want / tm.k_fin) ** 0.5, 0.8, 1.35)
+            _pts_knobs(tm, cl((tm.pts_target / max(1, pts)) ** 1.3, 0.8, 1.25))
     sim.prep()
 
 
