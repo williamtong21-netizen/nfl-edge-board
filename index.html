@@ -3314,8 +3314,9 @@ const nkey = n => ffKey(n);   // same name key as the fantasy tab
 // ------------------------------------------------------------ slate-wide safe parlay at a target price: lower alt lines both we and Kalshi
 // put at 84%+ (safeLegs rules), from every game; same-game legs priced together with that game's sim; the joint chance the more
 // cautious of ours and Kalshi's lands near the price the user asked for (default -130), fewest legs and best-traded lines first
-const SAFEP = { target: -130, res: null, busy: false };
-try { const t = +store.get('edge-safe-target'); if (t) SAFEP.target = t; } catch {}
+const SAFEP = { target: NBA ? 100 : -130, res: null, busy: false };
+const SAFE_KEY = NBA ? 'edge-safe-target-nba' : 'edge-safe-target';
+try { const t = +store.get(SAFE_KEY); if (t) SAFEP.target = t; } catch {}
 async function safeSlateBuild() {
   const games = (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > Date.now() && S.props?.[g.id]?.length);
   await Promise.all(games.filter(g => hasSim(g.id)).map(g => new Promise(r => { const d = loadSim(g.id, r); if (d || SIMD[g.id] === false) r(d); })));
@@ -3324,7 +3325,7 @@ async function safeSlateBuild() {
     const doc = hasSim(g.id) ? SIMD[g.id] : null;
     const L = safeLegs(g).map(x => { const l = makeLeg(g.id, 'prop', 'over', x.pl.id, x.pr.m); if (!l) return null; l.line = x.r.l; refreshLeg(l);
       const c = doc ? simCol(doc, l) : null; return { ...x, l, c, gid: g.id }; }).filter(Boolean);
-    const seen = new Set(), top = []; for (const x of L) { if (seen.has(x.pl.id)) continue; seen.add(x.pl.id); top.push(x); if (top.length >= 3) break; }
+    const seen = new Set(), top = []; for (const x of L) { if (seen.has(x.pl.id)) continue; seen.add(x.pl.id); top.push(x); if (top.length >= (NBA ? 4 : 3)) break; }
     const withC = top.filter(x => x.c);
     if (doc && withC.length >= 2) {
       const bo = simBits(doc, withC.map(x => ({ ...x.c, p: x.ours })), 20000), bk = simBits(doc, withC.map(x => ({ ...x.c, p: x.k })), 20000);
@@ -3336,18 +3337,20 @@ async function safeSlateBuild() {
     for (const xs of Object.values(by)) p *= xs.length === 1 ? xs[0][pk] : xs.every(x => x[key]) ? simAnd(xs.map(x => x[key]), xs[0].N) : xs.reduce((a, x) => a * x[pk], 1);
     return p; };
   const q = impl(SAFEP.target), res = [];
+  const team = x => x.pl.side;   // home / away within the leg's game
+  const clash = (cur, i) => cur.filter(j => pool[j].gid === pool[i].gid).length >= 2 || (NBA && cur.some(j => pool[j].gid === pool[i].gid && team(pool[j]) === team(pool[i])));
   const pick = (st, cur, n) => {
     if (cur.length === n) { const legs = cur.map(i => pool[i]), po = joint(legs, 'bo', 'ours'), pk = joint(legs, 'bk', 'k'), lo = Math.min(po, pk);
       if (Math.abs(lo - q) <= 0.03) res.push({ legs, po, pk, lo, games: new Set(legs.map(x => x.gid)).size, vol: Math.min(...legs.map(x => x.r.v || 0)), gap: Math.max(...legs.map(x => Math.abs(x.ours - x.k))) });
       return; }
-    for (let i = st; i < pool.length; i++) { if (cur.filter(j => pool[j].gid === pool[i].gid).length >= 2) continue; cur.push(i); pick(i + 1, cur, n); cur.pop(); }
+    for (let i = st; i < pool.length; i++) { if (clash(cur, i)) continue; cur.push(i); pick(i + 1, cur, n); cur.pop(); }
   };
   for (const n of [2, 3, 4]) pick(0, [], n);
   if (res.length < 3) {   // 5 legs only when shorter tickets can't reach the price, from the 22 safest legs (keeps it quick on a phone)
     const keep = pool.map((x, i) => [x, i]).sort((a, b) => Math.min(b[0].ours, b[0].k) - Math.min(a[0].ours, a[0].k)).slice(0, 22).map(z => z[1]);
     const sub = (st, cur) => { if (cur.length === 5) { const legs = cur.map(i => pool[i]), po = joint(legs, 'bo', 'ours'), pk = joint(legs, 'bk', 'k'), lo = Math.min(po, pk);
         if (Math.abs(lo - q) <= 0.03) res.push({ legs, po, pk, lo, games: new Set(legs.map(x => x.gid)).size, vol: Math.min(...legs.map(x => x.r.v || 0)), gap: Math.max(...legs.map(x => Math.abs(x.ours - x.k))) }); return; }
-      for (let j = st; j < keep.length; j++) { const i = keep[j]; if (cur.filter(c => pool[c].gid === pool[i].gid).length >= 2) continue; cur.push(i); sub(j + 1, cur); cur.pop(); } };
+      for (let j = st; j < keep.length; j++) { const i = keep[j]; if (clash(cur, i)) continue; cur.push(i); sub(j + 1, cur); cur.pop(); } };
     sub(0, []);
   }
   // fewest legs, then every Kalshi line well traded, then we and Kalshi agree leg by leg, then closest to the target
@@ -3359,23 +3362,23 @@ async function safeSlateBuild() {
 }
 function renderSafeSlate() {
   const box = $('#safeBox'); if (!box) return;
-  if (COL || NBA || !S.slate) { box.innerHTML = ''; return; }
+  if (COL || !S.slate) { box.innerHTML = ''; return; }
   const r = SAFEP.res, pc = p => Math.round(p * 100) + '%';
   box.innerHTML = `<div class="sgp safeslate"><h3>Safe parlay at your price</h3>
     <div class="row" style="gap:8px;align-items:end">
       <label class="note">Target odds <input id="safeTarget" inputmode="numeric" value="${SAFEP.target}" style="width:80px"></label>
       <button class="btn primary" data-safebuild ${SAFEP.busy ? 'disabled' : ''}>${SAFEP.busy ? 'Building…' : 'Build it'}</button></div>
-    ${!r ? `<p class="note" style="margin:8px 0 0">Uses lower lines that both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+ from every game, no Questionable players and no passing legs in windy games, then finds the fewest legs that land near your price. Same-game legs are priced with that game's simulation.</p>`
-      : !r.out.length ? `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)} from today's ${r.pool} safe legs. Try a price closer to −150 or +100.</p>`
+    ${!r ? `<p class="note" style="margin:8px 0 0">${NBA ? `Uses alt lines below each player's main line that both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+ (skipping day-to-day players), then finds the fewest legs that land near your price. Never two players from the same team: they split the same shots and minutes.` : `Uses lower lines that both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+ from every game, no Questionable players and no passing legs in windy games, then finds the fewest legs that land near your price. Same-game legs are priced with that game's simulation.`}</p>`
+      : !r.out.length ? `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)} from today's ${r.pool} safe legs.${NBA ? ' NBA alt lines fill in on game day, usually by early afternoon.' : ''} Try a price closer to −150 or +100.</p>`
       : r.out.map((t, i) => `<div class="sgpres">
         <ul>${t.legs.map(x => { const g = S.slate.games.find(z => z.id === x.gid); return `<li>${logo(x.pl.tm || (x.pl.side === 'home' ? g.home.abbr : g.away.abbr), 20)}<b>${esc(x.l.label)}</b><span>ours ${pc(x.ours)} · Kalshi ${pc(x.k)}</span></li>`; }).join('')}</ul>
-        <div class="tot"><span>Hits <b>${pc(t.po)}</b> (ours) · <b>${pc(t.pk)}</b> (Kalshi)</span><span>Fair <b>${fmtOdds(fairAm(t.lo))}</b></span><span class="note">${t.games === t.legs.length ? 'every leg a different game' : 'includes same-game legs, priced with the sim'}</span></div>
+        <div class="tot"><span>Hits <b>${pc(t.po)}</b> (ours) · <b>${pc(t.pk)}</b> (Kalshi)</span><span>Fair <b>${fmtOdds(fairAm(t.lo))}</b></span><span class="note">${t.games === t.legs.length ? 'every leg a different game' : NBA ? 'includes both teams in one game' : 'includes same-game legs, priced with the sim'}</span></div>
         <button class="btn${i ? '' : ' primary'}" data-safeload="${i}">Load into my parlay</button></div>`).join('') + `<p class="note" style="margin:6px 0 0">Take it only if your book pays the fair price or better. Safer, not free: about ${Math.round((1 - r.out[0].lo) * 10)} in 10 of these still miss.</p>`}
   </div>`;
 }
 document.addEventListener('click', async e => {
   if (e.target.closest('[data-safebuild]')) {
-    const t = +($('#safeTarget')?.value || '').replace(/[^\d+-]/g, ''); if (t && Math.abs(t) >= 100) { SAFEP.target = t; store.set('edge-safe-target', String(t)); }
+    const t = +($('#safeTarget')?.value || '').replace(/[^\d+-]/g, ''); if (t && Math.abs(t) >= 100) { SAFEP.target = t; store.set(SAFE_KEY, String(t)); }
     SAFEP.busy = true; renderSafeSlate();
     try { SAFEP.res = await safeSlateBuild(); } finally { SAFEP.busy = false; renderSafeSlate(); }
     return;
@@ -3387,7 +3390,7 @@ document.addEventListener('click', async e => {
   }
 });
 function safeLegs(g) {
-  const q = new Set(['home', 'away'].flatMap(sd => (g[sd].inj || []).filter(i => i.s === 'Questionable').map(i => nkey(i.n))));
+  const q = new Set(['home', 'away'].flatMap(sd => (g[sd].inj || []).filter(i => /^(Questionable|Day-To-Day|Doubtful)$/i.test(i.s)).map(i => nkey(i.n))));
   const windy = !g.indoor && g.wx && (g.wx.wind >= 15 || g.wx.gust >= 25), out = [];
   for (const pl of S.props?.[g.id] || []) {
     if (q.has(nkey(pl.n))) continue;
@@ -3395,7 +3398,7 @@ function safeLegs(g) {
       if (pr.m === 'Anytime TD' || pr.l == null || (windy && /^Pass|^Completions/.test(pr.m))) continue;
       let best = null;
       for (const r of pr.alt || []) {
-        if (r.l >= pr.l || r.ya == null || r.ya >= 0.99 || (r.v || 0) < SAFE_VOL) continue;
+        if (r.l >= pr.l || r.ya == null || r.ya >= 0.99 || ((r.v || 0) < SAFE_VOL && !(NBA && r.yb != null && r.ya - r.yb <= 0.06))) continue;
         const k = kMid(r), ours = propChance(pr, r.l);
         if (k == null || ours == null || k < SAFE_MIN || ours < SAFE_MIN) continue;
         if (!best || r.l > best.r.l) best = { r, k, ours };   // the highest rung that still clears the bar
