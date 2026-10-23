@@ -179,6 +179,83 @@ def record_lines(games, props, now):
     return n
 
 
+BOX = {"Points": "PTS", "Rebounds": "REB", "Assists": "AST", "Threes": "3PT"}
+CONF = [(0.5, 0.55, "50–55%"), (0.55, 0.6, "55–60%"), (0.6, 0.65, "60–65%"), (0.65, 1.01, "65%+")]
+
+
+def grade_props(season, now):
+    """Grade the last prop number saved before tip (state/nba/lines) against ESPN's box score, once per final game. Results
+    live in state prop_grades_<season>.json, so they outlast the 60-day line files."""
+    gr = sync.load(f"prop_grades_{season}.json", {"season": season, "games": {}})
+    d = os.path.join(sync.DATA, "lines")
+    last, tips = {}, {}
+    for fn in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+        for ln in open(os.path.join(d, fn), encoding="utf-8"):
+            try: r = json.loads(ln)
+            except ValueError: continue
+            if r.get("g") in gr["games"]: continue
+            if "pid" not in r: tips[r["g"]] = r.get("tip"); continue
+            last[(r["g"], r["pid"], r["m"])] = r      # lines are only saved before tip, so the last one wins
+    todo = [g for g, t in tips.items() if t and datetime.fromisoformat(t.replace("Z", "+00:00")) < now - timedelta(hours=2)]
+
+    def box(gid):
+        try: sm = sync.get(sync.SUMMARY + gid)
+        except Exception as e: print("box score failed", gid, e, file=sys.stderr); return gid, None
+        hd = (sm.get("header") or {})
+        st = ((hd.get("competitions") or [{}])[0].get("status") or {}).get("type") or {}
+        if st.get("state") != "post": return gid, None
+        out = {"pre": (hd.get("season") or {}).get("type") == 1, "done": st.get("completed", True), "b": {}}
+        for t in (sm.get("boxscore") or {}).get("players", []):
+            for sx in t.get("statistics", []):
+                keys = sx.get("labels") or sx.get("names") or []
+                for a in sx.get("athletes", []):
+                    if not a.get("stats") or a.get("didNotPlay"): continue   # didn't play: not graded
+                    v = dict(zip(keys, a["stats"]))
+                    v["3PT"] = (v.get("3PT") or "").split("-")[0]
+                    out["b"][str(a["athlete"]["id"])] = {k: float(v[k]) for k in BOX.values() if v.get(k) not in (None, "", "--")}
+        return gid, out
+
+    with ThreadPoolExecutor(6) as pool:
+        boxes = dict(pool.map(box, todo))
+    for gid, bx in boxes.items():
+        if bx is None: continue
+        night = (datetime.fromisoformat(tips[gid].replace("Z", "+00:00")) - timedelta(hours=5)).strftime("%Y-%m-%d")
+        rows = []
+        if not bx["pre"] and bx["done"]:
+            for (g, pid, m), r in last.items():
+                a = (bx["b"].get(str(pid)) or {}).get(BOX.get(m))
+                if g != gid or a is None or r.get("po") is None or a == r["l"]: continue   # pushes and players who sat skip
+                rows.append({"pid": pid, "n": r.get("n"), "m": m, "l": r["l"], "po": r["po"], "pm": r.get("pm"), "km": r.get("km"), "a": a})
+        gr["games"][gid] = {"d": night, "pre": bx["pre"] or None, "props": rows}
+    if boxes: sync.save(os.path.join(sync.DATA, f"prop_grades_{season}.json"), gr)
+    return gr
+
+
+def prop_report(gr):
+    """The NBA report card: leans by confidence, market and night, plus accuracy (Brier) of model, blend and Kalshi."""
+    bucket = lambda v: next(lbl for lo, hi, lbl in CONF if lo <= v < hi)
+    conf, mk, night = {}, {}, {}
+    acc = {"n": 0, "pm": 0.0, "po": 0.0, "km": 0.0}
+    rate = lambda w, l: round(w / (w + l), 3) if w + l else None
+    games = 0
+    for g in gr["games"].values():
+        if g.get("pre") or not g["props"]: continue
+        games += 1
+        for r in g["props"]:
+            over, c = r["a"] > r["l"], max(r["po"], 1 - r["po"])
+            hit = (r["po"] > 0.5) == over
+            for dd, k in ((conf, bucket(c)),) + (((conf, "all"), (mk, r["m"]), (night, g["d"])) if c >= 0.55 else ()):   # a lean = 55%+
+                x = dd.setdefault(k, [0, 0]); x[0 if hit else 1] += 1
+            if r.get("pm") is not None and r.get("km") is not None:
+                acc["n"] += 1
+                for k in ("pm", "po", "km"): acc[k] += (r[k] - over) ** 2
+    wl = lambda x: {"w": x[0], "l": x[1], "pct": rate(*x)}
+    return {"games": games, "props": {k: wl(v) for k, v in conf.items()},
+            "markets": {k: wl(v) for k, v in sorted(mk.items(), key=lambda x: -sum(x[1]))},
+            "nights": {k: wl(v) for k, v in sorted(night.items())},
+            "acc": {"n": acc["n"], **{k: round(acc[k] / acc["n"], 4) for k in ("pm", "po", "km")}} if acc["n"] else None}
+
+
 def main():
     now = datetime.now(timezone.utc)
     events = []
@@ -216,9 +293,11 @@ def main():
     hist = sync.line_history(games, season)   # Moves tab
     try: import moves; moves.explain(games, hist["snaps"], "basketball/nba")
     except Exception as ex: print("move reasons failed", ex, file=sys.stderr)
+    try: report = prop_report(grade_props(season, now))
+    except Exception as ex: print("prop grading failed", ex, file=sys.stderr); report = None
     stamp = now.isoformat(timespec="seconds")
     slate = {"updatedAt": stamp, "sport": "nba", "propParts": 1, "analytics": None, "season": season, "week": None, "seasonType": stype,
-             "odds": {"source": "ESPN (DraftKings)"}, "report": None, "nbaModel": {"mktW": MKT_W}, "games": games, "arbs": gaps}
+             "odds": {"source": "ESPN (DraftKings)"}, "report": report, "nbaModel": {"mktW": MKT_W}, "games": games, "arbs": gaps}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
     sync.save(os.path.join(sync.OUT, "props-0.json"), {"sync": stamp, "part": 0, "games": props})
     sync.save(os.path.join(sync.OUT, "history.json"), hist)

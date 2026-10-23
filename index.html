@@ -2267,7 +2267,35 @@ function cfbReportCard() {   // college: how our number has done against the clo
     <details><summary>Week by week</summary><table><tr><th>Week</th><th class="n">Spreads</th><th class="n">Totals</th></tr>${wk.join('')}</table>
     <p class="note">Top 25 and Power 4 games, graded against the last line before kickoff. Breaking even takes about 52.4% at normal -110 prices. Weeks before this one were replayed using only games played up to then. Early weeks lean mostly on last season, which is why they're weakest.</p></details></details>`;
 }
+// NBA: every prop number saved before tip, graded against the box score (nba_sync.py prop_report)
+function nbaReportCard() {
+  const R = S.slate?.report;
+  if (!R?.games) return `<div class="rc"><div class="rc-h"><b>Our report card</b><small>Every prop read gets graded after the final buzzer. The first results show up after tonight's games.</small></div></div>`;
+  const strong = ['60–65%', '65%+'].reduce((a, k) => { const d = R.props[k]; if (d) { a.w += d.w; a.l += d.l; } return a; }, { w: 0, l: 0 });
+  strong.pct = strong.w + strong.l ? strong.w / (strong.w + strong.l) : null;
+  const cls = d => d?.pct == null ? '' : d.pct >= 0.55 ? 'pos' : d.pct < 0.5 ? 'neg' : '';
+  const chip = (lbl, d) => d && d.w + d.l ? `<div class="rc-chip"><span>${lbl}</span><b class="${cls(d)}">${recS2(d)}</b><span>${rcPct(d)}</span></div>` : '';
+  const tbl = (head, rows) => `<table><tr>${head.map((h, i) => `<th${i ? ' class="n"' : ''}>${h}</th>`).join('')}</tr>${rows.join('')}</table>`;
+  const row = (k, d) => `<tr><td>${esc(k)}</td><td class="n">${recS2(d)}</td><td class="n"><b class="${cls(d)}">${rcPct(d)}</b></td></tr>`;
+  const conf = ['50–55%', '55–60%', '60–65%', '65%+'].filter(k => R.props[k]).map(k => row(k, R.props[k]));
+  const mk = Object.entries(R.markets || {}).map(([k, d]) => row(k, d));
+  const nt = Object.entries(R.nights || {}).sort((a, b) => a[0] < b[0] ? 1 : -1).map(([k, d]) => row(new Date(k + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }), d));
+  const A = R.acc, best = A && ['pm', 'po', 'km'].reduce((a, k) => A[k] < A[a] ? k : a, 'po');
+  const acc = A ? [['pm', 'Our model alone'], ['po', `What the app shows (${Math.round((S.slate.nbaModel?.mktW ?? 0.8) * 100)}% market)`], ['km', "Kalshi's price"]]
+    .map(([k, l]) => `<tr><td>${l}</td><td class="n">${k === best ? `<b class="pos">${A[k].toFixed(4)}</b>` : A[k].toFixed(4)}</td></tr>`) : [];
+  const line = [['prop picks 60%+', strong], ['all leans', R.props.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
+  return `<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
+    <div class="rc-chips">${chip('Prop picks 60%+', strong)}${chip('All leans (55%+)', R.props.all)}</div>
+    <p class="note">Hit rate, not profit: a lean that hits 58% can still lose money if the price was steep. Breaking even at normal -110 prices takes 52.4%. Graded at the last line we saved before tip, the same over/under on the app. Pushes and players who sat don't count.</p>
+    <details><summary>Full breakdown</summary><div class="rc-grid">
+      <div><h4>Props by confidence</h4>${tbl(['Our chance', 'Record', 'Hit'], conf)}<p class="note">If the reads are honest, higher confidence should hit more often. 50–55% reads are coin flips and aren't counted as leans.</p></div>
+      ${mk.length ? `<div><h4>Leans by market</h4>${tbl(['Market', 'Record', 'Hit'], mk)}</div>` : ''}
+      ${nt.length ? `<div><h4>Night by night</h4>${tbl(['Night', 'Record', 'Hit'], nt)}</div>` : ''}
+      ${acc.length ? `<div><h4>Most accurate</h4>${tbl(['Chance from', 'Error (lower is better)'], acc)}<p class="note">Average squared miss (Brier score) on the ${A.n} props Kalshi also priced. Under 0.25 beats a coin flip; small gaps here are mostly noise until a few weeks pile up.</p></div>` : ''}
+    </div></details></details>`;
+}
 function reportCard() {
+  if (NBA) return nbaReportCard();
   if (COL) return (CFB ? cfbFlagsSection() : '') + cfbReportCard();
   const R = S.slate?.report;
   if (!R?.games) return `<div class="rc"><div class="rc-h"><b>Our report card</b><small>Every read gets graded after the final whistle. The first results show up after this week's games.</small></div></div>`;
