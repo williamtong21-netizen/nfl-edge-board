@@ -2442,7 +2442,10 @@ function renderPicks() {
 const NBA_BEST = 0.6, NBA_TOP = 0.65;
 function nbaBest() {
   const conf = p => Math.max(p.pr.pOver, 1 - p.pr.pOver);
-  const per = {}, all = propPicks().filter(p => conf(p) >= NBA_BEST).sort((a, b) => conf(b) - conf(a))
+  const mktAt = pr => { const k = (pr.alt || []).find(r => r.l === pr.l && r.ya != null && r.yb != null && r.ya - r.yb <= LADDER_SPREAD);
+    if (k) return kMid(k); const b = (pr.books || []).find(x => x.l === pr.l && x.o != null); return b ? impl(b.o) / 1.045 : null; };
+  const even = p => { const m = mktAt(p.pr); return m == null || (m > 0.2 && m < 0.8); };
+  const per = {}, all = propPicks().filter(p => conf(p) >= NBA_BEST && even(p)).sort((a, b) => conf(b) - conf(a))
     .filter(p => (per[p.pl.id] = (per[p.pl.id] || 0) + 1) <= 2);
   const R = S.slate?.report?.props || {}, rec = d => d && d.w + d.l ? `${d.w}–${d.l} (${Math.round(d.w / (d.w + d.l) * 100)}%)` : null;
   const top = all.filter(p => conf(p) >= NBA_TOP), rest = all.filter(p => conf(p) < NBA_TOP), n = PK.nbaAll ? 40 : 8;
@@ -3012,8 +3015,11 @@ const ALT_STEP = { 'Pass yds': 25, 'Pass+rush yds': 25, 'Rush yds': 10, 'Rec yds
 const poissonAtLeast = (lam, k) => { let s = 0, t = Math.exp(-lam); for (let i = 0; i < k; i++) { s += t; t *= lam / (i + 1); } return 1 - s; };
 // With a Kalshi ladder, the market's own curve gives the shape (it prices blowout games far better than any formula);
 // we slide that curve by half the gap between our median and the market's. Without a ladder we use our distribution.
+// only rungs with a real two-sided quote: an untraded rung quoted 5c / 95c has a "mid" of 50% that means nothing, and the
+// falling-chance rule below would drag every line above it down to that 50% (Zion: 4+ rebounds read 50% vs Kalshi's 72%)
+const LADDER_SPREAD = 0.2;
 function ladderCurve(pr) {
-  const pts = (pr.alt || []).filter(r => r.ya != null && r.ya < 0.99).map(r => ({ l: r.l, p: kMid(r) })).sort((a, b) => a.l - b.l);
+  const pts = (pr.alt || []).filter(r => r.ya != null && r.ya < 0.99 && r.yb != null && r.ya - r.yb <= LADDER_SPREAD).map(r => ({ l: r.l, p: kMid(r) })).sort((a, b) => a.l - b.l);
   for (let i = 1; i < pts.length; i++) pts[i].p = Math.min(pts[i].p, pts[i - 1].p);   // chance can only fall as the line rises
   return pts;
 }
