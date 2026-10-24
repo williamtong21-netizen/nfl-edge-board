@@ -3339,8 +3339,8 @@ function renderSims() {
     <div class="card-foot"><button data-simopen="${g.id}">▶ Watch replay</button>${safeLegs(g).length >= 2 ? `<button data-simsafe="${g.id}" aria-expanded="${SIMSAFE.open.has(g.id)}">${SIMSAFE.open.has(g.id) ? 'Hide safe parlay' : 'Safe parlay'}</button>` : ''}<button data-go="${g.id}">Game details</button></div></article>`;
   }).join('');
 }
-// "safe" same-game parlay: alt lines below the main line that BOTH our number and Kalshi put at 84%+ (enough Kalshi volume
-// to trust the price), no Questionable players, no passing legs in a windy game; one leg per player; priced together with
+// "safe" same-game parlay: alt lines below the main line that BOTH our number and Kalshi put at 84%+ (enough Kalshi volume,
+// or a bid/ask within 6c, to trust the price: NFL rungs mostly trade on game weekend, so volume alone kept ~90% out midweek), no Questionable players, no passing legs in a windy game; one leg per player; priced together with
 // the sim's correlations. The joint chance is the point: it's still a long way from a sure thing, and it isn't an edge.
 const SAFE_MIN = 0.84, SAFE_VOL = 50, SIMSAFE = { open: new Set() };
 const nkey = n => ffKey(n);   // same name key as the fantasy tab
@@ -3504,7 +3504,7 @@ function safeLegs(g, props = S.props?.[g.id], nba = NBA) {
       if (pr.m === 'Anytime TD' || pr.l == null || (windy && /^Pass|^Completions/.test(pr.m))) continue;
       let best = null;
       for (const r of pr.alt || []) {
-        if (r.l >= pr.l || r.ya == null || r.ya >= 0.99 || ((r.v || 0) < SAFE_VOL && !(nba && r.yb != null && r.ya - r.yb <= 0.06))) continue;
+        if (r.l >= pr.l || r.ya == null || r.ya >= 0.99 || ((r.v || 0) < SAFE_VOL && !(r.yb != null && r.ya - r.yb <= 0.06))) continue;
         const k = kMid(r), ours = propChance(pr, r.l);
         if (k == null || ours == null || k < SAFE_MIN || ours < SAFE_MIN) continue;
         if (!best || r.l > best.r.l) best = { r, k, ours };   // the highest rung that still clears the bar
