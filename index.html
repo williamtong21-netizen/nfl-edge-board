@@ -3348,9 +3348,31 @@ const nkey = n => ffKey(n);   // same name key as the fantasy tab
 // ------------------------------------------------------------ slate-wide safe parlay at a target price: lower alt lines both we and Kalshi
 // put at 84%+ (safeLegs rules), from every game; same-game legs priced together with that game's sim; the joint chance the more
 // cautious of ours and Kalshi's lands near the price the user asked for (default -130), fewest legs and best-traded lines first
-const SAFEP = { target: NBA ? 100 : -130, res: null, busy: false };
+const SAFEP = { target: NBA ? 100 : -130, res: null, busy: false, legs: 0 };   // legs: 0 = any number (fewest first), else exactly that many
+// tickets near the target chance with up to SAFE_MAX_LEGS legs: grows combos one leg at a time, drops any whose chance already fell
+// below the target band (adding legs only lowers it), and keeps SAFE_BEAM of them at each size so it stays quick on a phone
+const SAFE_MAX_LEGS = 10, SAFE_BEAM = 1500;
+function safeSearch(n0, q, clash, price, want) {   // n0 = pool size; price(indexes) -> { po, pk }; want = exact leg count or 0
+  const res = []; let level = [[]];
+  for (let n = 1; n <= (want || SAFE_MAX_LEGS) && level.length; n++) {
+    const next = [];
+    for (const cur of level) for (let i = cur.length ? cur[cur.length - 1] + 1 : 0; i < n0; i++) {
+      if (clash(cur, i)) continue;
+      const c = [...cur, i], { po, pk } = price(c), lo = Math.min(po, pk);
+      if (lo < q - 0.03) continue;
+      if (n >= 2 && lo <= q + 0.03 && (!want || n === want)) res.push({ idx: c, po, pk, lo });
+      next.push({ c, lo });
+    }
+    // keep an even spread across chance levels (not just the safest), so short tickets with slightly riskier legs survive
+    next.sort((a, b) => b.lo - a.lo);
+    const k = Math.max(1, next.length / SAFE_BEAM);
+    level = next.length <= SAFE_BEAM ? next.map(x => x.c) : Array.from({ length: SAFE_BEAM }, (_, j) => next[Math.floor(j * k)].c);
+  }
+  return res;
+}
 const SAFE_KEY = NBA ? 'edge-safe-target-nba' : 'edge-safe-target';
 SAFEP.multi = store.get('edge-safe-multi') === '1';
+SAFEP.legs = Math.max(0, Math.min(SAFE_MAX_LEGS, +(store.get('edge-safe-legs') || 0) || 0));
 try { const t = +store.get(SAFE_KEY); if (t) SAFEP.target = t; } catch {}
 async function safeSlateBuild() {
   const games = (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > Date.now() && S.props?.[g.id]?.length);
@@ -3374,25 +3396,18 @@ async function safeSlateBuild() {
   const q = impl(SAFEP.target), res = [];
   const team = x => x.pl.side;   // home / away within the leg's game
   const clash = (cur, i) => cur.filter(j => pool[j].gid === pool[i].gid).length >= 2 || (NBA && cur.some(j => pool[j].gid === pool[i].gid && team(pool[j]) === team(pool[i])));
-  const pick = (st, cur, n) => {
-    if (cur.length === n) { const legs = cur.map(i => pool[i]), po = joint(legs, 'bo', 'ours'), pk = joint(legs, 'bk', 'k'), lo = Math.min(po, pk);
-      if (Math.abs(lo - q) <= 0.03) res.push({ legs, po, pk, lo, games: new Set(legs.map(x => x.gid)).size, vol: Math.min(...legs.map(x => x.r.v || 0)), gap: Math.max(...legs.map(x => Math.abs(x.ours - x.k))) });
-      return; }
-    for (let i = st; i < pool.length; i++) { if (clash(cur, i)) continue; cur.push(i); pick(i + 1, cur, n); cur.pop(); }
-  };
-  for (const n of [2, 3, 4]) pick(0, [], n);
-  if (res.length < 3) {   // 5 legs only when shorter tickets can't reach the price, from the 22 safest legs (keeps it quick on a phone)
-    const keep = pool.map((x, i) => [x, i]).sort((a, b) => Math.min(b[0].ours, b[0].k) - Math.min(a[0].ours, a[0].k)).slice(0, 22).map(z => z[1]);
-    const sub = (st, cur) => { if (cur.length === 5) { const legs = cur.map(i => pool[i]), po = joint(legs, 'bo', 'ours'), pk = joint(legs, 'bk', 'k'), lo = Math.min(po, pk);
-        if (Math.abs(lo - q) <= 0.03) res.push({ legs, po, pk, lo, games: new Set(legs.map(x => x.gid)).size, vol: Math.min(...legs.map(x => x.r.v || 0)), gap: Math.max(...legs.map(x => Math.abs(x.ours - x.k))) }); return; }
-      for (let j = st; j < keep.length; j++) { const i = keep[j]; if (clash(cur, i)) continue; cur.push(i); sub(j + 1, cur); cur.pop(); } };
-    sub(0, []);
+  for (const t of safeSearch(pool.length, q, clash, c => { const legs = c.map(i => pool[i]); return { po: joint(legs, 'bo', 'ours'), pk: joint(legs, 'bk', 'k') }; }, SAFEP.legs)) {
+    const legs = t.idx.map(i => pool[i]);
+    res.push({ legs, po: t.po, pk: t.pk, lo: t.lo, games: new Set(legs.map(x => x.gid)).size, vol: Math.min(...legs.map(x => x.r.v || 0)), gap: Math.max(...legs.map(x => Math.abs(x.ours - x.k))) });
   }
   // fewest legs, then every Kalshi line well traded, then we and Kalshi agree leg by leg, then closest to the target
   const score = r => -r.legs.length * 10 + Math.min(r.vol, 300) / 100 - r.gap * 20 - Math.abs(r.lo - q) * 30;
   res.sort((a, b) => score(b) - score(a));
-  const out = [], used = new Set();   // three different tickets (no shared leg) so there's a real choice
-  for (const r of res) { const ids = r.legs.map(x => x.l.id); if (ids.some(i => used.has(i))) continue; out.push(r); ids.forEach(i => used.add(i)); if (out.length >= 3) break; }
+  // three tickets that are mostly different: each shares less than half its legs with any ticket already picked
+  const out = [];
+  for (const r of res) { const ids = new Set(r.legs.map(x => x.l.id));
+    if (out.some(o => o.legs.filter(x => ids.has(x.l.id)).length * 2 >= Math.min(ids.size, o.legs.length))) continue;
+    out.push(r); if (out.length >= 3) break; }
   return { pool: pool.length, found: res.length, out };
 }
 // ------------------------------------------------------------ multi-sport safe parlay: every sport's upcoming games (NFL, NBA, college
@@ -3431,15 +3446,11 @@ async function safeMultiBuild() {
     }
   }
   pool.sort((a, b) => Math.min(b.ours, b.k) - Math.min(a.ours, a.k));
-  const q = impl(SAFEP.target), res = [], P = pool.slice(0, 24);
+  const q = impl(SAFEP.target), res = [], P = pool;
   const prod = (legs, k) => legs.reduce((a, x) => a * x[k], 1);
-  const pick = (st, cur, n, lim) => {
-    if (cur.length === n) { const legs = cur.map(i => P[i]), po = prod(legs, 'ours'), pk = prod(legs, 'k'), lo = Math.min(po, pk);
-      if (Math.abs(lo - q) <= 0.03) res.push({ legs, po, pk, lo, sports: new Set(legs.map(x => x.sp)).size }); return; }
-    for (let i = st; i < Math.min(P.length, lim); i++) { cur.push(i); pick(i + 1, cur, n, lim); cur.pop(); }
-  };
-  for (const n of [2, 3, 4]) pick(0, [], n, 24);
-  if (res.length < 3) for (const n of [5, 6]) pick(0, [], n, 18);
+  for (const t of safeSearch(P.length, q, () => false, c => { const legs = c.map(i => P[i]); return { po: prod(legs, 'ours'), pk: prod(legs, 'k') }; }, SAFEP.legs)) {
+    const legs = t.idx.map(i => P[i]); res.push({ legs, po: t.po, pk: t.pk, lo: t.lo, sports: new Set(legs.map(x => x.sp)).size });
+  }
   // fewest legs, then closest to the price, then every leg as safe as possible
   const score = r => -r.legs.length * 10 - Math.abs(r.lo - q) * 30 + Math.min(...r.legs.map(x => Math.min(x.ours, x.k))) * 5;
   res.sort((a, b) => score(b) - score(a));
@@ -3459,9 +3470,10 @@ function renderSafeSlate() {
     ${COL ? '' : `<div class="seg safemode" role="group" aria-label="Pull legs from"><button data-safemode="0" aria-pressed="${!multi}">${NBA ? 'NBA only' : 'NFL only'}</button><button data-safemode="1" aria-pressed="${multi}">All sports</button></div>`}
     <div class="row" style="gap:8px;align-items:end">
       <label class="note">Target odds <input id="safeTarget" inputmode="numeric" value="${SAFEP.target}" style="width:80px"></label>
+      <label class="note">Legs <select id="safeLegsN">${[0, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<option value="${n}"${SAFEP.legs === n ? ' selected' : ''}>${n || 'Any'}</option>`).join('')}</select></label>
       <button class="btn primary" data-safebuild ${SAFEP.busy ? 'disabled' : ''}>${SAFEP.busy ? 'Building…' : 'Build it'}</button></div>
     ${multi ? safeMultiHtml(r, pc) : !r ? `<p class="note" style="margin:8px 0 0">${NBA ? `Uses alt lines below each player's main line that both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+ (skipping day-to-day players), then finds the fewest legs that land near your price. Never two players from the same team: they split the same shots and minutes.` : `Uses lower lines that both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+ from every game, no Questionable players and no passing legs in windy games, then finds the fewest legs that land near your price. Same-game legs are priced with that game's simulation.`}</p>`
-      : !r.out.length ? `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)} from today's ${r.pool} safe legs.${NBA ? ' NBA alt lines fill in on game day, usually by early afternoon.' : ''} Try a price closer to −150 or +100.</p>`
+      : !r.out.length ? `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)}${SAFEP.legs ? ` with exactly ${SAFEP.legs} legs` : ''} from today's ${r.pool} safe legs.${NBA ? ' NBA alt lines fill in on game day, usually by early afternoon.' : ''} Try a price closer to −150 or +100.</p>`
       : r.out.map((t, i) => `<div class="sgpres">
         <ul>${t.legs.map(x => { const g = S.slate.games.find(z => z.id === x.gid); return `<li>${logo(x.pl.tm || (x.pl.side === 'home' ? g.home.abbr : g.away.abbr), 20)}<b>${esc(x.l.label)}</b><span>ours ${pc(x.ours)} · Kalshi ${pc(x.k)}</span></li>`; }).join('')}</ul>
         <div class="tot"><span>Hits <b>${pc(t.po)}</b> (ours) · <b>${pc(t.pk)}</b> (Kalshi)</span><span>Fair <b>${fmtOdds(fairAm(t.lo))}</b></span><span class="note">${t.games === t.legs.length ? 'every leg a different game' : NBA ? 'includes both teams in one game' : 'includes same-game legs, priced with the sim'}</span></div>
@@ -3470,7 +3482,7 @@ function renderSafeSlate() {
 }
 function safeMultiHtml(r, pc) {
   if (!r) return `<p class="note" style="margin:8px 0 0">Pulls from every upcoming game in the NFL, NBA, college football and college basketball: player alt lines both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+ (NFL and NBA), and moneyline favorites at ${Math.round(ML_SAFE * 100)}%+ after the vig. One leg per game, so the legs don't lean on each other.</p>`;
-  if (!r.out.length) return `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)} from ${r.pool} safe legs (${Object.entries(r.bySport).filter(([, n]) => n).map(([s, n]) => `${SP_LBL[s]} ${n}`).join(', ') || 'none yet'}). Try a different price.</p>`;
+  if (!r.out.length) return `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)}${SAFEP.legs ? ` with exactly ${SAFEP.legs} legs` : ''} from ${r.pool} safe legs (${Object.entries(r.bySport).filter(([, n]) => n).map(([s, n]) => `${SP_LBL[s]} ${n}`).join(', ') || 'none yet'}). Try a different price.</p>`;
   return r.out.map((t, i) => { const all = t.legs.every(x => x.l);
     return `<div class="sgpres">
     <ul>${t.legs.map(x => `<li><span class="sptag">${SP_LBL[x.sp]}</span>${x.sp === SPORT ? logo(x.tm, 20) : ''}<b>${esc(x.label)}</b><span>${esc(x.g.away.abbr)} @ ${esc(x.g.home.abbr)} · ${x.ml ? `market ${pc(x.k)}` : `ours ${pc(x.ours)} · Kalshi ${pc(x.k)}`}</span></li>`).join('')}</ul>
@@ -3481,6 +3493,7 @@ function safeMultiHtml(r, pc) {
 document.addEventListener('click', async e => {
   if (e.target.closest('[data-safebuild]')) {
     const t = +($('#safeTarget')?.value || '').replace(/[^\d+-]/g, ''); if (t && Math.abs(t) >= 100) { SAFEP.target = t; store.set(SAFE_KEY, String(t)); }
+    SAFEP.legs = +($('#safeLegsN')?.value || 0) || 0; store.set('edge-safe-legs', String(SAFEP.legs));
     SAFEP.busy = true; renderSafeSlate();
     try { SAFEP.res = SAFEP.multi || COL ? await safeMultiBuild() : await safeSlateBuild(); } finally { SAFEP.busy = false; renderSafeSlate(); }
     return;
