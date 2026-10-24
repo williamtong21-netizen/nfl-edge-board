@@ -2410,18 +2410,19 @@ function renderPicks() {
   const sides = gamePicks().sort(rank);
   // at most two props per player, so one player can't crowd out the board
   const per = {}, props = propPicks().sort(rank).filter(p => (per[p.pl.id] = (per[p.pl.id] || 0) + 1) <= 2);
-  const tdv = valueTDs(), pe = priceEdges();
+  const tdv = NBA ? [] : valueTDs(), pe = priceEdges();
   queueMicrotask(() => { const m = $('#trapMount'), w = $('#trapWrap'); if (m && w) m.append(w); });
   const nS = PK.allSides ? 12 : 4, nP = PK.allProps ? 30 : 6;
   box.innerHTML = `${reportCard()}
+    ${NBA ? nbaBest() : ''}
     ${gapSection()}
     <div class="sechead"><h2>Best prices</h2><small>${pe.length ? `${pe.length} bets · swipe →` : ''}</small></div>
     ${pe.length ? `<div class="vgrid">${pe.slice(0, 15).map(vPriceCard).join('')}</div>`
       : `<p class="note">Every book is priced about the same on the game lines right now.</p>`}
-    <div class="sechead tdsec"><h2>TD prices vs our chances</h2><small>${tdv.length ? `${tdv.length} spots · swipe →` : ''}</small></div>
+    ${NBA ? '' : `<div class="sechead tdsec"><h2>TD prices vs our chances</h2><small>${tdv.length ? `${tdv.length} spots · swipe →` : ''}</small></div>
     <p class="note tdhonest">Touchdowns where a price pays more than our chance says it should. Honest record: at the old settings these lost 9% over the 2025 season. Now our chance leans 75% on the market (more accurate in both 2025 and 2026), so fewer show up. TD value has won in 2026 and lost in 2025 at every setting we tried: fun picks, not a proven edge.</p>
     ${tdv.length ? `<div class="vgrid">${tdv.slice(0, 15).map(vTdCard).join('')}</div>`
-      : `<p class="note tdhonest">No touchdown prices beat our numbers right now. New prices land Thursday morning and refresh through the week.</p>`}
+      : `<p class="note tdhonest">No touchdown prices beat our numbers right now. New prices land Thursday morning and refresh through the week.</p>`}`}
     <div id="trapMount"></div>
     <details class="leans"${PK.leans ? ' open' : ''}><summary>Our model's leans</summary>
     <p class="honest">Player-prop leans. Game sides and totals are left out: over 600+ games (2024–26) our team model never beat the closing line, so the app uses the market's number for games.</p>
@@ -2431,6 +2432,21 @@ function renderPicks() {
     ${props.length ? `<h2 style="margin-top:22px">Player props</h2><div class="picks">${props.slice(0, nP).map(pickCard).join('')}</div>
       ${PK.allProps ? `<button class="showmore" data-pk="allProps">Show fewer prop picks</button>` : props.length > nP ? `<button class="showmore" data-pk="allProps">Show all ${Math.min(30, props.length)} prop picks</button>` : ''}` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}
     </details>`;
+}
+// NBA: tonight's strongest prop leans up top, ranked by our chance (the 60%+ and 65%+ tiers are where the record is)
+const NBA_BEST = 0.6, NBA_TOP = 0.65;
+function nbaBest() {
+  const conf = p => Math.max(p.pr.pOver, 1 - p.pr.pOver);
+  const per = {}, all = propPicks().filter(p => conf(p) >= NBA_BEST).sort((a, b) => conf(b) - conf(a))
+    .filter(p => (per[p.pl.id] = (per[p.pl.id] || 0) + 1) <= 2);
+  const R = S.slate?.report?.props || {}, rec = d => d && d.w + d.l ? `${d.w}–${d.l} (${Math.round(d.w / (d.w + d.l) * 100)}%)` : null;
+  const top = all.filter(p => conf(p) >= NBA_TOP), rest = all.filter(p => conf(p) < NBA_TOP), n = PK.nbaAll ? 40 : 8;
+  const tier = (lbl, r, list) => list.length ? `<div class="sechead"><h2>${lbl}</h2><small>${list.length} lean${list.length > 1 ? 's' : ''}${r ? ` · record ${r}` : ''}</small></div><div class="picks">${list.map(pickCard).join('')}</div>` : '';
+  if (!all.length) return `<div class="sechead"><h2>Tonight's best leans</h2></div><p class="note">No 60%+ leans right now. Tonight's props post by early afternoon.</p>`;
+  const shownTop = top.slice(0, n), shownRest = rest.slice(0, Math.max(0, n - shownTop.length));
+  return `${tier('Strongest leans (65%+)', rec(R['65%+']), shownTop)}${tier(top.length ? 'Strong leans (60–65%)' : "Tonight's best leans (60%+)", rec(R['60–65%']), shownRest)}
+    ${all.length > n ? `<button class="showmore" data-pk="nbaAll">Show all ${Math.min(40, all.length)} leans</button>` : PK.nbaAll && all.length > 8 ? `<button class="showmore" data-pk="nbaAll">Show fewer</button>` : ''}
+    <p class="note">Hit rate isn't profit: at -110 you need 52.4%. Our number is 80% the market, so these are the market's lean plus ours, not a hidden edge.</p>`;
 }
 function moveWarn(p) {
   if (!p.against) return '';

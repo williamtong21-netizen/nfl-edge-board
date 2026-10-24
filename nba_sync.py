@@ -53,8 +53,21 @@ def ladders(g):
         px = ((it.get("odds") or {}).get("american") or {}).get("value")
         if not (m and aid and tgt is not None and american(px)): continue
         out.setdefault((aid.group(1), m), []).append({"l": float(tgt) - 0.5, "dk": px, "pk": round(american(px), 3)})
-    for v in out.values(): v.sort(key=lambda r: r["l"])
-    return out
+    return {k: clean_ladder(v) for k, v in out.items()}
+
+
+def clean_ladder(rungs):
+    """ESPN files a second, smaller ladder (a single quarter, by its prices) under the same "Rebounds Milestones" name with
+    nothing to tell them apart, e.g. Durant 2+ rebounds at -107 next to 3+ at both -860 and +278. A real ladder only gets
+    less likely as the line rises, so: at each line keep the likelier price (the full game beats a quarter), then drop any
+    rung less likely than a higher line. Left in, those quarter rungs became fake main lines like over 1.5 rebounds."""
+    best = {}
+    for r in rungs:
+        if r["l"] not in best or r["pk"] > best[r["l"]]["pk"]: best[r["l"]] = r
+    out, hi = [], 0.0
+    for r in sorted(best.values(), key=lambda r: -r["l"]):   # from the top line down: each rung must beat every line above it
+        if r["pk"] >= hi: out.append(r); hi = r["pk"]
+    return sorted(out, key=lambda r: r["l"])
 
 
 def log_rows(book, pid, before, season):
@@ -242,6 +255,8 @@ def prop_report(gr):
         if g.get("pre") or not g["props"]: continue
         games += 1
         for r in g["props"]:
+            # a sportsbook main line sits near 50/50: Kalshi at 80%+ or 20%- on it means a bad ladder line (see clean_ladder)
+            if r.get("km") is not None and not 0.2 < r["km"] < 0.8: continue
             over, c = r["a"] > r["l"], max(r["po"], 1 - r["po"])
             hit = (r["po"] > 0.5) == over
             for dd, k in ((conf, bucket(c)),) + (((conf, "all"), (mk, r["m"]), (night, g["d"])) if c >= 0.55 else ()):   # a lean = 55%+
