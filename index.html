@@ -1189,6 +1189,11 @@ body.simopen{overflow:hidden}
 .safemode button{background:none;border:0;padding:6px 14px;color:var(--muted);font:600 13px var(--f-body);cursor:pointer}
 .safemode button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 .sptag{display:inline-block;font:800 10px var(--f-body);letter-spacing:.4px;padding:2px 6px;border-radius:6px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);margin-right:6px;vertical-align:middle}
+
+/* My Bets: all sports */
+.allsp{margin-bottom:14px}.allsp h3{margin:0 0 8px}
+.allsp-t{width:100%}.allsp-t th{font:600 11px var(--f-body);letter-spacing:.4px;text-transform:uppercase;color:var(--muted);text-align:left;padding:4px 6px}
+.allsp-t th.n{text-align:right}.allsp-t tr.tot td{border-top:1px solid var(--line);padding-top:8px}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1405,6 +1410,7 @@ body.simopen{overflow:hidden}
   </div>
 
   <div id="view-bets" hidden>
+    <div class="panel allsp" id="allSports" hidden></div>
     <div class="tiles" id="tiles"></div>
     <div class="betgrid">
       <div style="display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0">
@@ -5956,6 +5962,12 @@ function renderBets() {
       <text x="${L}" y="${Hh - 4}">bet 1</text><text x="${W - R}" y="${Hh - 4}" text-anchor="end">bet ${seq.length}</text></svg>`;
   }
 
+  const dollars = settled.length && settled.every(x => stakeOf(x.b) != null);
+  const sum = { w, l, pu, units: +units.toFixed(3), risked: +risked.toFixed(3), open: pend.length, at: new Date().toISOString(),
+    usd: dollars ? +settled.reduce((s, x) => s + x.p * stakeOf(x.b) / (+x.b.units || 1), 0).toFixed(2) : null,
+    usdRisk: dollars ? +settled.reduce((s, x) => s + stakeOf(x.b), 0).toFixed(2) : null };
+  try { localStorage.setItem('edge-bets-sum-' + (FFM ? 'nfl' : SPORT), JSON.stringify(sum)); } catch {}
+  renderAllSports();
   renderBreakdown(settled, rows);
   const f = S.filter, list = rows.filter(x => f === 'all' || (f === 'pending' ? x.res === 'pending' : x.res !== 'pending'))
     .sort((a, b) => (b.b.placedAt || '').localeCompare(a.b.placedAt || ''));
@@ -5963,6 +5975,24 @@ function renderBets() {
   $('#ledger').innerHTML = list.length ? `<div class="slips">${list.map(slipCard).join('')}</div>` : `<div class="empty"><b>${S.bets.length ? 'Nothing here' : 'No bets yet'}</b>${S.bets.length ? 'No bets match this filter.' : 'Track a bet from any game, or build a parlay and hit “Track it”. Your tickets show up here.'}</div>`;
 }
 
+// all sports at a glance: each sport's summary from the last time its My Bets was opened on this phone
+function renderAllSports() {
+  const box = $('#allSports'); if (!box) return;
+  const rows = [['nfl', 'NFL'], ['nba', 'NBA'], ['cfb', 'College football'], ['cbb', 'College basketball']].map(([k, n]) => {
+    let d = null; try { d = JSON.parse(localStorage.getItem('edge-bets-sum-' + k)); } catch {} return d && (d.w + d.l + d.pu + d.open) ? { k, n, ...d } : null; }).filter(Boolean);
+  if (rows.length < 2) { box.hidden = true; return; }   // one sport: the tiles below already say it all
+  box.hidden = false;
+  const dollars = rows.every(r => r.usd != null), val = r => dollars ? r.usd : r.units, risk = r => dollars ? r.usdRisk : r.risked;
+  const fmt = v => dollars ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${usd(v)}` : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}u`;
+  const T = rows.reduce((a, r) => ({ w: a.w + r.w, l: a.l + r.l, pu: a.pu + r.pu, v: a.v + val(r), rk: a.rk + risk(r), open: a.open + r.open }), { w: 0, l: 0, pu: 0, v: 0, rk: 0, open: 0 });
+  const roi = (v, rk) => rk ? `${v >= 0 ? '+' : ''}${(v / rk * 100).toFixed(1)}%` : '–';
+  const tr = (n, w, l, pu, v, rk, open, cls = '') => `<tr class="${cls}"><td>${n}</td><td class="n">${w}–${l}${pu ? '–' + pu : ''}</td><td class="n"><b class="${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${fmt(v)}</b></td><td class="n">${roi(v, rk)}</td><td class="n note">${open ? open + ' open' : ''}</td></tr>`;
+  box.innerHTML = `<h3>All sports</h3>
+    <table class="bk allsp-t"><tr><th>Sport</th><th class="n">Record</th><th class="n">${dollars ? 'Profit' : 'Units'}</th><th class="n">ROI</th><th></th></tr>
+    ${rows.map(r => tr(`${r.n}${r.k === SPORT ? ' <span class="note">(here)</span>' : ''}`, r.w, r.l, r.pu, val(r), risk(r), r.open)).join('')}
+    ${tr('<b>Total</b>', T.w, T.l, T.pu, T.v, T.rk, T.open, 'tot')}</table>
+    <p class="note">Each sport keeps its own bets; its line here updates when you open My Bets in that sport. Oldest: ${ago(rows.map(r => r.at).sort()[0])}.</p>`;
+}
 // ------------------------------------------------------------ My Bets breakdown: where you win, where you leak, and the fun stuff
 function betType(b) {
   if (b.market === 'parlay') return (b.legs || []).length && b.legs.every(l => l.m === 'Anytime TD') ? 'TD parlays' : 'Parlays';
