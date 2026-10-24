@@ -1490,6 +1490,11 @@ const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1;
 const SPORT = (() => { try { const s = localStorage.getItem('edge-sport'); return ['cfb', 'nba', 'cbb', 'ff'].includes(s) ? s : 'nfl'; } catch { return 'nfl'; } })();
 const CFB = SPORT === 'cfb', NBA = SPORT === 'nba', FFM = SPORT === 'ff', CBB = SPORT === 'cbb';
 const COL = CFB || CBB;
+if (NBA || CBB) queueMicrotask(() => {
+  const t = 'Line moves, players ruled out, weekly recap';
+  document.querySelectorAll('.alertrow[data-alerts] span').forEach(x => { x.textContent = t; });
+  const b = document.querySelector('#alertBan span'); if (b) b.innerHTML = `<b>New: phone alerts.</b> ${t}.`;
+});
 const CBB_NOTE = 'Info only: on 2025-26 games Kalshi\'s line was more accurate than ours (off by 7.8 pts on margins vs our 8.2); our 4+ point disagreements went 20-12 on sides and 29-23 on totals, too few games to trust yet.';   // college modes: our number shown as info, report card vs the closing line, no props   // FFM: Fantasy mode, built on the NFL data
 // each sport keeps its own parlay, bets and per-sport picks; app-wide prefs (theme, easy mode, your book) are shared
 const SHARED_KEYS = new Set(['edge-sport', 'edge-easy', 'edge-welcomed', 'edge-alerts-seen', 'edge-mybook', 'edge-state', 'edge-altbook',
@@ -1841,7 +1846,7 @@ function renderSpot() {
   const side = (t, s) => `<div class="spot-team">${logo(t.abbr, 76)}<b>${esc(nick(t))}</b><small>${esc(t.rec)}${s ? ' · ' + s : ''}</small>${styleTag(t.abbr)}</div>`;
   const mid = isLive
     ? `<div class="spot-mid"><div class="big">${esc(L?.away.score ?? A.score)} – ${esc(L?.home.score ?? H.score)}</div><div class="sub live"><span class="livedot"></span>${esc(L?.detail || g.detail)}</div></div>`
-    : `<div class="spot-mid"><div class="sub">${NBA ? 'Tip-off in' : 'Kickoff in'}</div><div class="cd" data-cd="${esc(g.date)}">${countdown(g.date)}</div><div class="sub">${kick(g)}${g.tv ? ' · ' + esc(g.tv) : ''}</div></div>`;
+    : `<div class="spot-mid"><div class="sub">${NBA || CBB ? 'Tip-off in' : 'Kickoff in'}</div><div class="cd" data-cd="${esc(g.date)}">${countdown(g.date)}</div><div class="sub">${kick(g)}${g.tv ? ' · ' + esc(g.tv) : ''}</div></div>`;
   const wp = isLive && L?.wp != null ? L.wp : o?.hFair;
   const wpLabel = isLive && L?.wp != null ? 'Live win chance' : 'Win chance (betting market)';
   const fav = o?.hs != null ? (o.hs < 0 ? `${nick(H)} by ${-o.hs}` : o.hs > 0 ? `${nick(A)} by ${o.hs}` : 'Pick ’em') : null;
@@ -4581,6 +4586,7 @@ function renderBoard() {
       <div class="story-h">${logo(g.away.abbr, 26)}<b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b>${logo(g.home.abbr, 26)}<span>${g === spot ? 'More on the spotlight game' : kick(g)}</span></div>
       ${fl.map(sayRow).join('')}
     </button>`).join('') + (flagged.length > nStory ? `<button class="showmore" data-morestories>More storylines (${flagged.length - nStory} more games)</button>` : '')
+    : NBA || CBB ? `<div class="empty"><b>Quiet slate so far</b>Nothing jumps out for the upcoming games yet. Storylines appear as lines move and injury news lands.</div>`
     : `<div class="empty"><b>Quiet week so far</b>Nothing jumps out for the upcoming games in week ${S.week} yet. Storylines appear as lines move and injury news lands.</div>`;
   renderSpot();
   // live games first, then upcoming, then finals; finals newest first
