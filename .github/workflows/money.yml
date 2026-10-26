@@ -1,0 +1,31 @@
+name: Kalshi money
+on:
+  schedule:
+    - cron: "2,17,32,47 12-23 * * *"   # 8 AM - 7:47 PM EDT (7 AM - 6:47 PM EST)
+    - cron: "2,17,32,47 0-4 * * *"     # 8 PM - 12:47 AM EDT
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: money
+  cancel-in-progress: false
+jobs:
+  money:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Kalshi money for NFL, NBA and college basketball
+        run: python money_sync.py
+      - name: Publish
+        run: |
+          git config user.name "edge-board-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for f in data/money.json data/nba/money.json data/cbb/money.json state/kalshi_flow.json state/nba/kalshi_flow.json state/cbb/kalshi_flow.json; do [ -f "$f" ] && git add "$f"; done
+          git diff --cached --quiet && exit 0
+          git commit -q -m "Money $(date -u +%Y-%m-%dT%H:%MZ)"
+          git pull --rebase -X theirs -q || true
+          git push -q || (sleep 5 && git pull --rebase -X theirs -q && git push -q)

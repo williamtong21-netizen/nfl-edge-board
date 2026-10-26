@@ -1008,6 +1008,7 @@ nav [data-tab="fantasy"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 nav [data-tab="tds"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20.5 3.5C14 2 6.9 4.3 4 9.5 2.6 12 2.8 16.4 3.5 20.5 7.6 21.2 12 21.4 14.5 20 19.7 17.1 22 10 20.5 3.5zM9 16.4l-1.4-1.4 7.4-7.4 1.4 1.4z'/%3E%3C/svg%3E")}
 nav [data-tab="parlay"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l10 5-10 5L2 7zm-7.6 8.8L12 14.6l7.6-3.8L22 12l-10 5L2 12zm0 5L12 19.6l7.6-3.8L22 17l-10 5L2 17z'/%3E%3C/svg%3E")}
 nav [data-tab="bets"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 6a2 2 0 012-2h14a2 2 0 012 2v3a3 3 0 000 6v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3a3 3 0 000-6zm6 1v2h2V7zm0 4v2h2v-2zm0 4v2h2v-2z'/%3E%3C/svg%3E")}
+nav [data-tab="money"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 2h2v2.1c2.3.3 4 1.7 4.4 3.9h-2.1c-.4-1.2-1.6-2-3.3-2-2 0-3.2.9-3.2 2.2 0 1.2.9 1.8 3.5 2.4 3.2.7 5.2 1.8 5.2 4.6 0 2.3-1.8 3.9-4.5 4.2V22h-2v-2.6c-2.6-.3-4.5-1.9-4.8-4.3h2.1c.4 1.5 1.8 2.4 3.8 2.4 2.1 0 3.3-.9 3.3-2.3 0-1.3-1-1.9-3.7-2.5-3-.7-5-1.7-5-4.4 0-2 1.6-3.6 4.3-4V2z'/%3E%3C/svg%3E")}
 nav [data-tab="moves"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 17.6L8.6 11l4 4 6.3-6.3-2.4-2.4H23v6.5l-2.4-2.4-8 8-4-4L3.4 19z'/%3E%3C/svg%3E")}
 nav [data-tab="shop"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 12V3h9l11 11-9 9zm5-6.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z'/%3E%3C/svg%3E")}
 nav [data-tab="lineups"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 3h18v18H3zm2 2v6h14V5zm0 8v6h14v-6zm6-6h2v2h-2zm0 8h2v2h-2z'/%3E%3C/svg%3E")}
@@ -1222,6 +1223,26 @@ body.simopen{overflow:hidden}
 .safetonight{margin:2px 0 10px}
 
 .kflow-n b.neutral{color:var(--ink)}
+
+/* Money tab */
+.mn-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:6px 0 12px}
+.mn-tiles .tile small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mn-big{font-size:22px}
+.mn-sort{gap:6px;margin:0 0 12px}
+.mn-h{margin:16px 0 8px}
+.mn-games{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.mn-game{border:1px solid var(--line);border-radius:12px;background:var(--surface2);padding:10px 12px}
+.mn-gh{display:flex;align-items:center;gap:6px;margin-bottom:6px}.mn-gh b{font:700 15px var(--f-display);letter-spacing:.3px}.mn-gh small{color:var(--muted);font-size:11px}
+.mn-gh .mn-gt{margin-left:auto;font:800 15px var(--f-display);color:var(--ink)}
+.mn-line{display:grid;grid-template-columns:78px 58px 54px minmax(0,1fr);gap:6px;align-items:center;padding:5px 0;border-top:1px solid var(--line);font-size:12.5px}
+.mn-line span{color:var(--muted)}.mn-line i{font-style:normal;color:var(--good);font-size:11px}.mn-line em{font-style:normal;text-align:right}
+.mn-ph{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px}.mn-ph .row{gap:6px}
+.mn-props{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px;margin:6px 0 10px}
+.mn-prop{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.mn-pw{min-width:0}.mn-pw b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mn-pw small{display:block;color:var(--muted);font-size:11.5px}
+.mn-pn{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:1px}.mn-pn b{font:800 15px var(--f-display)}.mn-pn i{font-style:normal;color:var(--good);font-size:11px}
+@media (max-width:420px){.mn-tiles{gap:6px}.mn-tiles .tile{padding:10px 8px}.mn-tiles .tile b{font-size:18px}.mn-line{grid-template-columns:70px 52px 48px minmax(0,1fr);font-size:12px}}
+
+.mn-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}.mn-top h2{margin:0}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1272,6 +1293,7 @@ body.simopen{overflow:hidden}
     <button role="tab" id="tab-board" data-tab="board" aria-selected="true">Games</button>
     <button role="tab" id="tab-picks" data-tab="picks" aria-selected="false">Picks</button>
     <button role="tab" id="tab-live" data-tab="live" aria-selected="false">Live</button>
+    <button role="tab" id="tab-money" data-tab="money" aria-selected="false">Money</button>
     <button role="tab" id="tab-props" data-tab="props" aria-selected="false">Props</button>
     <button role="tab" id="tab-tds" data-tab="tds" aria-selected="false">TDs</button>
     <button role="tab" id="tab-parlay" data-tab="parlay" aria-selected="false">Parlay</button>
@@ -1404,6 +1426,10 @@ body.simopen{overflow:hidden}
     </div>
     <p class="note" id="tm-note"></p>
     <div class="panel scroll" id="teams"></div>
+  </div>
+
+  <div id="view-money" hidden>
+    <div id="money"></div>
   </div>
 
   <div id="view-moves" hidden>
@@ -2138,6 +2164,7 @@ async function loadLocalData() {
   [S.lineups, S.players] = await Promise.all([lp, plp]);
   if (!first) fillGames();
   renderAll();
+  loadMoney();
   return true;
 }
 async function startLocal() {
@@ -5912,6 +5939,70 @@ function mostTraded() {
   }
   return out.sort((a, b) => b.x.usd - a.x.usd).slice(0, 6);
 }
+// ------------------------------------------------------------ Kalshi money refresh: money_sync.py rewrites money.json about every
+// 15 minutes (Kalshi blocks browsers, so the app can't ask it directly); merged onto the slate and props, re-checked every 2 minutes
+async function loadMoney() {
+  if (FFM || !S.slate) return;
+  const m = await fetch(DATA_BASE + 'money.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!m?.at || m.at === S.moneyAt || m.at < (S.slate.updatedAt || '')) return;   // a full sync newer than the file already has fresher money
+  S.moneyAt = m.at;
+  for (const g of S.slate.games) { const M = m.games?.[g.id]; if (M) { g.kalshi = g.kalshi || {}; g.kalshi.money = M; } }
+  for (const [gid, kv] of Object.entries(m.props || {})) for (const pl of S.props?.[gid] || []) for (const pr of pl.props) { const x = kv[pl.id + '|' + pr.m]; if (x) pr.kv = x; }
+  if (!$('#view-money')?.hidden) renderMoney();
+  if (!$('#view-props')?.hidden) renderProps();
+  if (!$('#view-moves')?.hidden) renderMoves();
+}
+setInterval(() => { if (document.visibilityState === 'visible') loadMoney(); }, 120e3);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadMoney(); });
+// ------------------------------------------------------------ Money tab: where people are putting their money (Kalshi)
+const MN = { sort: 'usd', show: 'all', n: 25 };
+function renderMoney() {
+  const box = $('#money'); if (!box) return;
+  const sl = S.slate; if (!sl) { box.innerHTML = ''; return; }
+  const games = sl.games.filter(g => g.state === 'pre' && g.kalshi?.money);
+  const lbl = { ml: 'Moneyline', spread: 'Spread', total: 'Total' };
+  const side = (g, k, x) => k === 'total' ? kSide(x, 'the over', 'the under') : kSide(x, g.home.abbr, g.away.abbr);
+  // props with money, either sort
+  const props = [];
+  for (const g of games.length ? sl.games.filter(g => g.state === 'pre') : []) for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) if (pr.kv?.usd >= 100) props.push({ g, pl, pr, x: pr.kv });
+  for (const g of sl.games.filter(g => g.state === 'pre' && !g.kalshi?.money)) for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) if (pr.kv?.usd >= 100) props.push({ g, pl, pr, x: pr.kv });
+  if (!games.length && !props.length) { box.innerHTML = `<h2>Where the money is</h2><div class="empty"><b>No Kalshi money yet</b>Kalshi markets for the upcoming games show up here once they open, usually a few days before kickoff. Money is checked every sync.</div>`; return; }
+  const sum = (f) => games.reduce((a, g) => a + ['ml', 'spread', 'total'].reduce((b, k) => b + (f(g.kalshi.money[k]) || 0), 0), 0) + props.reduce((a, p) => a + (f(p.x) || 0), 0);
+  const tot = sum(x => x?.usd), nw = sum(x => x?.dusd), hrs = Math.round(games.find(g => g.kalshi.money.ml?.h)?.kalshi.money.ml.h || 6);
+  const big = [...games.flatMap(g => ['ml', 'spread', 'total'].filter(k => g.kalshi.money[k]).map(k => ({ what: `${g.away.abbr} @ ${g.home.abbr} ${lbl[k].toLowerCase()}`, usd: g.kalshi.money[k].usd }))), ...props.map(p => ({ what: `${p.pl.n} ${p.pr.m.toLowerCase()}`, usd: p.x.usd }))].sort((a, b) => b.usd - a.usd)[0];
+  const flow = moneyFlow();
+  const gsort = games.slice().sort((a, b) => MN.sort === 'new' ? ['ml', 'spread', 'total'].reduce((s, k) => s + (b.kalshi.money[k]?.dusd || 0) - (a.kalshi.money[k]?.dusd || 0), 0) : ['ml', 'spread', 'total'].reduce((s, k) => s + (b.kalshi.money[k]?.usd || 0) - (a.kalshi.money[k]?.usd || 0), 0));
+  let pr = props.filter(p => MN.show === 'all' || (MN.show === 'over' ? (p.x.ys ?? (p.x.dp > 0 ? 1 : p.x.dp < 0 ? 0 : null)) >= 0.5 : (p.x.ys ?? (p.x.dp > 0 ? 1 : p.x.dp < 0 ? 0 : null)) != null && (p.x.ys ?? (p.x.dp > 0 ? 1 : 0)) < 0.5));
+  pr.sort((a, b) => MN.sort === 'new' ? (b.x.dusd || 0) - (a.x.dusd || 0) : b.x.usd - a.x.usd);
+  const chip = (k, v, l, cur) => `<button class="chip" data-mn="${k}|${v}" aria-pressed="${cur === v}">${l}</button>`;
+  const upd = S.moneyAt || sl.updatedAt;
+  box.innerHTML = `<div class="mn-top"><h2>Where the money is</h2><small class="note">updated ${upd ? ago(upd) : '–'} · refreshes every ~15 min</small></div>
+    <div class="mn-tiles">
+      <div class="tile"><span>On Kalshi</span><b class="num">${kUSD(tot)}</b><small>${games.length} game${games.length === 1 ? '' : 's'} · ${props.length} props</small></div>
+      <div class="tile"><span>New money</span><b class="num ${nw ? 'pos' : ''}">${nw ? '+' + kUSD(nw) : '–'}</b><small>${nw ? `last ~${hrs}h` : 'shows after two syncs'}</small></div>
+      <div class="tile"><span>Biggest market</span><b class="num mn-big">${big ? kUSD(big.usd) : '–'}</b><small>${big ? esc(big.what) : ''}</small></div>
+    </div>
+    <div class="row mn-sort" role="group" aria-label="Sort">${chip('sort', 'usd', 'Most money', MN.sort)}${chip('sort', 'new', 'Newest money', MN.sort)}</div>
+    <section class="kflow"><h3>Money moving now <small>new money on Kalshi, last ~${hrs}h</small></h3>
+      ${flow.length ? flow.map(f => `<div class="kflow-r">${logo(f.pl ? f.pl.tm || f.g.home.abbr : f.g.home.abbr, 20)}<span class="kflow-w"><b>${esc(f.what)}</b><small>${kick(f.g)}</small></span>
+        <span class="kflow-n"><b>+${kUSD(f.x.dusd)}</b><small>${kUSD(f.x.usd)} total</small>${f.side ? `<small>${f.side}</small>` : ''}</span></div>`).join('')
+        : `<p class="note" style="margin:0">No surges right now. When new money pours into a line, it lands here with which side it's on (checked about every 2 hours).</p>`}
+    </section>
+    ${gsort.length ? `<h3 class="mn-h">Games</h3><div class="mn-games">${gsort.map(g => { const M = g.kalshi.money, t = ['ml', 'spread', 'total'].reduce((a, k) => a + (M[k]?.usd || 0), 0);
+      return `<article class="mn-game"><div class="mn-gh">${logo(g.away.abbr, 22)}${logo(g.home.abbr, 22)}<b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b><small>${kick(g)}</small><span class="mn-gt">${kUSD(t)}</span></div>
+        ${['ml', 'spread', 'total'].filter(k => M[k]).map(k => `<div class="mn-line"><span>${lbl[k]}</span><b>${kUSD(M[k].usd)}</b>${M[k].dusd ? `<i>+${kUSD(M[k].dusd)}</i>` : '<i></i>'}<em>${side(g, k, M[k]) || '<span class="note">no lean yet</span>'}</em></div>`).join('')}</article>`; }).join('')}</div>` : ''}
+    <div class="mn-ph"><h3 class="mn-h">Props</h3><div class="row" role="group" aria-label="Show">${chip('show', 'all', 'All', MN.show)}${chip('show', 'over', 'Money on overs', MN.show)}${chip('show', 'under', 'Money on unders', MN.show)}</div></div>
+    ${pr.length ? `<div class="mn-props">${pr.slice(0, MN.n).map(p => { const team = p.pl.side === 'home' ? p.g.home : p.g.away, td = p.pr.m === 'Anytime TD';
+      return `<div class="mn-prop">${logo(team.abbr, 24)}<span class="mn-pw"><b>${esc(p.pl.n)}</b><small>${esc(p.pr.m)}${td ? '' : ' ' + p.pr.l} · ${esc(p.g.away.abbr)} @ ${esc(p.g.home.abbr)}</small></span>
+        <span class="mn-pn"><b>${kUSD(p.x.usd)}</b>${p.x.dusd >= 100 ? `<i>+${kUSD(p.x.dusd)}</i>` : ''}${td ? kPx(p.x) : kSide(p.x, 'over', 'under')}</span></div>`; }).join('')}</div>
+      ${pr.length > MN.n ? `<button class="showmore" data-mn="more|1">Show more (${pr.length - MN.n})</button>` : ''}`
+      : `<p class="note">${MN.show === 'all' ? 'No prop money yet.' : 'No props with a clear lean that way yet: leans show once new money arrives.'}</p>`}
+    <p class="note">Kalshi contracts traded × price, so dollars are rough. "% on" is Kalshi's own record of which side each new bettor took (shown when the line is near a coin flip); "pushing" means the price moved that way. Sportsbooks don't publish their money. Money and price moving together often means news or a sharp bettor: check the injury report before following it.</p>`;
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-mn]'); if (c) { const [k, v] = c.dataset.mn.split('|'); if (k === 'more') MN.n += 25; else { MN[k] = v; MN.n = 25; } renderMoney(); return; }
+  const gt = e.target.closest('[data-gotab]'); if (gt) { setTab(gt.dataset.gotab); window.scrollTo({ top: 0 }); }
+});
 function renderMoves() {
   const box = $('#moves'); if (!box) return;
   const sl = S.slate; if (!sl) { box.innerHTML = ''; return; }
@@ -5921,14 +6012,8 @@ function renderMoves() {
   if (!rows.length) { box.innerHTML = '<div class="empty"><b>No upcoming lines</b>Lines show up here once books post them.</div>'; return; }
   const sorts = { big: (a, b) => b.score - a.score, now: (a, b) => b.score24 - a.score24, kick: (a, b) => new Date(a.g.date) - new Date(b.g.date) };
   rows.sort(sorts[MV.sort]);
-  const now = rows.filter(m => m.flags.some(f => f.t === 'fast')), flow = moneyFlow(), top = flow.length ? [] : mostTraded();
-  box.innerHTML = `${!flow.length && top.length ? `<section class="kflow"><h3>Kalshi money <small>most traded on the slate</small></h3>
-      ${top.map(f => `<div class="kflow-r">${logo(f.pl ? f.pl.tm || f.g.home.abbr : f.g.home.abbr, 20)}<span class="kflow-w"><b>${esc(f.what)}</b><small>${kick(f.g)}</small></span>
-        <span class="kflow-n"><b class="neutral">${kUSD(f.x.usd)}</b><small>traded</small></span></div>`).join('')}
-      <p class="note">No surges right now. When new money pours into a line (checked about every 2 hours), it shows up here with which side it's on. Every prop's money is on the Props tab (sort by "Most traded on Kalshi").</p></section>` : ''}${flow.length ? `<section class="kflow"><h3>Money flow <small>new money on Kalshi, last ~${Math.round(flow[0].x.h || 6)}h</small></h3>
-      ${flow.map(f => `<div class="kflow-r">${logo(f.pl ? f.pl.tm || f.g.home.abbr : f.g.home.abbr, 20)}<span class="kflow-w"><b>${esc(f.what)}</b><small>${kick(f.g)}</small></span>
-        <span class="kflow-n"><b>+${kUSD(f.x.dusd)}</b><small>${kUSD(f.x.usd)} total</small>${f.side ? `<small>${f.side}</small>` : ''}</span></div>`).join('')}
-      <p class="note">Contracts traded × price, so dollars are rough. "% on" is Kalshi's own record of which side the person placing each new bet took (shown when the line is near a coin flip); "pushing" means the price moved that way. Money and price moving together often means news or a sharp bettor: check the injury report before following it.</p></section>` : ''}
+  const now = rows.filter(m => m.flags.some(f => f.t === 'fast'));
+  box.innerHTML = `<p class="note"><button class="btn small" data-gotab="money">Where the money is →</button> Kalshi money, surges and which side they're on now have their own tab.</p>
     <div class="row" style="gap:6px;margin-bottom:10px" role="group" aria-label="Sort">
       ${[['big', 'Biggest since open'], ['now', 'Biggest last 24h'], ['kick', 'Kickoff']].map(([k, l]) => `<button class="chip" data-mvsort="${k}" aria-pressed="${MV.sort === k}">${l}</button>`).join('')}</div>
     ${now.length ? `<div class="mv-now"><h3>Moving now</h3>${now.map(m => `<button class="chip" data-mvjump="${m.g.id}">${esc(m.g.away.abbr)} @ ${esc(m.g.home.abbr)}${m.sp6 ? ` · ${Math.abs(m.sp6)} toward ${esc(m.sp6 > 0 ? m.g.away.abbr : m.g.home.abbr)}` : ''}${m.tt6 ? ` · total ${m.tt6 > 0 ? '▲' : '▼'}${Math.abs(m.tt6)}` : ''}</button>`).join('')}</div>` : ''}
@@ -6489,12 +6574,12 @@ queueMicrotask(() => {
   if (NBA && ['tds', 'sims', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('board');
   if (SPORT === 'nfl' && store.get('edge-tab') === 'fantasy') setTab('board');   // fantasy moved to its own mode
 });
-function renderAll() { normProps(); navTidy(); renderSync(); renderBoard(); renderMoves(); renderSims(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderFantasy(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
+function renderAll() { normProps(); navTidy(); renderSync(); renderBoard(); renderMoves(); renderMoney(); renderSims(); renderPicks(); renderTraps(); renderAltPicks(); renderParlay(); renderTD(); renderSGP(); renderPlayers(); renderLive(); renderLineups(); renderProps(); renderFantasy(); renderTeams(); renderShop(); renderBets(); loadSharedSlip(); }
 
 // ------------------------------------------------------------ tab bar tidy-up (phones): main tabs + More
-const NAV_MAIN = ['board', 'picks', 'live', 'props', 'tds', 'parlay'];   // phone bar; everything else is under More (Sims also opens from each game card)
+const NAV_MAIN = ['board', 'picks', 'live', 'money', 'props', 'tds', 'parlay'];   // phone bar; everything else is under More (Sims also opens from each game card)
 function navOff() {   // tabs this mode doesn't have (CSS hides them on desktop; the phone bar needs it spelled out)
-  const off = new Set(COL ? ['props', 'tds', 'sims', 'lineups', 'players', 'teams', 'fantasy'] : NBA ? ['tds', 'sims', 'lineups', 'players', 'teams'] : SPORT === 'nfl' ? ['fantasy'] : []);
+  const off = new Set(COL ? ['props', 'tds', 'sims', 'lineups', 'players', 'teams', 'fantasy'] : NBA ? ['tds', 'sims', 'lineups', 'players', 'teams'] : SPORT === 'nfl' ? ['fantasy'] : FFM ? ['money'] : []);
   if (document.body.classList.contains('easy')) ['shop', 'lineups', 'players', 'teams'].forEach(t => off.add(t));
   return off;
 }
@@ -6532,12 +6617,13 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#moreS
 
 function setTab(t) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
-  for (const v of ['live', 'picks', 'board', 'sims', 'lineups', 'props', 'fantasy', 'players', 'teams', 'shop', 'moves', 'tds', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
+  for (const v of ['live', 'picks', 'board', 'sims', 'lineups', 'props', 'fantasy', 'players', 'teams', 'shop', 'moves', 'money', 'tds', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
   store.set('edge-tab', t);
   if (t === 'fantasy') lgBoot();
   if (t === 'tds') renderTD();   // props may have loaded since it last drew
   if (t === 'sims') renderSims();
   if (t === 'moves') renderMoves();
+  if (t === 'money') renderMoney();
   navTidy();
   if (t === 'parlay') { renderManual(); renderSGP(); renderSafeSlate(); }
 }
