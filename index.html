@@ -1243,6 +1243,7 @@ body.simopen{overflow:hidden}
 @media (max-width:420px){.mn-tiles{gap:6px}.mn-tiles .tile{padding:10px 8px}.mn-tiles .tile b{font-size:18px}.mn-line{grid-template-columns:70px 52px 48px minmax(0,1fr);font-size:12px}}
 
 .mn-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}.mn-top h2{margin:0}
+.kside.tm{color:var(--gold)}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -5915,17 +5916,17 @@ const kUSD = v => v == null ? '–' : v >= 1e6 ? '$' + (v / 1e6).toFixed(v >= 1e
 const kHot = (x, minUsd) => !!x && (x.dusd || 0) >= minUsd && x.d >= 0.25 * Math.max(1, x.c - x.d);
 const kPx = x => x?.dp && Math.abs(x.dp) >= 3 ? `<span class="kpx ${x.dp > 0 ? 'up' : 'dn'}">${x.dp > 0 ? '▲' : '▼'}${Math.abs(x.dp)}¢</span>` : '';
 // side text: yes / no = "over" / "under" for props and totals, home / away team for moneylines and spreads
-function kSide(x, yes, no) {
+function kSide(x, yes, no, team) {
   if (!x) return '';
-  if (x.ys != null) { const y = x.ys >= 0.5; return `<span class="kside ${y ? 'up' : 'dn'}">${Math.round((y ? x.ys : 1 - x.ys) * 100)}% on ${esc(y ? yes : no)}</span>`; }
-  if (x.dp && Math.abs(x.dp) >= 3) return `<span class="kside ${x.dp > 0 ? 'up' : 'dn'}">pushing ${esc(x.dp > 0 ? yes : no)} ${x.dp > 0 ? '▲' : '▼'}${Math.abs(x.dp)}¢</span>`;
+  if (x.ys != null) { const y = x.ys >= 0.5; return `<span class="kside ${team ? 'tm' : y ? 'up' : 'dn'}">${Math.round((y ? x.ys : 1 - x.ys) * 100)}% on ${esc(y ? yes : no)}</span>`; }
+  if (x.dp && Math.abs(x.dp) >= 3) return `<span class="kside ${team ? 'tm' : x.dp > 0 ? 'up' : 'dn'}">pushing ${esc(x.dp > 0 ? yes : no)} ${x.dp > 0 ? '▲' : '▼'}${Math.abs(x.dp)}¢</span>`;
   return '';
 }
 function moneyFlow() {   // the hottest markets on the slate: game lines and props, newest money first
   const out = [];
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) {
     const M = g.kalshi?.money || {}, lbl = { ml: 'moneyline', spread: 'spread', total: 'total' };
-    for (const k of ['ml', 'spread', 'total']) if (kHot(M[k], 25000)) out.push({ g, what: `${g.away.abbr} @ ${g.home.abbr} ${lbl[k]}`, x: M[k], side: k === 'total' ? kSide(M[k], 'the over', 'the under') : kSide(M[k], g.home.abbr, g.away.abbr) });
+    for (const k of ['ml', 'spread', 'total']) if (kHot(M[k], 25000)) out.push({ g, what: `${g.away.abbr} @ ${g.home.abbr} ${lbl[k]}`, x: M[k], side: k === 'total' ? kSide(M[k], 'the over', 'the under') : kSide(M[k], g.home.abbr, g.away.abbr, true) });
     for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) if (kHot(pr.kv, 1000)) out.push({ g, pl, what: `${pl.n} · ${pr.m}${pr.m === 'Anytime TD' ? '' : ' ' + pr.l}`, x: pr.kv, side: pr.m === 'Anytime TD' ? kSide({ dp: pr.kv.dp }, 'him scoring', 'no TD') : kSide(pr.kv, 'the over', 'the under') });
   }
   return out.sort((a, b) => b.x.dusd - a.x.dusd).slice(0, 6);
@@ -5961,7 +5962,7 @@ function renderMoney() {
   const sl = S.slate; if (!sl) { box.innerHTML = ''; return; }
   const games = sl.games.filter(g => g.state === 'pre' && g.kalshi?.money);
   const lbl = { ml: 'Moneyline', spread: 'Spread', total: 'Total' };
-  const side = (g, k, x) => k === 'total' ? kSide(x, 'the over', 'the under') : kSide(x, g.home.abbr, g.away.abbr);
+  const side = (g, k, x) => k === 'total' ? kSide(x, 'the over', 'the under') : kSide(x, g.home.abbr, g.away.abbr, true);
   // props with money, either sort
   const props = [];
   for (const g of games.length ? sl.games.filter(g => g.state === 'pre') : []) for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) if (pr.kv?.usd >= 100) props.push({ g, pl, pr, x: pr.kv });
@@ -6028,7 +6029,7 @@ function renderMoves() {
           <span class="mv-c"><i>Last 24h</i><b class="mv-24">${m.sp24 == null && m.tt24 == null ? 'Not tracked yet' : `${m.sp24 ? `${Math.abs(m.sp24)} toward ${esc(nick(m.sp24 > 0 ? g.away : g.home))}` : 'Spread steady'} · ${m.tt24 ? `total ${m.tt24 > 0 ? '▲' : '▼'}${Math.abs(m.tt24)}` : 'total steady'}`}</b><small>${wNow != null && fav ? `${esc(fav.abbr)} win ${Math.round(wOpen * 100)}% → ${Math.round(wNow * 100)}%` : ''}</small></span>
         </button>
         ${(() => { const M = g.kalshi?.money; if (!M) return ''; const tot = (M.ml?.usd || 0) + (M.spread?.usd || 0) + (M.total?.usd || 0), nw = (M.ml?.dusd || 0) + (M.spread?.dusd || 0) + (M.total?.dusd || 0);
-          const sd = [kSide(M.ml, g.home.abbr, g.away.abbr), kSide(M.total, 'the over', 'the under')].filter(Boolean);
+          const sd = [kSide(M.ml, g.home.abbr, g.away.abbr, true), kSide(M.spread, g.home.abbr + ' spread', g.away.abbr + ' spread', true), kSide(M.total, 'the over', 'the under')].filter(Boolean);
           return tot ? `<p class="mv-money"><span>Kalshi</span><b>${kUSD(tot)}</b> traded${nw ? ` · <b>+${kUSD(nw)}</b> in ${Math.round(M.ml?.h || M.spread?.h || 6)}h` : ''}${sd.length ? ' · new money ' + sd.join(' · ') : ''}</p>` : ''; })()}
         ${m.flags.length ? `<div class="mv-flags">${m.flags.map(f => `<span class="b ${f.t === 'fast' ? 'r' : f.t === 'flip' ? 'r' : 'y'}">${esc(f.s)}</span>`).join('')}</div>` : ''}
         ${mvTop(m) ? `<p class="mv-top">Possible reason: ${esc(mvTop(m))}${(m.g.why?.items?.length || 0) > 1 ? ` <span class="note">+${m.g.why.items.length - 1} more</span>` : ''}</p>` : m.g.why && m.score >= 2 ? '<p class="mv-top note">No news found; likely betting action</p>' : ''}

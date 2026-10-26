@@ -260,8 +260,11 @@ def flow(pre, props, now=None):
             jobs.append((M["ml"], [(r.get("tk"), t == H) for t, r in k["ml"].items()]))
         if hot(M.get("total"), HOT_GAME) and k.get("total") and even(near50(k["total"])):
             jobs.append((M["total"], [(near50(k["total"]).get("tk"), True)]))
-        if hot(M.get("spread"), HOT_GAME) and (k.get("spread") or {}).get(H) and even(near50(k["spread"][H])):
-            jobs.append((M["spread"], [(near50(k["spread"][H]).get("tk"), True)]))
+        if hot(M.get("spread"), HOT_GAME) and k.get("spread"):
+            # a spread is a ladder on both teams ("PHI wins by 2.5+", "DAL wins by 4.5+"...): add up the busiest near-coin-flip
+            # rungs on either side; Yes on a home rung or No on an away rung is money on the home team
+            rungs = sorted(((r, t == H) for t, rs in k["spread"].items() for r in rs if even(r)), key=lambda x: -(x[0].get("v") or 0))[:6]
+            if rungs: jobs.append((M["spread"], [(r.get("tk"), home) for r, home in rungs]))
         for pl in props.get(g["id"], []):
             for pr in pl["props"]:
                 if hot(pr.get("kv"), HOT_PROP) and pr["m"] != "Anytime TD":   # TD markets are Yes-only betting: no split
