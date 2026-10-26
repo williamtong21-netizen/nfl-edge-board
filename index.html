@@ -1220,6 +1220,8 @@ body.simopen{overflow:hidden}
 .fadewho{min-width:0}.fadewho b{display:block;font:700 15px var(--f-display);letter-spacing:.2px}.fadewho small{display:block;color:var(--muted);font-size:12px;line-height:1.35}
 
 .safetonight{margin:2px 0 10px}
+
+.kflow-n b.neutral{color:var(--ink)}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -5901,6 +5903,15 @@ function moneyFlow() {   // the hottest markets on the slate: game lines and pro
   }
   return out.sort((a, b) => b.x.dusd - a.x.dusd).slice(0, 6);
 }
+function mostTraded() {
+  const out = [];
+  for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) {
+    const M = g.kalshi?.money || {}, lbl = { ml: 'moneyline', spread: 'spread', total: 'total' };
+    for (const k of ['ml', 'spread', 'total']) if (M[k]?.usd) out.push({ g, what: `${g.away.abbr} @ ${g.home.abbr} ${lbl[k]}`, x: M[k] });
+    for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) if (pr.kv?.usd) out.push({ g, pl, what: `${pl.n} · ${pr.m}${pr.m === 'Anytime TD' ? '' : ' ' + pr.l}`, x: pr.kv });
+  }
+  return out.sort((a, b) => b.x.usd - a.x.usd).slice(0, 6);
+}
 function renderMoves() {
   const box = $('#moves'); if (!box) return;
   const sl = S.slate; if (!sl) { box.innerHTML = ''; return; }
@@ -5910,8 +5921,11 @@ function renderMoves() {
   if (!rows.length) { box.innerHTML = '<div class="empty"><b>No upcoming lines</b>Lines show up here once books post them.</div>'; return; }
   const sorts = { big: (a, b) => b.score - a.score, now: (a, b) => b.score24 - a.score24, kick: (a, b) => new Date(a.g.date) - new Date(b.g.date) };
   rows.sort(sorts[MV.sort]);
-  const now = rows.filter(m => m.flags.some(f => f.t === 'fast')), flow = moneyFlow();
-  box.innerHTML = `${flow.length ? `<section class="kflow"><h3>Money flow <small>new money on Kalshi, last ~${Math.round(flow[0].x.h || 6)}h</small></h3>
+  const now = rows.filter(m => m.flags.some(f => f.t === 'fast')), flow = moneyFlow(), top = flow.length ? [] : mostTraded();
+  box.innerHTML = `${!flow.length && top.length ? `<section class="kflow"><h3>Kalshi money <small>most traded on the slate</small></h3>
+      ${top.map(f => `<div class="kflow-r">${logo(f.pl ? f.pl.tm || f.g.home.abbr : f.g.home.abbr, 20)}<span class="kflow-w"><b>${esc(f.what)}</b><small>${kick(f.g)}</small></span>
+        <span class="kflow-n"><b class="neutral">${kUSD(f.x.usd)}</b><small>traded</small></span></div>`).join('')}
+      <p class="note">No surges right now. When new money pours into a line (checked about every 2 hours), it shows up here with which side it's on. Every prop's money is on the Props tab (sort by "Most traded on Kalshi").</p></section>` : ''}${flow.length ? `<section class="kflow"><h3>Money flow <small>new money on Kalshi, last ~${Math.round(flow[0].x.h || 6)}h</small></h3>
       ${flow.map(f => `<div class="kflow-r">${logo(f.pl ? f.pl.tm || f.g.home.abbr : f.g.home.abbr, 20)}<span class="kflow-w"><b>${esc(f.what)}</b><small>${kick(f.g)}</small></span>
         <span class="kflow-n"><b>+${kUSD(f.x.dusd)}</b><small>${kUSD(f.x.usd)} total</small>${f.side ? `<small>${f.side}</small>` : ''}</span></div>`).join('')}
       <p class="note">Contracts traded × price, so dollars are rough. "% on" is Kalshi's own record of which side the person placing each new bet took (shown when the line is near a coin flip); "pushing" means the price moved that way. Money and price moving together often means news or a sharp bettor: check the injury report before following it.</p></section>` : ''}
