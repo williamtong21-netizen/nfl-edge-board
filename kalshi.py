@@ -50,7 +50,7 @@ def _price(m):
     ya, na = f("yes_ask_dollars"), f("no_ask_dollars")
     if ya is None and na is None: return None
     if (ya or 1) >= 0.99 and (na or 1) >= 0.99: return None          # no real market on either side
-    return {"ya": ya, "na": na, "yb": f("yes_bid_dollars"), "v": round(float(m.get("volume_fp") or 0))}
+    return {"ya": ya, "na": na, "yb": f("yes_bid_dollars"), "v": round(float(m.get("volume_fp") or 0)), "tk": m.get("ticker")}
 
 
 SERIES_API = "https://api.elections.kalshi.com/trade-api/v2/series/"
@@ -166,6 +166,36 @@ def apply(games, props):
 
 # ---------------------------------------------------------------- money on Kalshi and where it's moving
 FLOW_FILE, FLOW_EVERY, FLOW_KEEP, FLOW_BACK = "kalshi_flow.json", 2 * 3600, 10 * 3600, 6 * 3600
+TRADES_API = "https://api.elections.kalshi.com/trade-api/v2/markets/trades"
+HOT_PROP, HOT_GAME, MAX_SPLITS = 1000, 25000, 40      # same "surge" rule as the app; at most 40 trade pulls per sync
+
+
+def hot(x, min_usd):
+    return bool(x) and (x.get("dusd") or 0) >= min_usd and x.get("d", 0) >= 0.25 * max(1, x["c"] - x["d"])
+
+
+def taker_usd(ticker, since):
+    """Dollars bought on each side by the trader who crossed the spread (Kalshi's taker_side), since a unix time:
+    (yes dollars, no dollars). The taker is the one who chose to bet now, so this shows which side the new money took."""
+    y = n = 0.0; cursor = None
+    for _ in range(4):   # up to 4,000 trades
+        q = {"ticker": ticker, "limit": 1000, "min_ts": int(since)}
+        if cursor: q["cursor"] = cursor
+        req = Request(TRADES_API + "?" + urlencode(q), headers={"User-Agent": "nfl-edge-board", "Accept": "application/json"})
+        for k in range(4):   # rate limited: back off and try again
+            try:
+                with urlopen(req, timeout=30) as r: d = json.loads(r.read().decode("utf-8")); break
+            except HTTPError as e:
+                if e.code != 429 or k == 3: raise
+                time.sleep(1.5 * (k + 1))
+        for t in d.get("trades", []):
+            c = float(t.get("count_fp") or t.get("count") or 0)
+            if t.get("taker_side") == "yes": y += c * float(t.get("yes_price_dollars") or 0)
+            elif t.get("taker_side") == "no": n += c * float(t.get("no_price_dollars") or 0)
+        cursor = d.get("cursor")
+        if not cursor or not d.get("trades"): break
+        time.sleep(0.1)
+    return y, n
 
 
 def _mid(r):
@@ -219,6 +249,43 @@ def flow(pre, props, now=None):
                 main = next((r for r in pr["alt"] if r["l"] == pr.get("l")), None) or near50(pr["alt"])
                 kv = track(f"{g['id']}|{pl['id']}|{pr['m']}", pr["alt"], main)
                 if kv: pr["kv"] = kv
+    # which side the new money took, for the markets that surged ("ys" = share on Yes: the over for props and totals,
+    # the home team for moneylines and spreads). Only near a coin flip (25-75c): on long shots and heavy favorites the
+    # trader crossing the spread is almost always buying Yes, whatever the news, so the split would mislead
+    even = lambda r: r is not None and _mid(r) is not None and 0.25 <= _mid(r) <= 0.75
+    jobs = []
+    for g in pre:
+        k = g.get("kalshi") or {}; M = k.get("money") or {}; H = g["home"]["abbr"]
+        if hot(M.get("ml"), HOT_GAME) and k.get("ml") and even(k["ml"].get(H)):
+            jobs.append((M["ml"], [(r.get("tk"), t == H) for t, r in k["ml"].items()]))
+        if hot(M.get("total"), HOT_GAME) and k.get("total") and even(near50(k["total"])):
+            jobs.append((M["total"], [(near50(k["total"]).get("tk"), True)]))
+        if hot(M.get("spread"), HOT_GAME) and (k.get("spread") or {}).get(H) and even(near50(k["spread"][H])):
+            jobs.append((M["spread"], [(near50(k["spread"][H]).get("tk"), True)]))
+        for pl in props.get(g["id"], []):
+            for pr in pl["props"]:
+                if hot(pr.get("kv"), HOT_PROP) and pr["m"] != "Anytime TD":   # TD markets are Yes-only betting: no split
+                    main = next((r for r in pr["alt"] if r["l"] == pr.get("l")), None) or near50(pr["alt"])
+                    if even(main): jobs.append((pr["kv"], [(main.get("tk"), True)]))
+    jobs.sort(key=lambda j: -(j[0].get("dusd") or 0))
+    for x, parts in jobs[:MAX_SPLITS]:
+        since = now - (x.get("h") or 6) * 3600; yes = no = 0.0
+        try:
+            for tk, yes_is_ours in parts:
+                if not tk: continue
+                y, n = taker_usd(tk, since)
+                yes, no = (yes + y, no + n) if yes_is_ours else (yes + n, no + y)   # away team's Yes = money on the away side
+                time.sleep(0.25)
+        except Exception as e: print("kalshi trades", e, file=sys.stderr); continue
+        if yes + no >= 1000: x["ys"] = round(yes / (yes + no), 2); x["tusd"] = round(yes + no)
+    for g in pre:   # the tickers were only needed for those pulls
+        for v in (g.get("kalshi") or {}).values():
+            for rungs in (v.values() if isinstance(v, dict) else [v]):
+                for r in (rungs if isinstance(rungs, list) else [rungs] if isinstance(rungs, dict) else []): r.pop("tk", None)
+        for pl in props.get(g["id"], []):
+            (pl.get("ftk") or {}).pop("tk", None)
+            for pr in pl["props"]:
+                for r in pr.get("alt") or []: r.pop("tk", None)
     try:
         old = json.dumps(st, sort_keys=True); new = json.dumps(keep, sort_keys=True)
         if new != old:

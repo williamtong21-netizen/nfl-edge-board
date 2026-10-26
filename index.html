@@ -1210,6 +1210,8 @@ body.simopen{overflow:hidden}
 .kflow-w small,.kflow-n small{display:block;color:var(--muted);font-size:11px}.kflow-n{text-align:right}.kflow-n b{color:var(--good)}
 .kflow .note{margin:8px 0 0}
 .mv-money{margin:2px 12px 6px;font-size:12px;color:var(--muted)}.mv-money span{font:800 10px var(--f-body);letter-spacing:.4px;text-transform:uppercase;margin-right:6px}.mv-money b{color:var(--ink)}
+
+.kside{font:700 10px var(--f-body)}.kside.up{color:var(--good)}.kside.dn{color:var(--bad)}.kflow-n .kside{display:inline}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -5748,7 +5750,7 @@ function renderProps() {
           <span class="meta">${x.n > 5 ? (() => { const hit = z => over ? z.v > x.pr.l : z.v < x.pr.l, l5 = x.games.slice(-5);
               return `<span>L5 <b>${l5.filter(hit).length}/5</b></span>${ten ? '' : `<span>L${x.n} <b>${x.games.filter(hit).length}/${x.n}</b></span>`}`; })() : `<span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>`}${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span class="sec">proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
             ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
-            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.kv?.usd >= 100 ? `<span class="kmoney${kHot(x.pr.kv, 1000) ? ' hot' : ''}" title="Traded on Kalshi (contracts × price)">${kHot(x.pr.kv, 1000) ? '🔥 ' : ''}${kUSD(x.pr.kv.usd)}${x.pr.kv.dusd >= 500 ? ` <i>+${kUSD(x.pr.kv.dusd)}</i>` : ''}${kPx(x.pr.kv)}</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide games ▴' : `Last ${PF.lastN || 5} ▾`}</span></span>
+            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.kv?.usd >= 100 ? `<span class="kmoney${kHot(x.pr.kv, 1000) ? ' hot' : ''}" title="Traded on Kalshi (contracts × price)">${kHot(x.pr.kv, 1000) ? '🔥 ' : ''}${kUSD(x.pr.kv.usd)}${x.pr.kv.dusd >= 500 ? ` <i>+${kUSD(x.pr.kv.dusd)}</i>` : ''}${x.pr.m === 'Anytime TD' ? kPx(x.pr.kv) : kSide(x.pr.kv, 'over', 'under')}</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide games ▴' : `Last ${PF.lastN || 5} ▾`}</span></span>
         </button>${isOpen ? propDrop(pl, x.pr, g, has ? over : true) : ''}`;
       }).join('')}
       ${props.length > 3 && !PF.players.has(pl.id) ? `<button class="showmore" data-pplayer="${esc(pl.id)}" style="margin:4px 10px 8px;width:auto">+${props.length - 3} more props</button>` : ''}
@@ -5840,12 +5842,19 @@ const mvTop = m => { const it = m.g.why?.items?.[0]; if (it) return it.text; con
 const kUSD = v => v == null ? '–' : v >= 1e6 ? '$' + (v / 1e6).toFixed(v >= 1e7 ? 0 : 1) + 'M' : v >= 1e3 ? '$' + Math.round(v / 1e3) + 'K' : '$' + Math.round(v);
 const kHot = (x, minUsd) => !!x && (x.dusd || 0) >= minUsd && x.d >= 0.25 * Math.max(1, x.c - x.d);
 const kPx = x => x?.dp && Math.abs(x.dp) >= 3 ? `<span class="kpx ${x.dp > 0 ? 'up' : 'dn'}">${x.dp > 0 ? '▲' : '▼'}${Math.abs(x.dp)}¢</span>` : '';
+// side text: yes / no = "over" / "under" for props and totals, home / away team for moneylines and spreads
+function kSide(x, yes, no) {
+  if (!x) return '';
+  if (x.ys != null) { const y = x.ys >= 0.5; return `<span class="kside ${y ? 'up' : 'dn'}">${Math.round((y ? x.ys : 1 - x.ys) * 100)}% on ${esc(y ? yes : no)}</span>`; }
+  if (x.dp && Math.abs(x.dp) >= 3) return `<span class="kside ${x.dp > 0 ? 'up' : 'dn'}">pushing ${esc(x.dp > 0 ? yes : no)} ${x.dp > 0 ? '▲' : '▼'}${Math.abs(x.dp)}¢</span>`;
+  return '';
+}
 function moneyFlow() {   // the hottest markets on the slate: game lines and props, newest money first
   const out = [];
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) {
     const M = g.kalshi?.money || {}, lbl = { ml: 'moneyline', spread: 'spread', total: 'total' };
-    for (const k of ['ml', 'spread', 'total']) if (kHot(M[k], 25000)) out.push({ g, what: `${g.away.abbr} @ ${g.home.abbr} ${lbl[k]}`, x: M[k], px: k === 'ml' && M[k].dp ? `${g.home.abbr} ${M[k].dp > 0 ? '▲' : '▼'}${Math.abs(M[k].dp)}¢` : '' });
-    for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) if (kHot(pr.kv, 1000)) out.push({ g, pl, what: `${pl.n} · ${pr.m}${pr.m === 'Anytime TD' ? '' : ' ' + pr.l}`, x: pr.kv });
+    for (const k of ['ml', 'spread', 'total']) if (kHot(M[k], 25000)) out.push({ g, what: `${g.away.abbr} @ ${g.home.abbr} ${lbl[k]}`, x: M[k], side: k === 'total' ? kSide(M[k], 'the over', 'the under') : kSide(M[k], g.home.abbr, g.away.abbr) });
+    for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) if (kHot(pr.kv, 1000)) out.push({ g, pl, what: `${pl.n} · ${pr.m}${pr.m === 'Anytime TD' ? '' : ' ' + pr.l}`, x: pr.kv, side: pr.m === 'Anytime TD' ? kSide({ dp: pr.kv.dp }, 'him scoring', 'no TD') : kSide(pr.kv, 'the over', 'the under') });
   }
   return out.sort((a, b) => b.x.dusd - a.x.dusd).slice(0, 6);
 }
@@ -5861,8 +5870,8 @@ function renderMoves() {
   const now = rows.filter(m => m.flags.some(f => f.t === 'fast')), flow = moneyFlow();
   box.innerHTML = `${flow.length ? `<section class="kflow"><h3>Money flow <small>new money on Kalshi, last ~${Math.round(flow[0].x.h || 6)}h</small></h3>
       ${flow.map(f => `<div class="kflow-r">${logo(f.pl ? f.pl.tm || f.g.home.abbr : f.g.home.abbr, 20)}<span class="kflow-w"><b>${esc(f.what)}</b><small>${kick(f.g)}</small></span>
-        <span class="kflow-n"><b>+${kUSD(f.x.dusd)}</b><small>${kUSD(f.x.usd)} total${f.px ? ' · ' + esc(f.px) : f.x.dp && Math.abs(f.x.dp) >= 3 ? ` · ${f.x.dp > 0 ? '▲' : '▼'}${Math.abs(f.x.dp)}¢` : ''}</small></span></div>`).join('')}
-      <p class="note">Contracts traded × price, so dollars are rough. A surge with the price moving the same way often means news or a sharp bettor; check the injury report before following it.</p></section>` : ''}
+        <span class="kflow-n"><b>+${kUSD(f.x.dusd)}</b><small>${kUSD(f.x.usd)} total</small>${f.side ? `<small>${f.side}</small>` : ''}</span></div>`).join('')}
+      <p class="note">Contracts traded × price, so dollars are rough. "% on" is Kalshi's own record of which side the person placing each new bet took (shown when the line is near a coin flip); "pushing" means the price moved that way. Money and price moving together often means news or a sharp bettor: check the injury report before following it.</p></section>` : ''}
     <div class="row" style="gap:6px;margin-bottom:10px" role="group" aria-label="Sort">
       ${[['big', 'Biggest since open'], ['now', 'Biggest last 24h'], ['kick', 'Kickoff']].map(([k, l]) => `<button class="chip" data-mvsort="${k}" aria-pressed="${MV.sort === k}">${l}</button>`).join('')}</div>
     ${now.length ? `<div class="mv-now"><h3>Moving now</h3>${now.map(m => `<button class="chip" data-mvjump="${m.g.id}">${esc(m.g.away.abbr)} @ ${esc(m.g.home.abbr)}${m.sp6 ? ` · ${Math.abs(m.sp6)} toward ${esc(m.sp6 > 0 ? m.g.away.abbr : m.g.home.abbr)}` : ''}${m.tt6 ? ` · total ${m.tt6 > 0 ? '▲' : '▼'}${Math.abs(m.tt6)}` : ''}</button>`).join('')}</div>` : ''}
@@ -5877,7 +5886,8 @@ function renderMoves() {
           <span class="mv-c"><i>Last 24h</i><b class="mv-24">${m.sp24 == null && m.tt24 == null ? 'Not tracked yet' : `${m.sp24 ? `${Math.abs(m.sp24)} toward ${esc(nick(m.sp24 > 0 ? g.away : g.home))}` : 'Spread steady'} · ${m.tt24 ? `total ${m.tt24 > 0 ? '▲' : '▼'}${Math.abs(m.tt24)}` : 'total steady'}`}</b><small>${wNow != null && fav ? `${esc(fav.abbr)} win ${Math.round(wOpen * 100)}% → ${Math.round(wNow * 100)}%` : ''}</small></span>
         </button>
         ${(() => { const M = g.kalshi?.money; if (!M) return ''; const tot = (M.ml?.usd || 0) + (M.spread?.usd || 0) + (M.total?.usd || 0), nw = (M.ml?.dusd || 0) + (M.spread?.dusd || 0) + (M.total?.dusd || 0);
-          return tot ? `<p class="mv-money"><span>Kalshi</span><b>${kUSD(tot)}</b> traded${nw ? ` · <b>+${kUSD(nw)}</b> in ${Math.round(M.ml?.h || M.spread?.h || 6)}h` : ''}${M.ml?.dp && Math.abs(M.ml.dp) >= 3 ? ` · ${esc(g.home.abbr)} ${M.ml.dp > 0 ? '▲' : '▼'}${Math.abs(M.ml.dp)}¢` : ''}</p>` : ''; })()}
+          const sd = [kSide(M.ml, g.home.abbr, g.away.abbr), kSide(M.total, 'the over', 'the under')].filter(Boolean);
+          return tot ? `<p class="mv-money"><span>Kalshi</span><b>${kUSD(tot)}</b> traded${nw ? ` · <b>+${kUSD(nw)}</b> in ${Math.round(M.ml?.h || M.spread?.h || 6)}h` : ''}${sd.length ? ' · new money ' + sd.join(' · ') : ''}</p>` : ''; })()}
         ${m.flags.length ? `<div class="mv-flags">${m.flags.map(f => `<span class="b ${f.t === 'fast' ? 'r' : f.t === 'flip' ? 'r' : 'y'}">${esc(f.s)}</span>`).join('')}</div>` : ''}
         ${mvTop(m) ? `<p class="mv-top">Possible reason: ${esc(mvTop(m))}${(m.g.why?.items?.length || 0) > 1 ? ` <span class="note">+${m.g.why.items.length - 1} more</span>` : ''}</p>` : m.g.why && m.score >= 2 ? '<p class="mv-top note">No news found; likely betting action</p>' : ''}
         ${open ? `<div class="mv-x">
