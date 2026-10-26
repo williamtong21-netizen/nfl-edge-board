@@ -1194,6 +1194,10 @@ body.simopen{overflow:hidden}
 .allsp{margin-bottom:14px}.allsp h3{margin:0 0 8px}
 .allsp-t{width:100%}.allsp-t th{font:600 11px var(--f-body);letter-spacing:.4px;text-transform:uppercase;color:var(--muted);text-align:left;padding:4px 6px}
 .allsp-t th.n{text-align:right}.allsp-t tr.tot td{border-top:1px solid var(--line);padding-top:8px}
+
+/* lead players (WR1 / TE1 / RB1) */
+.leadtag{display:inline-block;font:800 10px var(--f-body);letter-spacing:.4px;padding:1px 6px;border-radius:6px;background:var(--accent-soft);color:var(--accent)}
+.leadnote{margin:0 0 10px}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1341,6 +1345,7 @@ body.simopen{overflow:hidden}
         <button class="chip" data-pos="RB" aria-pressed="false">RB</button>
         <button class="chip" data-pos="WR" aria-pressed="false">WR</button>
         <button class="chip" data-pos="TE" aria-pressed="false">TE</button>
+        <button class="chip" data-pos="LEAD" aria-pressed="false" title="Each team's WR1, TE1 and RB1">Leads</button>
       </div>
       <div class="row" id="pf-all"><button class="chip" data-pfall="0" aria-pressed="true">Best leans</button><button class="chip" data-pfall="1" aria-pressed="false">All props</button></div>
       <select id="pf-sort" aria-label="Sort props">
@@ -2350,11 +2355,11 @@ function reportCard() {
     </div></details></details>`;
 }
 
-const PK = { allSides: false, allProps: false, allTD: false, allPx: false, leans: false };
+const PK = { allSides: false, allProps: false, allTD: false, allPx: false, leans: false, lead: false };
 document.addEventListener('toggle', e => { if (e.target.matches?.('details.leans')) PK.leans = e.target.open; }, true);
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-pk]');
-  if (b) { const k = b.dataset.pk, wasOpen = PK[k]; PK[k] = !PK[k]; if (k === 'allSides' || k === 'allProps') PK.leans = true; renderPicks();
+  if (b) { const k = b.dataset.pk, wasOpen = PK[k]; PK[k] = !PK[k]; if (k === 'allSides' || k === 'allProps' || k === 'lead') PK.leans = true; renderPicks();
     if (wasOpen) b.closest('#picks') && $('#picks')?.scrollIntoView({ block: 'start' });   // collapsing: jump back up
     return; }
   const w = e.target.closest('[data-why]'); if (w) { const c = w.closest('.pick, .pdrop'); if (!c) return; c.classList.toggle('why-open'); w.textContent = c.classList.contains('why-open') ? 'Why ▴' : 'Why ▾'; }
@@ -2420,7 +2425,7 @@ function renderPicks() {
   const rank = (a, b) => b.st - a.st || b.score - a.score;
   const sides = gamePicks().sort(rank);
   // at most two props per player, so one player can't crowd out the board
-  const per = {}, props = propPicks().sort(rank).filter(p => (per[p.pl.id] = (per[p.pl.id] || 0) + 1) <= 2);
+  const per = {}, props = propPicks().filter(p => !PK.lead || leadRole(p.g.id, p.pl)).sort(rank).filter(p => (per[p.pl.id] = (per[p.pl.id] || 0) + 1) <= 2);
   const tdv = NBA ? [] : valueTDs(), pe = priceEdges();
   queueMicrotask(() => { const m = $('#trapMount'), w = $('#trapWrap'); if (m && w) m.append(w); });
   const nS = PK.allSides ? 12 : 4, nP = PK.allProps ? 30 : 6;
@@ -2440,6 +2445,7 @@ function renderPicks() {
     ${false && sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, nS).map(pickCard).join('')}</div>
     ${PK.allSides ? `<button class="showmore" data-pk="allSides">Show fewer game picks</button>` : sides.length > nS ? `<button class="showmore" data-pk="allSides">Show all ${Math.min(12, sides.length)} game picks</button>` : ''}` : ''}
     <div id="trapMount"></div>
+    ${!NBA && !COL ? `<div class="row" style="margin-top:18px;gap:8px;align-items:center"><button class="chip" data-pk="lead" aria-pressed="${PK.lead}">Lead players only</button><small class="note">each team's WR1, TE1 and RB1</small></div>` : ''}
     ${props.length ? `<h2 style="margin-top:22px">Player props</h2><div class="picks">${props.slice(0, nP).map(pickCard).join('')}</div>
       ${PK.allProps ? `<button class="showmore" data-pk="allProps">Show fewer prop picks</button>` : props.length > nP ? `<button class="showmore" data-pk="allProps">Show all ${Math.min(30, props.length)} prop picks</button>` : ''}` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}
     </details>`;
@@ -2493,7 +2499,7 @@ function pickCard(p) {
       <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${g.id}|total|${p.over ? 'over' : 'under'}">+ Parlay</button><button class="btn small" data-track="${g.id}">Track</button><button class="btn small" data-go="${g.id}">Game</button></div></article>`;
   const { pl, pr, x } = p, team = pl.side === 'home' ? H : A, chance = p.best?.p ?? (p.over ? pr.pOver : 1 - pr.pOver);
   return `<article class="pick"><div class="pick-h">${logo(team.abbr, 30)}<b><button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button> ${p.over ? 'over' : 'under'} ${pr.l} ${esc(pr.m.toLowerCase())}</b><span class="stars">${stars(p.st)}</span></div>
-    <div class="pick-sub">${esc(A.abbr)} @ ${esc(H.abbr)} · ${when} · player prop</div>
+    <div class="pick-sub">${esc(A.abbr)} @ ${esc(H.abbr)} · ${when} · ${leadRole(g.id, pl) ? `<b class="leadtag">${leadRole(g.id, pl)}</b> ` : ''}player prop</div>
     <p>We project <b>${pr.proj}</b> and give him a <b>${Math.round(chance * 100)}%</b> chance to go ${p.over ? 'over' : 'under'}. ${p.best ? '' : 'You need about 52% to profit at -110.'}</p>
     ${p.best ? `<div class="offer">Best price: ${offerText(p.best, p.over ? 'Over' : 'Under')}${p.best.count > 1 ? ` (best of ${p.best.count} books)` : ''}</div>` : ''}
     <div class="meter ${p.over ? '' : 'under'}"><i style="width:${chance * 100}%"></i></div>
@@ -5654,6 +5660,19 @@ function bars(x) {
 // longest-reception reads count half (that market still runs on the older, weaker recency method)
 const propStrength = x => x.pr.m === 'Anytime TD' ? Math.max(0, (x.pr.pOver ?? 0) - 0.25) * 0.4
   : Math.abs((x.pr.pOver ?? 0.5) - 0.5) * (x.pr.m === 'Long rec' ? 0.5 : 1);
+// each team's lead WR, TE and RB in a game: the biggest receiving-yards line at WR / TE, the biggest rushing-yards line at RB.
+// Season check (weeks 4-7): their 55%+ leans hit 56% vs 59% for everyone else; receptions 64%, receiving yards only 41%
+let LEADS = null, LEADS_OF = null;
+function leadRole(gid, pl) {
+  if (NBA || COL || !S.props) return null;
+  if (LEADS_OF !== S.props) { LEADS = {}; LEADS_OF = S.props;
+    for (const [g, pls] of Object.entries(S.props)) { const best = {};
+      for (const x of pls) { if (!['WR', 'TE', 'RB'].includes(x.p)) continue;
+        const l = x.props.find(r => r.m === (x.p === 'RB' ? 'Rush yds' : 'Rec yds'))?.l; if (l == null) continue;
+        const k = x.side + x.p; if (!best[k] || l > best[k].l) best[k] = { l, id: x.id, role: x.p + '1' }; }
+      LEADS[g] = Object.fromEntries(Object.values(best).map(b => [b.id, b.role])); } }
+  return LEADS[gid]?.[pl.id] || null;
+}
 function renderProps() {
   const box = $('#props'), sl = S.slate;
   if (!sl || !S.props) { box.innerHTML = `<div class="empty"><b>No props yet</b>${NBA ? 'Player lines show up here once DraftKings posts them, usually the morning of the game. Preseason games have no props.' : 'Player lines show up here after the sync picks them up. DraftKings usually posts yardage props midweek.'}</div>`; return; }
@@ -5672,7 +5691,7 @@ function renderProps() {
   for (const g of games) {
     if (PF.game && g.id !== PF.game) continue;
     for (const pl of S.props[g.id]) {
-      if (PF.pos && pl.p !== PF.pos) continue;
+      if (PF.pos === 'LEAD' ? !leadRole(g.id, pl) : PF.pos && pl.p !== PF.pos) continue;
       const props = pl.props.filter(p => !PF.market || p.m === PF.market).map(p => propRow(pl, p, g))
         .filter(x => PF.all || PF.market || x.pr.proj > 0 && ((x.pr.m === 'Anytime TD' ? (x.pr.pOver ?? 0) >= 0.33 : propStrength(x) >= 0.08) || (x.pr.m !== 'Anytime TD' && (['bounce', 'regress', 'role'].includes(dueRead(x)?.k) || (x.n >= 5 && (x.over >= 5 || x.under >= 5)))) || (x.pr.m === 'Anytime TD' && dueRead(x)?.k === 'td' && (x.pr.pOver ?? 0) >= 0.25)));
       if (props.length) rows.push({ pl, g, props: props.sort((a, b) => PROP_ORDER.indexOf(a.pr.m) - PROP_ORDER.indexOf(b.pr.m)),
@@ -5687,7 +5706,8 @@ function renderProps() {
   const rank = PF.sort === 'move' ? (a, b) => b.move - a.move || b.score - a.score : PF.sort === 'due' ? (a, b) => dv(b) - dv(a) || b.score - a.score : (a, b) => b.score - a.score;
   if (byGame) rows.sort((a, b) => new Date(a.g.date) - new Date(b.g.date) || a.g.id.localeCompare(b.g.id) || rank(a, b));
   else { rows.sort(rank); if (PF.sort === 'move') rows.splice(0, rows.length, ...rows.filter(r => r.move > 0)); if (PF.sort === 'due') rows.splice(0, rows.length, ...rows.filter(r => dv(r) > 0)); }
-  if (!rows.length) { box.innerHTML = `<div class="empty"><b>No matching props</b>${PF.all ? 'Try another game, market or position.' : 'No strong leans here. Tap “All props” to see every line.'}</div>`; return; }
+  const leadNote = PF.pos === 'LEAD' ? `<p class="note leadnote">Lead players: each team's WR1, TE1 and RB1. This season their reception leans hit 64% (55%+), but receiving-yard leans only 41%: books price star yardage sharply.</p>` : '';
+  if (!rows.length) { box.innerHTML = `${leadNote}<div class="empty"><b>No matching props</b>${PF.all ? 'Try another game, market or position.' : 'No strong leans here. Tap “All props” to see every line.'}</div>`; return; }
   // one short line per prop; the full breakdown (last 10, chart, alternate lines) is a tap away on the player's page
   const short = { bounce: 'Bounce-back', real: 'Hot, steady role', regress: 'Regression risk', role: 'Role shrank', td: 'TD due' };
   let lastGame = null;
@@ -5695,12 +5715,12 @@ function renderProps() {
   for (const r of rows) { const k = r.g.id, i = perGame[k] = (perGame[k] || 0) + 1;
     if (!byGame || openAll.has(k) || i <= 3 || PF.games.has(k) || PF.game) shown.push(r); else hiddenN[k] = (hiddenN[k] || 0) + 1; }
   const lastOf = {}; shown.forEach((r, i) => { lastOf[r.g.id] = i; });
-  box.innerHTML = `<div class="pgrid compact">${shown.slice(0, 150).map(({ pl, g, props }, idx) => {
+  box.innerHTML = `${leadNote}<div class="pgrid compact">${shown.slice(0, 150).map(({ pl, g, props }, idx) => {
     const head = byGame && g.id !== lastGame ? `<h3 class="pgame">${logo(g.away.abbr, 22)}${logo(g.home.abbr, 22)}<span>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</span><small>${kick(g)}</small></h3>` : '';
     lastGame = g.id;
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
     const inj = team.inj.find(i => i.n === pl.n), page = S.players?.[pl.id];
-    return `${head}<article class="pcard" style="--tc:${teamColor(team)}"><div class="pcard-h">${espnHead(pl.id, team.abbr, 44)}${NBA ? `<b class="plink">${esc(pl.n)}</b>` : `<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button>`}<span class="note">${esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${byGame ? '' : ` · ${kick(g)}`}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
+    return `${head}<article class="pcard" style="--tc:${teamColor(team)}"><div class="pcard-h">${espnHead(pl.id, team.abbr, 44)}${NBA ? `<b class="plink">${esc(pl.n)}</b>` : `<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button>`}<span class="note">${leadRole(g.id, pl) ? `<b class="leadtag">${leadRole(g.id, pl)}</b>` : esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${byGame ? '' : ` · ${kick(g)}`}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
       ${(PF.players.has(pl.id) ? props : props.slice().sort(PF.sort === 'move' && !byGame ? (a, b) => Math.abs(b.move) - Math.abs(a.move) : (a, b) => propStrength(b) - propStrength(a)).slice(0, 3)).map(x => {
         const td = x.pr.m === 'Anytime TD', has = x.pr.pOver != null && x.pr.proj > 0, over = td || (x.pr.pOver ?? 0.5) >= 0.5, pct = Math.round((over ? x.pr.pOver : 1 - x.pr.pOver) * 100);
         const ten = page?.last?.length && PAGE_STAT[x.pr.m] ? page.last.map(r => PAGE_STAT[x.pr.m].reduce((a, k) => a + (r[k] || 0), 0)) : null;
