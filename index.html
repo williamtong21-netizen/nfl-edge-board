@@ -1218,6 +1218,8 @@ body.simopen{overflow:hidden}
 .fadelist{display:grid;gap:8px;margin:6px 0 10px}
 .faderow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
 .fadewho{min-width:0}.fadewho b{display:block;font:700 15px var(--f-display);letter-spacing:.2px}.fadewho small{display:block;color:var(--muted);font-size:12px;line-height:1.35}
+
+.safetonight{margin:2px 0 10px}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -3443,10 +3445,14 @@ function safeSearch(n0, q, clash, price, want) {   // n0 = pool size; price(inde
 }
 const SAFE_KEY = NBA ? 'edge-safe-target-nba' : 'edge-safe-target';
 SAFEP.multi = store.get('edge-safe-multi') === '1';
+SAFEP.tonight = store.get('edge-safe-tonight') === '1';
+// "tonight" = games starting before 6 AM tomorrow (late West Coast tips count; after midnight it still means last night's slate)
+const tonightCut = () => { const d = new Date(Date.now() - 6 * 3600e3); d.setHours(30, 0, 0, 0); return d.getTime(); };
+const inWindow = g => !SAFEP.tonight || new Date(g.date).getTime() < tonightCut();
 SAFEP.legs = Math.max(0, Math.min(SAFE_MAX_LEGS, +(store.get('edge-safe-legs') || 0) || 0));
 try { const t = +store.get(SAFE_KEY); if (t) SAFEP.target = t; } catch {}
 async function safeSlateBuild() {
-  const games = (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > Date.now() && S.props?.[g.id]?.length);
+  const games = (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > Date.now() && inWindow(g) && S.props?.[g.id]?.length);
   await Promise.all(games.filter(g => hasSim(g.id)).map(g => new Promise(r => { const d = loadSim(g.id, r); if (d || SIMD[g.id] === false) r(d); })));
   const pool = [];
   for (const g of games) {
@@ -3500,7 +3506,7 @@ async function safeMultiBuild() {
   const all = await Promise.all(SPORTS_ALL.map(([sp, dir]) => sportData(sp, dir).then(d => [sp, d])));
   for (const [sp, d] of all) {
     for (const g of d?.slate?.games || []) {
-      if (g.state !== 'pre' || new Date(g.date) <= now) continue;
+      if (g.state !== 'pre' || new Date(g.date) <= now || !inWindow(g)) continue;
       const gid = sp + ':' + g.id, cands = [];
       for (const x of safeLegs(g, d.props?.[g.id], sp === 'nba').slice(0, 3)) {
         let l = null; if (sp === here) { l = makeLeg(g.id, 'prop', 'over', x.pl.id, x.pr.m); if (l) { l.line = x.r.l; refreshLeg(l); } }
@@ -3538,13 +3544,14 @@ function renderSafeSlate() {
   if (FFM || !S.slate) { box.innerHTML = ''; return; }
   const multi = SAFEP.multi || COL, r = SAFEP.res && !!SAFEP.res.multi === multi ? SAFEP.res : null, pc = p => Math.round(p * 100) + '%';
   box.innerHTML = `<div class="sgp safeslate"><h3>Safe parlay at your price</h3>
-    ${COL ? '' : `<div class="seg safemode" role="group" aria-label="Pull legs from"><button data-safemode="0" aria-pressed="${!multi}">${NBA ? 'NBA only' : 'NFL only'}</button><button data-safemode="1" aria-pressed="${multi}">All sports</button></div>`}
+    <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">${COL ? '' : `<div class="seg safemode" role="group" aria-label="Pull legs from"><button data-safemode="0" aria-pressed="${!multi}">${NBA ? 'NBA only' : 'NFL only'}</button><button data-safemode="1" aria-pressed="${multi}">All sports</button></div>`}
+      <button class="chip safetonight" data-safetonight aria-pressed="${!!SAFEP.tonight}">Tonight only</button></div>
     <div class="row" style="gap:8px;align-items:end">
       <label class="note">Target odds <input id="safeTarget" inputmode="numeric" value="${SAFEP.target}" style="width:80px"></label>
       <label class="note">Legs <select id="safeLegsN">${[0, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<option value="${n}"${SAFEP.legs === n ? ' selected' : ''}>${n || 'Any'}</option>`).join('')}</select></label>
       <button class="btn primary" data-safebuild ${SAFEP.busy ? 'disabled' : ''}>${SAFEP.busy ? 'Building…' : 'Build it'}</button></div>
     ${multi ? safeMultiHtml(r, pc) : !r ? `<p class="note" style="margin:8px 0 0">${NBA ? `Uses alt lines below each player's main line that both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+ (skipping day-to-day players), then finds the fewest legs that land near your price. Never two players from the same team: they split the same shots and minutes.` : `Uses lower lines that both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+ from every game, no Questionable players and no passing legs in windy games, then finds the fewest legs that land near your price. Same-game legs are priced with that game's simulation.`}</p>`
-      : !r.out.length ? `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)}${SAFEP.legs ? ` with exactly ${SAFEP.legs} legs` : ''} from today's ${r.pool} safe legs.${NBA ? ' NBA alt lines fill in on game day, usually by early afternoon.' : ''} Try a price closer to −150 or +100.</p>`
+      : !r.out.length ? `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)}${SAFEP.legs ? ` with exactly ${SAFEP.legs} legs` : ''} from ${SAFEP.tonight ? "tonight's" : "today's"} ${r.pool} safe legs.${NBA ? ' NBA alt lines fill in on game day, usually by early afternoon.' : ''} ${SAFEP.tonight && r.pool < 6 ? 'Tap All sports to add tonight’s other games.' : 'Try a price closer to −150 or +100.'}</p>`
       : r.out.map((t, i) => `<div class="sgpres">
         <ul>${t.legs.map(x => { const g = S.slate.games.find(z => z.id === x.gid); return `<li>${logo(x.pl.tm || (x.pl.side === 'home' ? g.home.abbr : g.away.abbr), 20)}<b>${esc(x.l.label)}</b><span>ours ${pc(x.ours)} · Kalshi ${pc(x.k)}</span></li>`; }).join('')}</ul>
         <div class="tot"><span>Hits <b>${pc(t.po)}</b> (ours) · <b>${pc(t.pk)}</b> (Kalshi)</span><span>Fair <b>${fmtOdds(fairAm(t.lo))}</b></span><span class="note">${t.games === t.legs.length ? 'every leg a different game' : NBA ? 'includes both teams in one game' : 'includes same-game legs, priced with the sim'}</span></div>
@@ -3553,7 +3560,7 @@ function renderSafeSlate() {
 }
 function safeMultiHtml(r, pc) {
   if (!r) return `<p class="note" style="margin:8px 0 0">Pulls from every upcoming game in the NFL, NBA, college football and college basketball: player alt lines both we and Kalshi put at ${Math.round(SAFE_MIN * 100)}%+ (NFL and NBA), and moneyline favorites at ${Math.round(ML_SAFE * 100)}%+ after the vig. One leg per game, so the legs don't lean on each other.</p>`;
-  if (!r.out.length) return `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)}${SAFEP.legs ? ` with exactly ${SAFEP.legs} legs` : ''} from ${r.pool} safe legs (${Object.entries(r.bySport).filter(([, n]) => n).map(([s, n]) => `${SP_LBL[s]} ${n}`).join(', ') || 'none yet'}). Try a different price.</p>`;
+  if (!r.out.length) return `<p class="note" style="margin:8px 0 0">Nothing lands near ${fmtOdds(SAFEP.target)}${SAFEP.legs ? ` with exactly ${SAFEP.legs} legs` : ''} from ${r.pool} safe legs${SAFEP.tonight ? ' tonight' : ''} (${Object.entries(r.bySport).filter(([, n]) => n).map(([s, n]) => `${SP_LBL[s]} ${n}`).join(', ') || 'none yet'}). Try a different price.</p>`;
   return r.out.map((t, i) => { const all = t.legs.every(x => x.l);
     return `<div class="sgpres">
     <ul>${t.legs.map(x => `<li><span class="sptag">${SP_LBL[x.sp]}</span>${x.sp === SPORT ? logo(x.tm, 20) : ''}<b>${esc(x.label)}</b><span>${esc(x.g.away.abbr)} @ ${esc(x.g.home.abbr)} · ${x.ml ? `market ${pc(x.k)}` : `ours ${pc(x.ours)} · Kalshi ${pc(x.k)}`}</span></li>`).join('')}</ul>
@@ -3569,6 +3576,7 @@ document.addEventListener('click', async e => {
     try { SAFEP.res = SAFEP.multi || COL ? await safeMultiBuild() : await safeSlateBuild(); } finally { SAFEP.busy = false; renderSafeSlate(); }
     return;
   }
+  if (e.target.closest('[data-safetonight]')) { SAFEP.tonight = !SAFEP.tonight; store.set('edge-safe-tonight', SAFEP.tonight ? '1' : '0'); SAFEP.res = null; renderSafeSlate(); return; }
   const md = e.target.closest('[data-safemode]');
   if (md) { SAFEP.multi = md.dataset.safemode === '1'; store.set('edge-safe-multi', SAFEP.multi ? '1' : '0'); renderSafeSlate(); return; }
   const cp = e.target.closest('[data-safecopy]'), ct = cp && SAFEP.res?.out?.[+cp.dataset.safecopy];
