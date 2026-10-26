@@ -1212,6 +1212,12 @@ body.simopen{overflow:hidden}
 .mv-money{margin:2px 12px 6px;font-size:12px;color:var(--muted)}.mv-money span{font:800 10px var(--f-body);letter-spacing:.4px;text-transform:uppercase;margin-right:6px}.mv-money b{color:var(--ink)}
 
 .kside{font:700 10px var(--f-body)}.kside.up{color:var(--good)}.kside.dn{color:var(--bad)}.kflow-n .kside{display:inline}
+
+/* public fades */
+.tag2.fade{background:rgba(255,99,99,.12);color:var(--bad)}.tag2.fade.agree{background:rgba(255,200,61,.14);color:var(--gold)}
+.fadelist{display:grid;gap:8px;margin:6px 0 10px}
+.faderow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.fadewho{min-width:0}.fadewho b{display:block;font:700 15px var(--f-display);letter-spacing:.2px}.fadewho small{display:block;color:var(--muted);font-size:12px;line-height:1.35}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -2370,7 +2376,7 @@ function reportCard() {
     </div></details></details>`;
 }
 
-const PK = { allSides: false, allProps: false, allTD: false, allPx: false, leans: false, lead: false };
+const PK = { allSides: false, allProps: false, allTD: false, allPx: false, leans: false, lead: false, fadeAll: false };
 document.addEventListener('toggle', e => { if (e.target.matches?.('details.leans')) PK.leans = e.target.open; }, true);
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-pk]');
@@ -2454,6 +2460,7 @@ function renderPicks() {
     <p class="note tdhonest">Touchdowns where a price pays more than our chance says it should. Honest record: at the old settings these lost 9% over the 2025 season. Now our chance leans 75% on the market (more accurate in both 2025 and 2026), so fewer show up. TD value has won in 2026 and lost in 2025 at every setting we tried: fun picks, not a proven edge.</p>
     ${tdv.length ? `<div class="vgrid">${tdv.slice(0, 15).map(vTdCard).join('')}</div>`
       : `<p class="note tdhonest">No touchdown prices beat our numbers right now. New prices land Thursday morning and refresh through the week.</p>`}`}
+    ${SPORT === 'nfl' && !FFM ? fadeSection() : ''}
     <div id="trapMount"></div>
     <details class="leans"${PK.leans ? ' open' : ''}><summary>Our model's leans</summary>
     <p class="honest">Player-prop leans. Game sides and totals are left out: over 600+ games (2024–26) our team model never beat the closing line, so the app uses the market's number for games.</p>
@@ -2482,6 +2489,16 @@ function nbaBest() {
   return `${tier('Strongest leans (65%+)', rec(R['65%+']), shownTop)}${tier(top.length ? 'Strong leans (60–65%)' : "Tonight's best leans (60%+)", rec(R['60–65%']), shownRest)}
     ${all.length > n ? `<button class="showmore" data-pk="nbaAll">Show all ${Math.min(40, all.length)} leans</button>` : PK.nbaAll && all.length > 8 ? `<button class="showmore" data-pk="nbaAll">Show fewer</button>` : ''}
     <p class="note">Hit rate isn't profit: at -110 you need 52.4%. Our number is 80% the market, so these are the market's lean plus ours, not a hidden edge.</p>`;
+}
+function fadeSection() {
+  const all = publicFades(); if (!all.length) return '';
+  const n = PK.fadeAll ? 30 : 6, pc = p => Math.round(p * 100) + '%';
+  return `<div class="sechead"><h2>Public fades</h2><small>${all.length} star line${all.length > 1 ? 's' : ''} · unders</small></div>
+    <p class="note">Unders on the biggest receiving and rushing lines on the slate: the stars casual bettors take overs on. Those unders hit about 57% in the 2025 replay and 55% so far in 2026 (+4% to +9% at -110). QBs are left out: their passing overs keep hitting.</p>
+    <div class="fadelist">${all.slice(0, n).map(x => { const team = x.pl.side === 'home' ? x.g.home : x.g.away, agree = x.under >= 0.5;
+      return `<div class="faderow">${logo(team.abbr, 26)}<div class="fadewho"><b>${esc(x.pl.n)} under ${x.pr.l} ${esc(x.pr.m.toLowerCase())}</b><small>${esc(x.g.away.abbr)} @ ${esc(x.g.home.abbr)} · ${kick(x.g)} · our under ${pc(x.under)}${agree ? ' ✓' : ''}${x.pr.kv?.ys != null ? ` · Kalshi new money ${Math.round(x.pr.kv.ys * 100)}% on the over` : ''}</small></div>
+        <button class="addp" data-addleg="${x.g.id}|prop|under|${esc(x.pl.id)}|${esc(x.pr.m)}">+ Parlay</button></div>`; }).join('')}</div>
+    ${all.length > 6 ? `<button class="showmore" data-pk="fadeAll">${PK.fadeAll ? 'Show fewer' : `Show all ${Math.min(30, all.length)}`}</button>` : ''}`;
 }
 function moveWarn(p) {
   if (!p.against) return '';
@@ -5688,6 +5705,24 @@ function leadRole(gid, pl) {
       LEADS[g] = Object.fromEntries(Object.values(best).map(b => [b.id, b.role])); } }
   return LEADS[gid]?.[pl.id] || null;
 }
+const FADE_M = ['Receptions', 'Rec yds', 'Rush yds'];
+let FADE_CUT = null, FADE_OF = null;
+function isFade(pr) {
+  if (SPORT !== 'nfl' || FFM || !S.props || !FADE_M.includes(pr.m) || pr.l == null) return false;
+  if (FADE_OF !== S.props) { FADE_OF = S.props; FADE_CUT = {};
+    const now = Date.now(), pre = new Set((S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > now).map(g => g.id));
+    for (const m of FADE_M) { const ls = Object.entries(S.props).filter(([gid]) => pre.has(gid)).flatMap(([, pls]) => pls.flatMap(pl => pl.props.filter(r => r.m === m && r.l != null).map(r => r.l))).sort((a, b) => a - b);
+      FADE_CUT[m] = ls.length >= 6 ? ls[Math.floor(ls.length * 2 / 3)] : Infinity; } }
+  return pr.l >= FADE_CUT[pr.m];
+}
+function publicFades() {
+  const out = [];
+  for (const g of (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > Date.now())) for (const pl of S.props?.[g.id] || []) {
+    const team = pl.side === 'home' ? g.home : g.away; if (team.inj.some(i => i.n === pl.n && (isOut(i.s) || /doubtful|questionable/i.test(i.s)))) continue;
+    for (const pr of pl.props) if (isFade(pr) && pr.pOver != null) out.push({ g, pl, pr, under: 1 - pr.pOver });
+  }
+  return out.sort((a, b) => b.under - a.under);
+}
 function renderProps() {
   const box = $('#props'), sl = S.slate;
   if (!sl || !S.props) { box.innerHTML = `<div class="empty"><b>No props yet</b>${NBA ? 'Player lines show up here once DraftKings posts them, usually the morning of the game. Preseason games have no props.' : 'Player lines show up here after the sync picks them up. DraftKings usually posts yardage props midweek.'}</div>`; return; }
@@ -5750,7 +5785,7 @@ function renderProps() {
           <span class="meta">${x.n > 5 ? (() => { const hit = z => over ? z.v > x.pr.l : z.v < x.pr.l, l5 = x.games.slice(-5);
               return `<span>L5 <b>${l5.filter(hit).length}/5</b></span>${ten ? '' : `<span>L${x.n} <b>${x.games.filter(hit).length}/${x.n}</b></span>`}`; })() : `<span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>`}${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span class="sec">proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
             ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
-            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.kv?.usd >= 100 ? `<span class="kmoney${kHot(x.pr.kv, 1000) ? ' hot' : ''}" title="Traded on Kalshi (contracts × price)">${kHot(x.pr.kv, 1000) ? '🔥 ' : ''}${kUSD(x.pr.kv.usd)}${x.pr.kv.dusd >= 500 ? ` <i>+${kUSD(x.pr.kv.dusd)}</i>` : ''}${x.pr.m === 'Anytime TD' ? kPx(x.pr.kv) : kSide(x.pr.kv, 'over', 'under')}</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide games ▴' : `Last ${PF.lastN || 5} ▾`}</span></span>
+            ${isFade(x.pr) ? `<span class="tag2 fade${(x.pr.pOver ?? .5) < .5 ? ' agree' : ''}" title="Star line the public bets over; these unders hit about 55-57% in 2025-26">Public fade: under${(x.pr.pOver ?? .5) < .5 ? ' ✓' : ''}</span>` : ''}${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.kv?.usd >= 100 ? `<span class="kmoney${kHot(x.pr.kv, 1000) ? ' hot' : ''}" title="Traded on Kalshi (contracts × price)">${kHot(x.pr.kv, 1000) ? '🔥 ' : ''}${kUSD(x.pr.kv.usd)}${x.pr.kv.dusd >= 500 ? ` <i>+${kUSD(x.pr.kv.dusd)}</i>` : ''}${x.pr.m === 'Anytime TD' ? kPx(x.pr.kv) : kSide(x.pr.kv, 'over', 'under')}</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide games ▴' : `Last ${PF.lastN || 5} ▾`}</span></span>
         </button>${isOpen ? propDrop(pl, x.pr, g, has ? over : true) : ''}`;
       }).join('')}
       ${props.length > 3 && !PF.players.has(pl.id) ? `<button class="showmore" data-pplayer="${esc(pl.id)}" style="margin:4px 10px 8px;width:auto">+${props.length - 3} more props</button>` : ''}

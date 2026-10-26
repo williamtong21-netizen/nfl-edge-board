@@ -176,7 +176,13 @@ MKT_PROP_W = 0.6  # yardage / reception props: weight on the market's chance (ou
 # rushing props lean harder on the market: on Kalshi weeks 1-4 our rushing reads were barely better than a coin flip
 # (accuracy kept improving as they were pulled toward 50/50), and 85% market beat 60% on rush yds and rush+rec
 # passing yards too, after the full 2025 replay (weeks 5-18): our pass-yds leans hit 46%; 85% market beat 60% (0.2446 vs 0.2476)
-MKT_PROP_W_BY = {"Rush yds": 0.85, "Carries": 0.85, "Rush+rec yds": 0.85, "Pass yds": 0.85, "Pass+rush yds": 0.85}
+# Oct 2026: passing yards go to 95% market. Even with the skew fixed (PASS_YDS_K) our own QB leans hit only 44-46% on the
+# 2025 replay, and the market alone was the most accurate (0.2437), so the model shouldn't drive QB leans
+MKT_PROP_W_BY = {"Rush yds": 0.85, "Carries": 0.85, "Rush+rec yds": 0.85, "Pass yds": 0.95, "Pass+rush yds": 0.85}
+# passing yards are right-skewed: a projection sitting on the book's line (our raw averaged 1.005x the line) came out ~45%
+# "over" in the lognormal, so every QB leaned under while 2025 overs hit 50.7% (2026: 55%). Scaling the raw number by 1.07
+# puts the model's average at 50.6% and improved its accuracy on the 2025 replay (0.2630 -> 0.2609)
+PASS_YDS_K = {"Pass yds": 1.07, "Pass+rush yds": 1.07}
 GAME_MKT_W = 1.0  # game margin / total: weight on the market line (our team model added nothing over 2024-26; see game_backtest.py)
 MKT_TD_W = 0.75   # TD chance: weight on the market's own chance. More market was more accurate in both 2025 (3,834 player-games)
                   # and 2026 weeks 1-6 (1,607); value bets lost in 2025 and won in 2026 at every setting, so 0.75 keeps a few
@@ -402,6 +408,7 @@ def prop_projections(props, games, an, season):
                     if pr["m"] in USAGE_MARKETS:
                         ru = usage_for(pl, pr["m"], g, side, team, opp)
                         if ru and ru > 0: pr["rawOld"] = round(raw, 1); raw = ru * lv
+                    raw *= PASS_YDS_K.get(pr["m"], 1.0)
                     proj = pr["l"] + ANCHOR * (raw - pr["l"])
                     pr["proj"], pr["raw"] = round(proj, 1), round(raw, 1)
                     def chance(line):
