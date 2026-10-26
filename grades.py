@@ -29,7 +29,12 @@ def freeze(games, props, readings):
             tm = g["home"]["abbr"] if pl.get("side") == "home" else g["away"]["abbr"]
             for pr in pl["props"]:
                 if pr.get("pOver") is None or pr["m"] not in STAT: continue
-                rec["props"].append({"id": pl["id"], "n": pl["n"], "tm": tm, "m": pr["m"], "l": 0.5 if pr["m"] == "Anytime TD" else pr["l"], "p": pr["pOver"]})
+                row = {"id": pl["id"], "n": pl["n"], "tm": tm, "m": pr["m"], "l": 0.5 if pr["m"] == "Anytime TD" else pr["l"], "p": pr["pOver"]}
+                # Kalshi money at freeze time (kalshi.flow): dollars traded, new dollars, side split, price move; kept so we
+                # can test later whether "the money says over" predicts anything beyond the price itself
+                kv = pr.get("kv") or {}
+                if kv: row["kv"] = {k: kv[k] for k in ("usd", "dusd", "ys", "dp") if kv.get(k) is not None}
+                rec["props"].append(row)
         readings["games"][g["id"]] = rec
 
 
