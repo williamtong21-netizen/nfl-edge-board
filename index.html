@@ -1198,6 +1198,18 @@ body.simopen{overflow:hidden}
 /* lead players (WR1 / TE1 / RB1) */
 .leadtag{display:inline-block;font:800 10px var(--f-body);letter-spacing:.4px;padding:1px 6px;border-radius:6px;background:var(--accent-soft);color:var(--accent)}
 .leadnote{margin:0 0 10px}
+
+/* Kalshi money */
+.kmoney{display:inline-flex;align-items:center;gap:4px;font:600 11px var(--f-body);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+.kmoney i{font-style:normal;color:var(--good)}.kmoney.hot{color:var(--gold);border-color:rgba(255,200,61,.45)}
+.kpx{font:700 10px var(--f-body)}.kpx.up{color:var(--good)}.kpx.dn{color:var(--bad)}
+.kflow{border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 14px;background:var(--surface2)}
+.kflow h3{margin:0 0 8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.kflow h3 small{font:500 12px var(--f-body);color:var(--muted);text-transform:none;letter-spacing:0}
+.kflow-r{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.kflow-r:first-of-type{border-top:0}.kflow-w{min-width:0}.kflow-w b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kflow-w small,.kflow-n small{display:block;color:var(--muted);font-size:11px}.kflow-n{text-align:right}.kflow-n b{color:var(--good)}
+.kflow .note{margin:8px 0 0}
+.mv-money{margin:2px 12px 6px;font-size:12px;color:var(--muted)}.mv-money span{font:800 10px var(--f-body);letter-spacing:.4px;text-transform:uppercase;margin-right:6px}.mv-money b{color:var(--ink)}
 </style>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="box">
@@ -1353,6 +1365,7 @@ body.simopen{overflow:hidden}
         <option value="trend">Strongest reads</option>
         <option value="move">Biggest line moves</option>
         <option value="due">Due watch</option>
+        <option value="money">Most traded on Kalshi</option>
       </select>
     </div>
     <p class="note">One line per prop: our lean and chance, how often that side hit in his last 5 and 10 games, our projection, and the matchup. Tap any line for the full breakdown: game log, chart, and every alternate line with live prices.</p>
@@ -5703,9 +5716,10 @@ function renderProps() {
   // (no game headers, no per-game cap), so the biggest movers or due players anywhere rise to the top
   const dv = r => Math.max(0, ...r.props.map(x => ({ bounce: 3, regress: 2, role: 1, real: 1 })[dueRead(x)?.k] || 0));
   const byGame = PF.sort === 'game' || !!PF.game;
-  const rank = PF.sort === 'move' ? (a, b) => b.move - a.move || b.score - a.score : PF.sort === 'due' ? (a, b) => dv(b) - dv(a) || b.score - a.score : (a, b) => b.score - a.score;
+  const usdOf = r => Math.max(0, ...r.props.map(x => x.pr.kv?.usd || 0));
+  const rank = PF.sort === 'money' ? (a, b) => usdOf(b) - usdOf(a) : PF.sort === 'move' ? (a, b) => b.move - a.move || b.score - a.score : PF.sort === 'due' ? (a, b) => dv(b) - dv(a) || b.score - a.score : (a, b) => b.score - a.score;
   if (byGame) rows.sort((a, b) => new Date(a.g.date) - new Date(b.g.date) || a.g.id.localeCompare(b.g.id) || rank(a, b));
-  else { rows.sort(rank); if (PF.sort === 'move') rows.splice(0, rows.length, ...rows.filter(r => r.move > 0)); if (PF.sort === 'due') rows.splice(0, rows.length, ...rows.filter(r => dv(r) > 0)); }
+  else { rows.sort(rank); if (PF.sort === 'money') rows.splice(0, rows.length, ...rows.filter(r => usdOf(r) > 0)); if (PF.sort === 'move') rows.splice(0, rows.length, ...rows.filter(r => r.move > 0)); if (PF.sort === 'due') rows.splice(0, rows.length, ...rows.filter(r => dv(r) > 0)); }
   const leadNote = PF.pos === 'LEAD' ? `<p class="note leadnote">Lead players: each team's WR1, TE1 and RB1. This season their reception leans hit 64% (55%+), but receiving-yard leans only 41%: books price star yardage sharply.</p>` : '';
   if (!rows.length) { box.innerHTML = `${leadNote}<div class="empty"><b>No matching props</b>${PF.all ? 'Try another game, market or position.' : 'No strong leans here. Tap “All props” to see every line.'}</div>`; return; }
   // one short line per prop; the full breakdown (last 10, chart, alternate lines) is a tap away on the player's page
@@ -5721,7 +5735,7 @@ function renderProps() {
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
     const inj = team.inj.find(i => i.n === pl.n), page = S.players?.[pl.id];
     return `${head}<article class="pcard" style="--tc:${teamColor(team)}"><div class="pcard-h">${espnHead(pl.id, team.abbr, 44)}${NBA ? `<b class="plink">${esc(pl.n)}</b>` : `<button class="plink" data-player="${esc(pl.id)}"><b>${esc(pl.n)}</b></button>`}<span class="note">${leadRole(g.id, pl) ? `<b class="leadtag">${leadRole(g.id, pl)}</b>` : esc(pl.p)} · ${pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)}${byGame ? '' : ` · ${kick(g)}`}${inj ? ` · <span class="${isOut(inj.s) ? 'neg' : ''}">${esc(inj.s)}</span>` : ''}</span></div>
-      ${(PF.players.has(pl.id) ? props : props.slice().sort(PF.sort === 'move' && !byGame ? (a, b) => Math.abs(b.move) - Math.abs(a.move) : (a, b) => propStrength(b) - propStrength(a)).slice(0, 3)).map(x => {
+      ${(PF.players.has(pl.id) ? props : props.slice().sort(PF.sort === 'money' && !byGame ? (a, b) => (b.pr.kv?.usd || 0) - (a.pr.kv?.usd || 0) : PF.sort === 'move' && !byGame ? (a, b) => Math.abs(b.move) - Math.abs(a.move) : (a, b) => propStrength(b) - propStrength(a)).slice(0, 3)).map(x => {
         const td = x.pr.m === 'Anytime TD', has = x.pr.pOver != null && x.pr.proj > 0, over = td || (x.pr.pOver ?? 0.5) >= 0.5, pct = Math.round((over ? x.pr.pOver : 1 - x.pr.pOver) * 100);
         const ten = page?.last?.length && PAGE_STAT[x.pr.m] ? page.last.map(r => PAGE_STAT[x.pr.m].reduce((a, k) => a + (r[k] || 0), 0)) : null;
         const L = td ? 0.5 : x.pr.l;
@@ -5734,7 +5748,7 @@ function renderProps() {
           <span class="meta">${x.n > 5 ? (() => { const hit = z => over ? z.v > x.pr.l : z.v < x.pr.l, l5 = x.games.slice(-5);
               return `<span>L5 <b>${l5.filter(hit).length}/5</b></span>${ten ? '' : `<span>L${x.n} <b>${x.games.filter(hit).length}/${x.n}</b></span>`}`; })() : `<span>L5 <b>${over ? x.over : x.under}/${x.n}</b></span>`}${ten ? `<span>L10 <b>${hitCount(ten, L, over)}/${ten.length}</b></span>` : ''}${x.pr.proj != null ? `<span class="sec">proj <b>${x.pr.proj}</b></span>` : ''}${x.pr.vol && Math.abs(x.pr.vol - 1) >= 0.02 ? `<span class="stag ${x.pr.vol > 1 ? 'pass' : 'run'}">script ${x.pr.vol > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.vol - 1) * 100)}% volume</span>` : ''}
             ${mc != null ? `<span><span class="mdot ${mc}"></span>${mc === 'great' ? 'soft D' : mc === 'tough' ? 'tough D' : 'avg D'}</span>` : ''}
-            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide games ▴' : `Last ${PF.lastN || 5} ▾`}</span></span>
+            ${hot ? '<span class="tag2 fire">On fire</span>' : cold ? '<span class="tag2 ice">Ice cold</span>' : ''}${d ? `<span class="tag2 ${d.k}">${esc(short[d.k] || d.label)}</span>` : ''}${x.pr.wxv ? `<span class="tag2 wx">weather ${x.pr.wxv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.wxv - 1) * 100)}%</span>` : ''}${x.pr.lcv ? `<span class="tag2 lc">${x.pr.lcv > 1 ? '▲' : '▼'}${Math.round(Math.abs(x.pr.lcv - 1) * 100)}% share, teammate out</span>` : ''}${x.pr.kv?.usd >= 100 ? `<span class="kmoney${kHot(x.pr.kv, 1000) ? ' hot' : ''}" title="Traded on Kalshi (contracts × price)">${kHot(x.pr.kv, 1000) ? '🔥 ' : ''}${kUSD(x.pr.kv.usd)}${x.pr.kv.dusd >= 500 ? ` <i>+${kUSD(x.pr.kv.dusd)}</i>` : ''}${kPx(x.pr.kv)}</span>` : ''}${x.pr.alt?.length ? `<span class="sec">${x.pr.alt.length} alt lines</span>` : ''}<span class="chev">${isOpen ? 'Hide games ▴' : `Last ${PF.lastN || 5} ▾`}</span></span>
         </button>${isOpen ? propDrop(pl, x.pr, g, has ? over : true) : ''}`;
       }).join('')}
       ${props.length > 3 && !PF.players.has(pl.id) ? `<button class="showmore" data-pplayer="${esc(pl.id)}" style="margin:4px 10px 8px;width:auto">+${props.length - 3} more props</button>` : ''}
@@ -5821,6 +5835,20 @@ function mvReasons(m) {   // the sync's reasons (news timed against the move, in
     <div><h3>Possible reasons</h3>${items ? `<ul class="mv-rs">${items}</ul>` : '<p class="note">No injury, lineup, weather or team news in our feeds explains it. A move with no news usually comes from betting action (often sharp money), though it can also be news not reported yet.</p>'}</div>`;
 }
 const mvTop = m => { const it = m.g.why?.items?.[0]; if (it) return it.text; const r = mvWhy(m); return r[0] || null; };
+// ------------------------------------------------------------ money on Kalshi (kalshi.py flow): contracts x price, so rough dollars.
+// "Hot" = a lot of new money in the last ~6 hours relative to what was there: often news or a sharp bettor
+const kUSD = v => v == null ? '–' : v >= 1e6 ? '$' + (v / 1e6).toFixed(v >= 1e7 ? 0 : 1) + 'M' : v >= 1e3 ? '$' + Math.round(v / 1e3) + 'K' : '$' + Math.round(v);
+const kHot = (x, minUsd) => !!x && (x.dusd || 0) >= minUsd && x.d >= 0.25 * Math.max(1, x.c - x.d);
+const kPx = x => x?.dp && Math.abs(x.dp) >= 3 ? `<span class="kpx ${x.dp > 0 ? 'up' : 'dn'}">${x.dp > 0 ? '▲' : '▼'}${Math.abs(x.dp)}¢</span>` : '';
+function moneyFlow() {   // the hottest markets on the slate: game lines and props, newest money first
+  const out = [];
+  for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) {
+    const M = g.kalshi?.money || {}, lbl = { ml: 'moneyline', spread: 'spread', total: 'total' };
+    for (const k of ['ml', 'spread', 'total']) if (kHot(M[k], 25000)) out.push({ g, what: `${g.away.abbr} @ ${g.home.abbr} ${lbl[k]}`, x: M[k], px: k === 'ml' && M[k].dp ? `${g.home.abbr} ${M[k].dp > 0 ? '▲' : '▼'}${Math.abs(M[k].dp)}¢` : '' });
+    for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) if (kHot(pr.kv, 1000)) out.push({ g, pl, what: `${pl.n} · ${pr.m}${pr.m === 'Anytime TD' ? '' : ' ' + pr.l}`, x: pr.kv });
+  }
+  return out.sort((a, b) => b.x.dusd - a.x.dusd).slice(0, 6);
+}
 function renderMoves() {
   const box = $('#moves'); if (!box) return;
   const sl = S.slate; if (!sl) { box.innerHTML = ''; return; }
@@ -5830,8 +5858,12 @@ function renderMoves() {
   if (!rows.length) { box.innerHTML = '<div class="empty"><b>No upcoming lines</b>Lines show up here once books post them.</div>'; return; }
   const sorts = { big: (a, b) => b.score - a.score, now: (a, b) => b.score24 - a.score24, kick: (a, b) => new Date(a.g.date) - new Date(b.g.date) };
   rows.sort(sorts[MV.sort]);
-  const now = rows.filter(m => m.flags.some(f => f.t === 'fast'));
-  box.innerHTML = `<div class="row" style="gap:6px;margin-bottom:10px" role="group" aria-label="Sort">
+  const now = rows.filter(m => m.flags.some(f => f.t === 'fast')), flow = moneyFlow();
+  box.innerHTML = `${flow.length ? `<section class="kflow"><h3>Money flow <small>new money on Kalshi, last ~${Math.round(flow[0].x.h || 6)}h</small></h3>
+      ${flow.map(f => `<div class="kflow-r">${logo(f.pl ? f.pl.tm || f.g.home.abbr : f.g.home.abbr, 20)}<span class="kflow-w"><b>${esc(f.what)}</b><small>${kick(f.g)}</small></span>
+        <span class="kflow-n"><b>+${kUSD(f.x.dusd)}</b><small>${kUSD(f.x.usd)} total${f.px ? ' · ' + esc(f.px) : f.x.dp && Math.abs(f.x.dp) >= 3 ? ` · ${f.x.dp > 0 ? '▲' : '▼'}${Math.abs(f.x.dp)}¢` : ''}</small></span></div>`).join('')}
+      <p class="note">Contracts traded × price, so dollars are rough. A surge with the price moving the same way often means news or a sharp bettor; check the injury report before following it.</p></section>` : ''}
+    <div class="row" style="gap:6px;margin-bottom:10px" role="group" aria-label="Sort">
       ${[['big', 'Biggest since open'], ['now', 'Biggest last 24h'], ['kick', 'Kickoff']].map(([k, l]) => `<button class="chip" data-mvsort="${k}" aria-pressed="${MV.sort === k}">${l}</button>`).join('')}</div>
     ${now.length ? `<div class="mv-now"><h3>Moving now</h3>${now.map(m => `<button class="chip" data-mvjump="${m.g.id}">${esc(m.g.away.abbr)} @ ${esc(m.g.home.abbr)}${m.sp6 ? ` · ${Math.abs(m.sp6)} toward ${esc(m.sp6 > 0 ? m.g.away.abbr : m.g.home.abbr)}` : ''}${m.tt6 ? ` · total ${m.tt6 > 0 ? '▲' : '▼'}${Math.abs(m.tt6)}` : ''}</button>`).join('')}</div>` : ''}
     <div class="mv-list">${rows.map(m => {
@@ -5844,6 +5876,8 @@ function renderMoves() {
           <span class="mv-c"><i>Total</i><b>${m.open[1] ?? '–'} → ${m.cur[1] ?? '–'}</b><small>${mvDelta(m.tt)}</small></span>
           <span class="mv-c"><i>Last 24h</i><b class="mv-24">${m.sp24 == null && m.tt24 == null ? 'Not tracked yet' : `${m.sp24 ? `${Math.abs(m.sp24)} toward ${esc(nick(m.sp24 > 0 ? g.away : g.home))}` : 'Spread steady'} · ${m.tt24 ? `total ${m.tt24 > 0 ? '▲' : '▼'}${Math.abs(m.tt24)}` : 'total steady'}`}</b><small>${wNow != null && fav ? `${esc(fav.abbr)} win ${Math.round(wOpen * 100)}% → ${Math.round(wNow * 100)}%` : ''}</small></span>
         </button>
+        ${(() => { const M = g.kalshi?.money; if (!M) return ''; const tot = (M.ml?.usd || 0) + (M.spread?.usd || 0) + (M.total?.usd || 0), nw = (M.ml?.dusd || 0) + (M.spread?.dusd || 0) + (M.total?.dusd || 0);
+          return tot ? `<p class="mv-money"><span>Kalshi</span><b>${kUSD(tot)}</b> traded${nw ? ` · <b>+${kUSD(nw)}</b> in ${Math.round(M.ml?.h || M.spread?.h || 6)}h` : ''}${M.ml?.dp && Math.abs(M.ml.dp) >= 3 ? ` · ${esc(g.home.abbr)} ${M.ml.dp > 0 ? '▲' : '▼'}${Math.abs(M.ml.dp)}¢` : ''}</p>` : ''; })()}
         ${m.flags.length ? `<div class="mv-flags">${m.flags.map(f => `<span class="b ${f.t === 'fast' ? 'r' : f.t === 'flip' ? 'r' : 'y'}">${esc(f.s)}</span>`).join('')}</div>` : ''}
         ${mvTop(m) ? `<p class="mv-top">Possible reason: ${esc(mvTop(m))}${(m.g.why?.items?.length || 0) > 1 ? ` <span class="note">+${m.g.why.items.length - 1} more</span>` : ''}</p>` : m.g.why && m.score >= 2 ? '<p class="mv-top note">No news found; likely betting action</p>' : ''}
         ${open ? `<div class="mv-x">

@@ -159,4 +159,68 @@ def apply(games, props):
         if not g or not p or g["id"] not in props or ":" not in m["title"]: continue
         pl = next((x for x in props[g["id"]] if norm(x["n"]) == norm(m["title"].split(":")[0])), None)
         if pl: pl["ftk"] = {**p, "url": page_url(FIRST_TD, m["event_ticker"])}; n += 1
+    try: flow(pre, props)
+    except Exception as e: print("kalshi money flow failed", e, file=sys.stderr)
     return n
+
+
+# ---------------------------------------------------------------- money on Kalshi and where it's moving
+FLOW_FILE, FLOW_EVERY, FLOW_KEEP, FLOW_BACK = "kalshi_flow.json", 2 * 3600, 10 * 3600, 6 * 3600
+
+
+def _mid(r):
+    if not r: return None
+    ya, yb = r.get("ya"), r.get("yb")
+    return (ya + yb) / 2 if ya is not None and yb is not None else ya
+
+
+def flow(pre, props, now=None):
+    """Contracts traded and rough dollars (contracts x price) on every game market and prop ladder, and how much of it came in
+    over about the last 6 hours, with the price move at the main line. A snapshot per market is kept at most every 2 hours
+    for 10 hours (state kalshi_flow.json), so the file stays small and only changes every couple of hours.
+      g["kalshi"]["money"] = {"ml" | "spread" | "total": {...}},  pr["kv"] = {...}
+      {...} = {"c": contracts, "usd": dollars, "d": new contracts, "dusd": new dollars, "h": hours compared, "dp": cents}"""
+    path = os.path.join(os.environ.get("EDGE_DATA") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"), FLOW_FILE)
+    try:
+        with open(path, encoding="utf-8") as f: st = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError): st = {}
+    now = int(now or time.time()); keep = {}
+
+    def track(key, rungs, main):
+        c = sum(r.get("v") or 0 for r in rungs)
+        if not c: return None
+        usd = sum((r.get("v") or 0) * (_mid(r) or 0) for r in rungs)
+        mid = round(_mid(main) * 100) if _mid(main) is not None else None
+        h = [x for x in st.get(key, []) if now - x[0] <= FLOW_KEEP]
+        if not h or now - h[-1][0] >= FLOW_EVERY: h.append([now, c, mid])
+        keep[key] = h
+        then = [x for x in h if now - x[0] >= FLOW_BACK - 1800] or h[:1]      # the snapshot from about 6 hours ago (or the oldest)
+        t0, c0, m0 = then[-1]
+        out = {"c": c, "usd": round(usd)}
+        if now - t0 >= 1800:
+            d = max(0, c - c0)
+            out.update({"d": d, "dusd": round(d * usd / c), "h": round((now - t0) / 3600, 1)})
+            if mid is not None and m0 is not None: out["dp"] = mid - m0
+        return out
+
+    near50 = lambda rs: min(rs, key=lambda r: abs((_mid(r) or 0) - 0.5)) if rs else None
+    for g in pre:
+        k = g.get("kalshi")
+        if k:
+            money = {}
+            if k.get("ml"): money["ml"] = track(f"{g['id']}|ml", list(k["ml"].values()), k["ml"].get(g["home"]["abbr"]))
+            if k.get("spread"): money["spread"] = track(f"{g['id']}|spread", [r for rs in k["spread"].values() for r in rs], None)
+            if k.get("total"): money["total"] = track(f"{g['id']}|total", k["total"], near50(k["total"]))
+            money = {a: b for a, b in money.items() if b}
+            if money: k["money"] = money
+        for pl in props.get(g["id"], []):
+            for pr in pl["props"]:
+                if not pr.get("alt"): continue
+                main = next((r for r in pr["alt"] if r["l"] == pr.get("l")), None) or near50(pr["alt"])
+                kv = track(f"{g['id']}|{pl['id']}|{pr['m']}", pr["alt"], main)
+                if kv: pr["kv"] = kv
+    try:
+        old = json.dumps(st, sort_keys=True); new = json.dumps(keep, sort_keys=True)
+        if new != old:
+            with open(path, "w", encoding="utf-8") as f: f.write(json.dumps(keep, separators=(",", ":"), sort_keys=True))
+    except OSError as e: print("kalshi flow save failed", e, file=sys.stderr)
