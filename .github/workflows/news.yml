@@ -13,7 +13,7 @@ concurrency:
 jobs:
   news:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -43,6 +43,10 @@ jobs:
           FF_SLEEPER_USER: DestroyBOY
           FF_YAHOO_TEAM: "7"
         run: python fantasy_alerts.py
+      - name: Kalshi money (Money tab), riding along every ~20 minutes
+        continue-on-error: true
+        timeout-minutes: 4
+        run: python money_sync.py
       - name: A player was just ruled out? Start a full sync now
         if: hashFiles('state/.dispatch_sync') != '' || hashFiles('state/nba/.dispatch_sync') != ''
         env:
@@ -55,6 +59,7 @@ jobs:
           git config user.name "edge-board-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add state/news_state.json state/fantasy_alerts.json state/nba/news_state.json 2>/dev/null || git add state/news_state.json
+          for f in data/money.json data/nba/money.json data/cbb/money.json state/kalshi_flow.json state/nba/kalshi_flow.json state/cbb/kalshi_flow.json; do [ -f "$f" ] && git add "$f"; done
           git diff --cached --quiet && exit 0
           git commit -q -m "News check $(date -u +%Y-%m-%dT%H:%MZ)"
           git pull --rebase -X theirs -q || true
