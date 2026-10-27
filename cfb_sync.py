@@ -19,6 +19,9 @@ sync.ESPN = "https://site.api.espn.com/apis/site/v2/sports/football/college-foot
 sync.SUMMARY = "https://site.web.api.espn.com/apis/site/v2/sports/football/college-football/summary?event="
 sync.ODDS_API = "https://api.the-odds-api.com/v4/sports/americanfootball_ncaaf/odds"
 POWER4 = {"8": "SEC", "5": "Big Ten", "4": "Big 12", "1": "ACC"}
+# early leans (cfb_flags.py) retired Oct 27 2026: 8-14 sides / 5-10 totals at the flagged line, and our number went 129-147
+# against the closing spread. Still tracked and graded in the background (shown as a record only, no picks or alerts)
+LEANS_ON = False
 
 
 def keep(ev):
@@ -128,11 +131,12 @@ def main():
     try:   # early-week leans: Power 4 games where our number is 3+ off the opener, frozen, graded, one alert digest
         import cfb_flags
         fl = cfb_flags.find(games)
-        for f_ in fl: next(g for g in games if g["id"] == f_["gid"]).setdefault("lean", []).append({k: f_[k] for k in ("kind", "text", "open", "edge")})
+        if LEANS_ON:
+            for f_ in fl: next(g for g in games if g["id"] == f_["gid"]).setdefault("lean", []).append({k: f_[k] for k in ("kind", "text", "open", "edge")})
         st = cfb_flags.track(games, fl, res, os.path.join(sync.DATA, f"cfb_flags_{season}.json"))
         flags = {"bt": cfb_flags.BACKTEST, "rec": cfb_flags.grade(st), "edge": cfb_flags.EDGE,
-                 "past": sorted((v for v in st["flags"].values() if v.get("hs") is not None), key=lambda v: v["d"], reverse=True)[:40]}
-        cfb_flags.alert(st, games, cfg, os.path.join(sync.DATA, f"cfb_flags_{season}.json"))
+                 "past": sorted((v for v in st["flags"].values() if v.get("hs") is not None), key=lambda v: v["d"], reverse=True)[:40], "retired": not LEANS_ON}
+        if LEANS_ON: cfb_flags.alert(st, games, cfg, os.path.join(sync.DATA, f"cfb_flags_{season}.json"))
     except Exception as e:
         import traceback; traceback.print_exc(); print("cfb flags failed", e, file=sys.stderr)
     hist = sync.line_history(games, season)   # Moves tab

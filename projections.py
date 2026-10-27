@@ -178,7 +178,10 @@ MKT_PROP_W = 0.6  # yardage / reception props: weight on the market's chance (ou
 # passing yards too, after the full 2025 replay (weeks 5-18): our pass-yds leans hit 46%; 85% market beat 60% (0.2446 vs 0.2476)
 # Oct 2026: passing yards go to 95% market. Even with the skew fixed (PASS_YDS_K) our own QB leans hit only 44-46% on the
 # 2025 replay, and the market alone was the most accurate (0.2437), so the model shouldn't drive QB leans
-MKT_PROP_W_BY = {"Rush yds": 0.85, "Carries": 0.85, "Rush+rec yds": 0.85, "Pass yds": 0.95, "Pass+rush yds": 0.85}
+# Oct 27 2026, Kalshi weeks 1-7 (prop_backtest --rest): more market kept helping on rush+rec yds (Brier 0.2441 at 85% ->
+# 0.2436 at 95%, 55%+ leans 62-37 -> 61-34) and pass attempts (0.2477 at 60% -> 0.2461 at 90%), in both halves of the season.
+# Carries were already best at 85%; completions do better with more of our model, so they stay at 60%
+MKT_PROP_W_BY = {"Rush yds": 0.85, "Carries": 0.85, "Rush+rec yds": 0.95, "Pass yds": 0.95, "Pass+rush yds": 0.85, "Pass att": 0.9}
 # passing yards are right-skewed: a projection sitting on the book's line (our raw averaged 1.005x the line) came out ~45%
 # "over" in the lognormal, so every QB leaned under while 2025 overs hit 50.7% (2026: 55%). Scaling the raw number by 1.07
 # puts the model's average at 50.6% and improved its accuracy on the 2025 replay (0.2630 -> 0.2609)

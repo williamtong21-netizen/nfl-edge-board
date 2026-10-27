@@ -2242,7 +2242,8 @@ function propPicks() {
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
     if (team.inj.some(i => i.n === pl.n && (isOut(i.s) || /doubtful/i.test(i.s)))) continue;
     for (const pr of pl.props) {
-      if (pr.pOver == null || pr.m === 'Anytime TD') continue;
+      // longest reception left Picks Oct 2026: its 60%+ leans went 21-19 through week 7 (still on the Props tab)
+      if (pr.pOver == null || pr.m === 'Anytime TD' || pr.m === 'Long rec') continue;
       const x = propRow(pl, pr, g), edge = pr.pOver - 0.5;
       if (Math.abs(edge) < PROP_EDGE || x.n < 3) continue;
       const over = edge > 0, d = dueRead(x);
@@ -2305,6 +2306,9 @@ function cfbFlagLines(g) {
 }
 function cfbFlagsSection() {
   const F = S.slate?.cfbFlags; if (!F) return '';
+  // retired Oct 2026 (cfb_sync.LEANS_ON): still graded quietly, so the record stays visible
+  if (F.retired) return `<details class="rc cfbrec"><summary class="rc-h"><b>Early leans: retired</b><small>${F.rec.side.flag[0]}-${F.rec.side.flag[1]} sides, ${F.rec.total.flag[0]}-${F.rec.total.flag[1]} totals this season ▾</small></summary>
+    <p class="note">College picks are off. This season our early leans lost at the lines we flagged, and our number went ${S.slate.cfbReport?.ats?.all ? recS2(S.slate.cfbReport.ats.all) : 'under .500'} against the closing spread, so the app no longer suggests college sides or totals. Lines, line moves and Kalshi money still update. We keep grading the leans in the background and can bring them back if they start winning.</p></details>`;
   const r3 = a => a ? `${a[0]}-${a[1]}${a[2] ? '-' + a[2] : ''}` : '–';
   const pc = a => a && a[0] + a[1] ? Math.round(a[0] / (a[0] + a[1]) * 100) + '%' : '';
   const row = (lbl, d) => `<tr><td>${lbl}</td><td class="n">${d.n}</td><td class="n">${r3(d.moved)} <small>${pc(d.moved)}</small></td><td class="n">${r3(d.flag)} <small>${pc(d.flag)}</small></td><td class="n">${r3(d.close)} <small>${pc(d.close)}</small></td></tr>`;
