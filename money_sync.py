@@ -1,4 +1,4 @@
-"""Kalshi money only, every ~15 minutes (GitHub Actions money.yml): much lighter than the full sync.
+"""Kalshi (and Polymarket) money only, every ~15 minutes (GitHub Actions money.yml): much lighter than the full sync.
 
 Re-pulls Kalshi's game and player markets for the games already on the published slate (data/slate.json + its prop
 parts), runs kalshi.flow (dollars traded, new money, which side), and writes a small <data>/money.json per sport:
@@ -49,8 +49,11 @@ def one(sport, out, data, cfg):
         if (g.get("kalshi") or {}).get("money"): money["games"][g["id"]] = g["kalshi"]["money"]
         kv = {f'{pl["id"]}|{pr["m"]}': pr["kv"] for pl in props.get(g["id"], []) for pr in pl.get("props", []) if (pr.get("kv") or {}).get("usd", 0) >= 50}
         if kv: money["props"][g["id"]] = kv
+    try:   # Polymarket: a second real-money exchange (prices, dollars traded, last-6h money by side)
+        import polymarket; money["poly"] = polymarket.apply(games, sport)
+    except Exception as e: print(sport, "polymarket failed:", e, file=sys.stderr)
     with open(os.path.join(out, "money.json"), "w", encoding="utf-8") as f: f.write(json.dumps(money, separators=(",", ":")))
-    return len(money["games"]) + sum(len(v) for v in money["props"].values())
+    return len(money["games"]) + sum(len(v) for v in money["props"].values()) + len(money.get("poly") or {})
 
 
 if __name__ == "__main__":

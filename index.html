@@ -1228,7 +1228,8 @@ body.simopen{overflow:hidden}
 .kflow-n b.neutral{color:var(--ink)}
 
 /* Money tab */
-.mn-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:6px 0 12px}
+.mn-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:6px 0 12px}
+.mn-line.poly span:first-child{font-size:11px;line-height:1.25;color:var(--muted)}.mn-line.poly span:first-child a{color:inherit;font-weight:700}
 .mn-tiles .tile small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mn-big{font-size:22px}
 .mn-sort{gap:6px;margin:0 0 12px}
 .mn-h{margin:16px 0 8px}
@@ -5955,6 +5956,24 @@ function kSide(x, yes, no, team) {
   if (x.dp && Math.abs(x.dp) >= 3) return `<span class="kside ${team ? 'tm' : x.dp > 0 ? 'up' : 'dn'}">pushing ${esc(x.dp > 0 ? yes : no)} ${x.dp > 0 ? '▲' : '▼'}${Math.abs(x.dp)}¢</span>`;
   return '';
 }
+// Polymarket's last-6h money by side (polymarket.py): the side's share once at least $500 has moved
+function pShare(k, x) {
+  if (!x?.d) return null; const [y, n] = k === 'total' ? [x.d.o || 0, x.d.u || 0] : [x.d.h || 0, x.d.a || 0];
+  return y + n >= 500 ? y / (y + n) : null;
+}
+function pSide(g, k, x) {
+  const s = pShare(k, x); if (s == null) return '';
+  const y = s >= 0.5, nm = k === 'total' ? (y ? 'the over' : 'the under') : (y ? g.home.abbr : g.away.abbr);
+  return `<span class="kside ${k === 'total' ? (y ? 'up' : 'dn') : 'tm'}">${Math.round((y ? s : 1 - s) * 100)}% on ${esc(nm)}</span>`;
+}
+// both exchanges' new money on the same side: Kalshi's taker share (or its price push) and a 60%+ Polymarket share
+function agree(g, k) {
+  const x = g.kalshi?.money?.[k], s = pShare(k, g.poly?.[k]); if (!x || s == null) return null;
+  const kl = x.ys != null ? (x.ys >= 0.55 ? 1 : x.ys <= 0.45 ? -1 : 0) : x.dp >= 3 ? 1 : x.dp <= -3 ? -1 : 0, pl = s >= 0.6 ? 1 : s <= 0.4 ? -1 : 0;
+  if (!kl || kl !== pl) return null;
+  const y = kl > 0, nm = k === 'total' ? (y ? 'Over' : 'Under') + (g.odds?.t != null ? ' ' + g.odds.t : '') : (y ? g.home.abbr : g.away.abbr) + (k === 'spread' ? ' spread' : ' moneyline');
+  return { txt: nm, abbr: k === 'total' ? null : y ? g.home.abbr : g.away.abbr, k: x.ys != null ? Math.round((y ? x.ys : 1 - x.ys) * 100) + '%' : `${x.dp > 0 ? '▲' : '▼'}${Math.abs(x.dp)}¢`, p: Math.round((y ? s : 1 - s) * 100) + '%' };
+}
 function moneyFlow() {   // the hottest markets on the slate: game lines and props, newest money first
   const out = [];
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) {
@@ -5978,7 +5997,8 @@ function mostTraded() {
 async function loadMoney() {
   if (FFM || !S.slate) return;
   const m = await fetch(DATA_BASE + 'money.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
-  if (!m?.at || m.at === S.moneyAt || m.at < (S.slate.updatedAt || '')) return;   // a full sync newer than the file already has fresher money
+  if (m?.poly && m.at !== S.polyAt) { S.polyAt = m.at; for (const g of S.slate.games) if (m.poly[g.id]) g.poly = m.poly[g.id]; if (!$('#view-money')?.hidden) renderMoney(); }   // Polymarket only comes in this file
+  if (!m?.at || m.at === S.moneyAt || m.at < (S.slate.updatedAt || '')) return;   // a full sync newer than the file already has fresher Kalshi money
   S.moneyAt = m.at;
   for (const g of S.slate.games) { const M = m.games?.[g.id]; if (M) { g.kalshi = g.kalshi || {}; g.kalshi.money = M; } }
   for (const [gid, kv] of Object.entries(m.props || {})) for (const pl of S.props?.[gid] || []) for (const pr of pl.props) { const x = kv[pl.id + '|' + pr.m]; if (x) pr.kv = x; }
@@ -5993,19 +6013,22 @@ const MN = { sort: 'usd', show: 'all', n: 25 };
 function renderMoney() {
   const box = $('#money'); if (!box) return;
   const sl = S.slate; if (!sl) { box.innerHTML = ''; return; }
-  const games = sl.games.filter(g => g.state === 'pre' && g.kalshi?.money);
-  const lbl = { ml: 'Moneyline', spread: 'Spread', total: 'Total' };
+  const games = sl.games.filter(g => g.state === 'pre' && (g.kalshi?.money || g.poly));
+  const lbl = { ml: 'Moneyline', spread: 'Spread', total: 'Total' }, KM = g => g.kalshi?.money || {};
   const side = (g, k, x) => k === 'total' ? kSide(x, 'the over', 'the under') : kSide(x, g.home.abbr, g.away.abbr, true);
   // props with money, either sort
   const props = [];
   for (const g of games.length ? sl.games.filter(g => g.state === 'pre') : []) for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) if (pr.kv?.usd >= 100) props.push({ g, pl, pr, x: pr.kv });
   for (const g of sl.games.filter(g => g.state === 'pre' && !g.kalshi?.money)) for (const pl of S.props?.[g.id] || []) for (const pr of pl.props) if (pr.kv?.usd >= 100) props.push({ g, pl, pr, x: pr.kv });
   if (!games.length && !props.length) { box.innerHTML = `<h2>Where the money is</h2><div class="empty"><b>No Kalshi money yet</b>Kalshi markets for the upcoming games show up here once they open, usually a few days before kickoff. Money is checked every sync.</div>`; return; }
-  const sum = (f) => games.reduce((a, g) => a + ['ml', 'spread', 'total'].reduce((b, k) => b + (f(g.kalshi.money[k]) || 0), 0), 0) + props.reduce((a, p) => a + (f(p.x) || 0), 0);
-  const tot = sum(x => x?.usd), nw = sum(x => x?.dusd), hrs = Math.round(games.find(g => g.kalshi.money.ml?.h)?.kalshi.money.ml.h || 6);
-  const big = [...games.flatMap(g => ['ml', 'spread', 'total'].filter(k => g.kalshi.money[k]).map(k => ({ what: `${g.away.abbr} @ ${g.home.abbr} ${lbl[k].toLowerCase()}`, usd: g.kalshi.money[k].usd }))), ...props.map(p => ({ what: `${p.pl.n} ${p.pr.m.toLowerCase()}`, usd: p.x.usd }))].sort((a, b) => b.usd - a.usd)[0];
+  const sum = (f) => games.reduce((a, g) => a + ['ml', 'spread', 'total'].reduce((b, k) => b + (f(KM(g)[k]) || 0), 0), 0) + props.reduce((a, p) => a + (f(p.x) || 0), 0);
+  const tot = sum(x => x?.usd), nw = sum(x => x?.dusd), hrs = Math.round(games.find(g => KM(g).ml?.h)?.kalshi.money.ml.h || 6);
+  const ptot = games.reduce((a, g) => a + ['ml', 'spread', 'total'].reduce((b, k) => b + (g.poly?.[k]?.vol || 0), 0), 0);
+  const both = games.flatMap(g => ['ml', 'spread', 'total'].map(k => ({ g, k, s: agree(g, k) })).filter(x => x.s));
+  const big = [...games.flatMap(g => ['ml', 'spread', 'total'].filter(k => KM(g)[k]).map(k => ({ what: `${g.away.abbr} @ ${g.home.abbr} ${lbl[k].toLowerCase()}`, usd: KM(g)[k].usd }))), ...props.map(p => ({ what: `${p.pl.n} ${p.pr.m.toLowerCase()}`, usd: p.x.usd }))].sort((a, b) => b.usd - a.usd)[0];
   const flow = moneyFlow();
-  const gsort = games.slice().sort((a, b) => MN.sort === 'new' ? ['ml', 'spread', 'total'].reduce((s, k) => s + (b.kalshi.money[k]?.dusd || 0) - (a.kalshi.money[k]?.dusd || 0), 0) : ['ml', 'spread', 'total'].reduce((s, k) => s + (b.kalshi.money[k]?.usd || 0) - (a.kalshi.money[k]?.usd || 0), 0));
+  const gm = (g, f) => ['ml', 'spread', 'total'].reduce((s, k) => s + (f(KM(g)[k]) || 0) + (f(g.poly?.[k], 1) || 0), 0);
+  const gsort = games.slice().sort((a, b) => MN.sort === 'new' ? gm(b, x => x?.dusd) - gm(a, x => x?.dusd) : gm(b, (x, p) => p ? x?.vol : x?.usd) - gm(a, (x, p) => p ? x?.vol : x?.usd));
   let pr = props.filter(p => MN.show === 'all' || (MN.show === 'over' ? (p.x.ys ?? (p.x.dp > 0 ? 1 : p.x.dp < 0 ? 0 : null)) >= 0.5 : (p.x.ys ?? (p.x.dp > 0 ? 1 : p.x.dp < 0 ? 0 : null)) != null && (p.x.ys ?? (p.x.dp > 0 ? 1 : 0)) < 0.5));
   pr.sort((a, b) => MN.sort === 'new' ? (b.x.dusd || 0) - (a.x.dusd || 0) : b.x.usd - a.x.usd);
   const chip = (k, v, l, cur) => `<button class="chip" data-mn="${k}|${v}" aria-pressed="${cur === v}">${l}</button>`;
@@ -6013,6 +6036,7 @@ function renderMoney() {
   box.innerHTML = `<div class="mn-top"><h2>Where the money is</h2><small class="note">updated ${upd ? ago(upd) : '–'} · refreshes every ~15 min</small></div>
     <div class="mn-tiles">
       <div class="tile"><span>On Kalshi</span><b class="num">${kUSD(tot)}</b><small>${games.length} game${games.length === 1 ? '' : 's'} · ${props.length} props</small></div>
+      ${ptot ? `<div class="tile"><span>On Polymarket</span><b class="num">${kUSD(ptot)}</b><small>game lines</small></div>` : ''}
       <div class="tile"><span>New money</span><b class="num ${nw ? 'pos' : ''}">${nw ? '+' + kUSD(nw) : '–'}</b><small>${nw ? `last ~${hrs}h` : 'shows after two syncs'}</small></div>
       <div class="tile"><span>Biggest market</span><b class="num mn-big">${big ? kUSD(big.usd) : '–'}</b><small>${big ? esc(big.what) : ''}</small></div>
     </div>
@@ -6022,16 +6046,20 @@ function renderMoney() {
         <span class="kflow-n"><b>+${kUSD(f.x.dusd)}</b><small>${kUSD(f.x.usd)} total</small>${f.side ? `<small>${f.side}</small>` : ''}</span></div>`).join('')
         : `<p class="note" style="margin:0">No surges right now. When new money pours into a line, it lands here with which side it's on (checked about every 2 hours).</p>`}
     </section>
-    ${gsort.length ? `<h3 class="mn-h">Games</h3><div class="mn-games">${gsort.map(g => { const M = g.kalshi.money, t = ['ml', 'spread', 'total'].reduce((a, k) => a + (M[k]?.usd || 0), 0);
+    ${both.length ? `<section class="kflow"><h3>Both exchanges agree <small>new money leaning the same way on Kalshi and Polymarket</small></h3>
+      ${both.map(x => `<div class="kflow-r">${logo(x.s.abbr || x.g.home.abbr, 20)}<span class="kflow-w"><b>${esc(x.s.txt)}</b><small>${esc(x.g.away.abbr)} @ ${esc(x.g.home.abbr)} · ${kick(x.g)}</small></span><span class="kflow-n"><small>Kalshi ${x.s.k}</small><small>Polymarket ${x.s.p}</small></span></div>`).join('')}
+      <p class="note" style="margin:6px 0 0">Two separate pools of real money pushing the same side is a stronger signal than either alone. It's still not a pick: check injury news, and the price has often already moved.</p></section>` : ''}
+    ${gsort.length ? `<h3 class="mn-h">Games</h3><div class="mn-games">${gsort.map(g => { const M = KM(g), P = g.poly || {}, t = ['ml', 'spread', 'total'].reduce((a, k) => a + (M[k]?.usd || 0) + (P[k]?.vol || 0), 0);
       return `<article class="mn-game"><div class="mn-gh">${logo(g.away.abbr, 22)}${logo(g.home.abbr, 22)}<b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b><small>${kick(g)}</small><span class="mn-gt">${kUSD(t)}</span></div>
-        ${['ml', 'spread', 'total'].filter(k => M[k]).map(k => `<div class="mn-line"><span>${lbl[k]}</span><b>${kUSD(M[k].usd)}</b>${M[k].dusd ? `<i>+${kUSD(M[k].dusd)}</i>` : '<i></i>'}<em>${side(g, k, M[k]) || '<span class="note">no lean yet</span>'}</em></div>`).join('')}</article>`; }).join('')}</div>` : ''}
+        ${['ml', 'spread', 'total'].filter(k => M[k]).map(k => `<div class="mn-line"><span>${lbl[k]}</span><b>${kUSD(M[k].usd)}</b>${M[k].dusd ? `<i>+${kUSD(M[k].dusd)}</i>` : '<i></i>'}<em>${side(g, k, M[k]) || '<span class="note">no lean yet</span>'}</em></div>`).join('')}
+        ${['ml', 'spread', 'total'].filter(k => P[k]?.vol >= 500).map(k => `<div class="mn-line poly"><span><a href="${esc(P.url)}" target="_blank" rel="noopener">Poly</a> ${lbl[k].toLowerCase()}${k === 'spread' && P[k].l != null ? ` ${esc(g.home.abbr)} ${fmtLine(P[k].l)}` : k === 'total' && P[k].l ? ' ' + P[k].l : ''}</span><b>${kUSD(P[k].vol)}</b>${P[k].dusd ? `<i>+${kUSD(P[k].dusd)}</i>` : '<i></i>'}<em>${pSide(g, k, P[k]) || '<span class="note">no lean yet</span>'}</em></div>`).join('')}</article>`; }).join('')}</div>` : ''}
     <div class="mn-ph"><h3 class="mn-h">Props</h3><div class="row" role="group" aria-label="Show">${chip('show', 'all', 'All', MN.show)}${chip('show', 'over', 'Money on overs', MN.show)}${chip('show', 'under', 'Money on unders', MN.show)}</div></div>
     ${pr.length ? `<div class="mn-props">${pr.slice(0, MN.n).map(p => { const team = p.pl.side === 'home' ? p.g.home : p.g.away, td = p.pr.m === 'Anytime TD';
       return `<div class="mn-prop">${logo(team.abbr, 24)}<span class="mn-pw"><b>${esc(p.pl.n)}</b><small>${esc(p.pr.m)}${td ? '' : ' ' + p.pr.l} · ${esc(p.g.away.abbr)} @ ${esc(p.g.home.abbr)}</small></span>
         <span class="mn-pn"><b>${kUSD(p.x.usd)}</b>${p.x.dusd >= 100 ? `<i>+${kUSD(p.x.dusd)}</i>` : ''}${td ? kPx(p.x) : kSide(p.x, 'over', 'under')}</span></div>`; }).join('')}</div>
       ${pr.length > MN.n ? `<button class="showmore" data-mn="more|1">Show more (${pr.length - MN.n})</button>` : ''}`
       : `<p class="note">${MN.show === 'all' ? 'No prop money yet.' : 'No props with a clear lean that way yet: leans show once new money arrives.'}</p>`}
-    <p class="note">Kalshi contracts traded × price, so dollars are rough. "% on" is Kalshi's own record of which side each new bettor took (shown when the line is near a coin flip); "pushing" means the price moved that way. Sportsbooks don't publish their money. Money and price moving together often means news or a sharp bettor: check the injury report before following it.</p>`;
+    <p class="note">Polymarket: dollars traded on each game line, and "% on" is the share of the last ~6 hours of money on each side (buying a side counts for it, selling it counts for the other side). Its prices track Kalshi's closely; the money is a second, separate crowd. Kalshi contracts traded × price, so dollars are rough. "% on" is Kalshi's own record of which side each new bettor took (shown when the line is near a coin flip); "pushing" means the price moved that way. Sportsbooks don't publish their money. Money and price moving together often means news or a sharp bettor: check the injury report before following it.</p>`;
 }
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-mn]'); if (c) { const [k, v] = c.dataset.mn.split('|'); if (k === 'more') MN.n += 25; else { MN[k] = v; MN.n = 25; } renderMoney(); return; }
