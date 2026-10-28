@@ -10,7 +10,7 @@ A headline that rules a key player out is saved under "outs" (sync.news_outs mar
 and asks the workflow to start a full sync right away (state/.dispatch_sync).
 NBA (EDGE_SPORT=nba, its own data/state folders): "matters" = a points line of 14.5+ in tonight's props; Out / Doubtful
 always alert and start a sync (nba_sync drops them from props); Questionable / Day-To-Day only for 18+ point scorers within 8
-hours of tip (shootaround noise before that).
+hours of tip (shootaround noise before that). The league's official injury report (nba_injury.py) is checked too.
 Run:  python news.py        (EDGE_OUT = the published data folder, EDGE_DATA = the state folder, EDGE_SPORT = nfl | nba)
 """
 import glob, json, os, re, sys
@@ -121,6 +121,7 @@ def candidates(keys, st):
             why = f'{k["pts"]} pts line' if k.get("pts") else f'{k["pos"]}, {round(k["td"] * 100)}% to score' if k.get("td") else k.get("pos") or ""
             out.append((1 if new in ("Out", "Doubtful", "Injured Reserve") or cleared else 2, f'inj:{aid}:{new}:{i.get("date", "")[:10]}', title,
                         f'{k["game"]} · {why}. {note[:220]}', "rotating_light" if worse else "white_check_mark"))
+    if SPORT == "nba": out += official_nba(keys, st)
     try: news = get(NEWS).get("articles", [])
     except Exception as e: print("news failed", e, file=sys.stderr); news = []
     names = {v["n"].lower(): (aid, v) for aid, v in keys.items()}
@@ -139,6 +140,39 @@ def candidates(keys, st):
         link = ((a.get("links") or {}).get("web") or {}).get("href")
         out.append((2, f'news:{a.get("id") or hl}', f'{v["n"]} news', f'{hl}. {v["game"]}.', "newspaper", link))
     return out
+
+
+def official_nba(keys, st):
+    """The league's own injury report (new PDF every 15 minutes on game days, filed by the teams) usually beats ESPN's list
+    by 30-90 minutes. Same rules as the ESPN check; a change ESPN already alerted on isn't sent twice."""
+    try:
+        sys.path.insert(0, ROOT); import nba_injury
+        rep = nba_injury.latest()
+    except Exception as e: print("official report failed", e, file=sys.stderr); rep = None
+    if not rep: return []
+    by_norm = {nba_injury.norm(v["n"]): (aid, v) for aid, v in keys.items()}
+    first = "official" not in st                     # first look: learn the statuses quietly
+    seen, espn = st.setdefault("official", {}), st.setdefault("status", {})
+    out = []
+    for k, r in rep["players"].items():
+        if k not in by_norm: continue
+        aid, v = by_norm[k]
+        new = {"Probable": "Active", "Available": "Active"}.get(r["s"], r["s"])
+        old = seen.get(aid, "Active"); seen[aid] = new
+        if new == old: continue
+        worse, cleared = RANK.get(new, 0) > RANK.get(old, 0), RANK.get(old, 0) >= 2 and RANK.get(new, 0) == 0
+        if not (worse or cleared): continue
+        if new == "Questionable" and (v.get("pts") or 0) < 18.5: continue
+        if new in ("Out", "Doubtful"):
+            st.setdefault("outs", {})[v["n"]] = {"tm": v["team"], "kick": v["kick"], "pos": v.get("pos"), "why": f"official NBA injury report ({rep['at']}): {new}", "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+            st["dispatch"] = True
+        if not cleared and RANK.get(espn.get(aid, "Active"), 0) >= RANK.get(new, 0): continue   # ESPN got there first
+        if cleared and v["n"] in (st.get("outs") or {}): st["outs"].pop(v["n"], None); st["dispatch"] = True
+        title = f'{v["n"]} ({v["team"]}): {"cleared to play" if cleared else new}'
+        out.append((1 if new in ("Out", "Doubtful") or cleared else 2, f'off:{aid}:{new}:{rep["at"]}', title,
+                    f'{v["game"]} · {v["pts"]} pts line. Official NBA injury report, {rep["at"]} ET. {r.get("why") or ""}'.strip(),
+                    "rotating_light" if worse else "white_check_mark", rep["url"]))
+    return [] if first else out
 
 
 def main():

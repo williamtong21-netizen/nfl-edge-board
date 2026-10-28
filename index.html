@@ -843,6 +843,9 @@ body.easy nav [data-tab="shop"],body.easy nav [data-tab="lineups"],body.easy nav
 .vgrid > .vpick{flex:0 0 min(290px,84%);scroll-snap-align:start}
 .sechead{display:flex;align-items:baseline;gap:10px;margin:18px 0 8px}.sechead h2{margin:0}.sechead small{color:var(--muted);font-size:12px}
 .vpick .acts .sendbook{padding:6px 12px;font-size:12.5px}
+.q1row{border-top:1px solid var(--line);padding:10px 0}.q1top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.q1top small{color:var(--muted);margin-left:auto}
+.q1grid{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:12.5px;margin-top:6px}.q1grid span:nth-child(odd){color:var(--muted)}.q1grid a{color:inherit}
+.q1lean{font-size:12.5px;margin-top:6px;line-height:1.4}
 details.leans{margin-top:22px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px}
 details.leans > summary{cursor:pointer;font:800 18px var(--f-display);letter-spacing:1px;text-transform:uppercase;list-style:none}
 details.leans > summary::after{content:" ▾";color:var(--muted)}details.leans[open] > summary::after{content:" ▴"}
@@ -1567,6 +1570,13 @@ const store = { get(k) { try { return localStorage.getItem(skey(k)); } catch { r
 function toast(msg) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 2200); }
 const ago = iso => { const m = Math.max(0, (Date.now() - new Date(iso)) / 60000); return m < 1 ? 'just now' : m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
 const isOut = s => /out|reserve|doubtful|suspend|pup/i.test(s);
+// out / doubtful on the injury report, or (NFL) on the official game-day inactive list ~90 minutes before kickoff
+function ruledOut(g, pl, team, orQ) {
+  const re = orQ ? /doubtful|questionable/i : /doubtful/i;
+  if (team.inj.some(i => i.n === pl.n && (isOut(i.s) || re.test(i.s)))) return true;
+  const row = S.lineups?.[g.id];
+  return !!(row?.official && row.gr?.[pl.side]?.inactive?.some(x => String(x[0]) === String(pl.id)));
+}
 
 // ------------------------------------------------------------ derived game data
 function derive(g) {
@@ -2240,7 +2250,7 @@ function propPicks() {
   const out = [];
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) for (const pl of S.props?.[g.id] || []) {
     const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home;
-    if (team.inj.some(i => i.n === pl.n && (isOut(i.s) || /doubtful/i.test(i.s)))) continue;
+    if (ruledOut(g, pl, team)) continue;
     for (const pr of pl.props) {
       // longest reception left Picks Oct 2026: its 60%+ leans went 21-19 through week 7 (still on the Props tab)
       if (pr.pOver == null || pr.m === 'Anytime TD' || pr.m === 'Long rec') continue;
@@ -2412,8 +2422,8 @@ function reportCard() {
     </div></details></details>`;
 }
 
-const PK = { allSides: false, allProps: false, allTD: false, allPx: false, leans: false, lead: false, fadeAll: false };
-document.addEventListener('toggle', e => { if (e.target.matches?.('details.leans')) PK.leans = e.target.open; }, true);
+const PK = { allSides: false, allProps: false, allTD: false, allPx: false, leans: false, lead: false, fadeAll: false, q1: false };
+document.addEventListener('toggle', e => { if (e.target.matches?.('details.leans')) PK[e.target.classList.contains('q1') ? 'q1' : 'leans'] = e.target.open; }, true);
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-pk]');
   if (b) { const k = b.dataset.pk, wasOpen = PK[k]; PK[k] = !PK[k]; if (k === 'allSides' || k === 'allProps' || k === 'lead') PK.leans = true; renderPicks();
@@ -2488,6 +2498,7 @@ function renderPicks() {
   const nS = PK.allSides ? 12 : 4, nP = PK.allProps ? 30 : 6;
   box.innerHTML = `${reportCard()}
     ${NBA ? nbaBest() : ''}
+    ${NBA ? q1Section() : ''}
     ${gapSection()}
     <div class="sechead"><h2>Best prices</h2><small>${pe.length ? `${pe.length} bets · swipe →` : ''}</small></div>
     ${pe.length ? `<div class="vgrid">${pe.slice(0, 15).map(vPriceCard).join('')}</div>`
@@ -2525,6 +2536,24 @@ function nbaBest() {
   return `${tier('Strongest leans (65%+)', rec(R['65%+']), shownTop)}${tier(top.length ? 'Strong leans (60–65%)' : "Tonight's best leans (60%+)", rec(R['60–65%']), shownRest)}
     ${all.length > n ? `<button class="showmore" data-pk="nbaAll">Show all ${Math.min(40, all.length)} leans</button>` : PK.nbaAll && all.length > 8 ? `<button class="showmore" data-pk="nbaAll">Show fewer</button>` : ''}
     <p class="note">Hit rate isn't profit: at -110 you need 52.4%. Our number is 80% the market, so these are the market's lean plus ours, not a hidden edge.</p>`;
+}
+// NBA first-quarter moneyline (nba_q1.py): fair odds from the spread, Kalshi's 3-way 1Q prices, and the favorite-size lean
+const amOf = p => p > 0 && p < 1 ? (p >= 0.5 ? Math.round(-100 * p / (1 - p)) : Math.round(100 * (1 - p) / p)) : null;
+function q1Section() {
+  const games = (S.slate?.games || []).filter(g => g.q1 && g.state === 'pre' && new Date(g.date) > Date.now() - 600000).sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (!games.length) return '';
+  const R = S.slate.q1 || {}, rec = x => x ? `${x.w}–${x.n - x.w} (expected ${x.exp})` : 'no games yet';
+  const c = v => v == null ? '–' : Math.round(v * 100) + '¢', pc = v => Math.round(v * 100) + '%';
+  const row = g => { const q = g.q1, k = q.kx || {}, A = g.away.abbr, H = g.home.abbr, L = q.lean, who = L ? (L.side === 'h' ? H : A) : '';
+    return `<div class="q1row"><div class="q1top">${logo(A, 20)}<b>${esc(A)} @ ${esc(H)}</b>${logo(H, 20)}<small>${kick(g)} · ${esc(H)} ${fmtLine(q.hs)}</small></div>
+      <div class="q1grid"><span>Fair (3-way)</span><span>${esc(A)} ${pc(q.p.a)} · ${esc(H)} ${pc(q.p.h)} · tie ${pc(q.p.t)}</span>
+        <span>Fair, ties refunded</span><span>${esc(A)} ${fmtOdds(amOf(q.two.a))} · ${esc(H)} ${fmtOdds(amOf(q.two.h))}</span>
+        <span>Kalshi 1Q</span><span>${k.h || k.a ? `${k.url ? `<a href="${esc(k.url)}" target="_blank" rel="noopener">` : ''}${esc(A)} ${c(k.a?.ya)} · ${esc(H)} ${c(k.h?.ya)} · tie ${c(k.t?.ya)}${k.url ? '</a>' : ''}` : 'no market yet'}</span></div>
+      ${L ? `<div class="q1lean"><span class="b ${L.st > 1 ? 'g' : 'y'}" style="font-size:10px">watch</span> <b>${esc(who)} 1Q</b> (${L.who}): ${esc(L.why)}.${L.edge != null ? ` With the pattern, ${esc(who)} is about ${pc(L.p)} vs Kalshi's ${c(L.p - L.edge)}${L.edge >= 0.03 ? ', worth a look' : ''}.` : ''}</div>` : ''}</div>`; };
+  return `<details class="leans q1"${PK.q1 ? ' open' : ''}><summary>1st-quarter moneyline</summary>
+    <p class="honest">Fair first-quarter odds from tonight's spread (a 1st quarter runs about a third of the full-game edge; about 1 in 20 end tied). Kalshi's 1Q prices have matched this almost exactly, so the price alone isn't an edge. The leans come from one pattern: big favorites (10+) win the 1st quarter more than the spread says, mid-size favorites (3.5–9.5) less. It held in both halves of last season and so far this year, but it's <b>watch-only</b> until it grades out live. Most sportsbooks refund a tied quarter; Kalshi pays the tie.</p>
+    <p class="note">Live record: big favorites ${rec(R.favorite)} · mid-favorite fades ${rec(R.underdog)}${R.games ? ` · ${R.games} games graded, ${R.ties} ties${R.brierKx != null ? ` · accuracy (lower is better) ours ${R.brierOursKx} vs Kalshi ${R.brierKx}` : ''}` : ''}. Check confirmed starters ~30 minutes before tip: a 1st quarter is mostly starters.</p>
+    ${games.map(row).join('')}</details>`;
 }
 function fadeSection() {
   const all = publicFades(); if (!all.length) return '';
@@ -3209,7 +3238,7 @@ function altValuePicks() {
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) {
     for (const pl of S.props?.[g.id] || []) {
       const team = pl.side === 'home' ? g.home : g.away;
-      if (team.inj.some(i => i.n === pl.n && (isOut(i.s) || /doubtful/i.test(i.s)))) continue;
+      if (ruledOut(g, pl, team)) continue;
       for (const pr of pl.props.filter(x => x.m !== 'Anytime TD')) for (const r of pr.alt || []) {
         const p = propChance(pr, r.l); if (p == null || (r.v || 0) < 500) continue;
         for (const s of ['over', 'under']) { const e = kalshiEV(p, r, s); if (e && e.ev >= 0.05 && e.p >= 0.3 && e.p <= 0.88) out.push({ g, pl, pr, r, s, ...e }); }
@@ -4525,7 +4554,7 @@ function altValuePicks() {
   const out = [];
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) for (const pl of S.props?.[g.id] || []) {
     const team = pl.side === 'home' ? g.home : g.away;
-    if (team.inj.some(i => i.n === pl.n && (isOut(i.s) || /doubtful/i.test(i.s)))) continue;
+    if (ruledOut(g, pl, team)) continue;
     for (const pr of pl.props.filter(x => x.m !== 'Anytime TD')) for (const r of propRungs(pr)) {
       const p = propChance(pr, r.l); if (p == null || p < 0.25 || p > 0.9) continue;
       for (const s of ['over', 'under']) for (const o of shown(r.offers[s])) { const e = offerEV(s === 'over' ? p : 1 - p, o); if (e && e.ev >= 0.05 && e.p >= 0.3 && e.p <= 0.88) out.push({ g, pl, pr, r, s, ...e }); }
@@ -4826,7 +4855,7 @@ function detail(g) {
   const rank = i => (i.r ? 0 : 1) * 10 + (isOut(i.s) ? 0 : 5) + (i.p === 'QB' ? 0 : 1);
   const inj = t => t.inj.length ? `<table><tr><th>${esc(t.abbr)}</th><th>Pos</th><th>Status</th><th>Injury</th></tr>${
     [...t.inj].sort((a, b) => rank(a) - rank(b)).map(i => `<tr><td>${esc(i.n)}${i.r ? ` <span class="b y" style="font-size:10px">${esc(i.r)}</span>` : ''}</td><td>${esc(i.p)}</td>
-      <td class="${isOut(i.s) ? 's-out' : /question/i.test(i.s) ? 's-q' : ''}">${esc(i.s)}</td><td>${esc(i.t)}${i.d && i.d !== 'Not Specified' ? ', ' + esc(i.d) : ''}</td></tr>`).join('')}</table>`
+      <td class="${isOut(i.s) ? 's-out' : /question/i.test(i.s) ? 's-q' : ''}">${esc(i.s)}</td><td>${[i.t, i.d !== 'Not Specified' && i.d].filter(Boolean).map(esc).join(', ')}${i.off ? ' <span class="b g" style="font-size:10px">official</span>' : ''}</td></tr>`).join('')}</table>`
     : `<p class="note">${esc(t.abbr)}: no injuries listed.</p>`;
   const o = g.odds;
   const legs = o ? `<div class="row" style="grid-column:1/-1;gap:6px"><span class="note">Add to parlay:</span>${['away', 'home'].map(sd => `<button class="addp" data-addleg="${g.id}|spread|${sd}">${esc(g[sd].abbr)} ${fmtLine(sd === 'home' ? o.hs : o.hs != null ? -o.hs : null)}</button><button class="addp" data-addleg="${g.id}|ml|${sd}">${esc(g[sd].abbr)} ML</button>`).join('')}<button class="addp" data-addleg="${g.id}|total|over">Over ${o.t}</button><button class="addp" data-addleg="${g.id}|total|under">Under ${o.t}</button></div>` : '';
@@ -4836,7 +4865,7 @@ function detail(g) {
         <tr><td>Over ${o.t ?? '–'}</td><td class="n">${fmtOdds(o.op)}</td><td>Under ${o.t ?? '–'}</td><td class="n">${fmtOdds(o.up)}</td></tr></table>` : ''}
       <h3 style="margin-top:12px">Form this season</h3>${form(A)}${form(H)}</div>
     <div><h3>Efficiency matchup (EPA)</h3>${matchupRows(g)}<h3 style="margin-top:12px">Per-game stats</h3>${stats}</div>
-    <div><h3>Injury report</h3>${inj(A)}<br>${inj(H)}</div>
+    <div><h3>Injury report</h3>${inj(A)}<br>${inj(H)}${S.slate?.injReport ? `<p class="note">Includes the NBA's official injury report (teams file it; updated every 15 minutes on game days), last read ${esc(S.slate.injReport.at)} ET. It usually beats ESPN by 30-90 minutes. Starting lineups are confirmed about 30 minutes before tip.</p>` : ''}</div>
     <div><h3>Game script</h3>${scriptBlock(g)}</div>
     <div><h3>Betting trends</h3>${trendBlock(g)}</div>
     ${g.state === 'pre' ? `<div><h3>Trap check</h3>${trapBlock(g)}</div>` : ''}
@@ -5760,7 +5789,7 @@ function isFade(pr) {
 function publicFades() {
   const out = [];
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre' && new Date(g.date) > Date.now())) for (const pl of S.props?.[g.id] || []) {
-    const team = pl.side === 'home' ? g.home : g.away; if (team.inj.some(i => i.n === pl.n && (isOut(i.s) || /doubtful|questionable/i.test(i.s)))) continue;
+    const team = pl.side === 'home' ? g.home : g.away; if (ruledOut(g, pl, team, true)) continue;
     for (const pr of pl.props) if (isFade(pr) && pr.pOver != null) out.push({ g, pl, pr, under: 1 - pr.pOver });
   }
   return out.sort((a, b) => b.under - a.under);

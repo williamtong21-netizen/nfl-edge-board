@@ -19,6 +19,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: PDF reader for the NBA's official injury report
+        continue-on-error: true
+        run: python -m pip install -q pdfplumber
       - name: Check injury reports and headlines
         env:
           EDGE_OUT: data

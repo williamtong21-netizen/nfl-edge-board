@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 ROOT = os.path.dirname(os.path.abspath(__file__))
 os.environ.setdefault("EDGE_OUT", os.path.join(ROOT, "out", "nba"))
 os.environ.setdefault("EDGE_DATA", os.path.join(ROOT, "data", "nba"))
-import sync, kalshi, nba_model as M   # noqa: E402  (sync reads EDGE_OUT / EDGE_DATA on import)
+import sync, kalshi, nba_model as M, nba_injury, nba_q1   # noqa: E402  (sync reads EDGE_OUT / EDGE_DATA on import)
 
 sync.ESPN = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
 sync.SUMMARY = "https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event="
@@ -118,11 +118,11 @@ def build_props(games, season):
         for s in ("home", "away"):
             for aid, a in rost.get(g[s]["id"], {}).items(): side_of[aid] = (s, a)
         pls = {}
-        out_names = news_outs | {i["n"] for sd in ("home", "away") for i in (g[sd].get("inj") or []) if i.get("s") in ("Out", "Doubtful")}
+        out_names = {nba_injury.norm(n) for n in news_outs | {i["n"] for sd in ("home", "away") for i in (g[sd].get("inj") or []) if i.get("s") in ("Out", "Doubtful")}}
         for (aid, m), rungs in lads.get(g["id"], {}).items():
             if aid not in side_of: continue
             s, a = side_of[aid]
-            if a["n"] in out_names: continue
+            if nba_injury.norm(a["n"]) in out_names: continue
             pl = pls.setdefault(aid, {"id": aid, "n": a["n"], "p": a["p"], "tm": g[s]["abbr"], "side": s, "props": []})
             main = min(rungs, key=lambda r: abs(r["pk"] / (1 + VIG) - 0.5))   # the rung nearest a coin flip is the line
             pl["props"].append({"m": m, "l": main["l"], "o": None, "pk": main["pk"], "dk": main["dk"], "books": [{"n": "DraftKings", "l": r["l"], "o": int(float(str(r["dk"]).replace("+", ""))), "u": None} for r in rungs]})
@@ -138,6 +138,43 @@ def build_props(games, season):
                     pr["pModel"] = round(max(0.03, min(0.97, M.p_over(st, pj[0], pr["l"]))), 3)
         props[g["id"]] = list(pls.values())
     return props
+
+
+def apply_official(games, rep):
+    """The league's own injury report (every 15 minutes on game days) overrides ESPN's list: it's filed by the teams and
+    usually 30-90 minutes ahead. Each player it lists gets its status; 'Available' clears an ESPN Out."""
+    if not rep: return 0
+    n = 0
+    for g in games:
+        if g["state"] != "pre": continue
+        for sd in ("home", "away"):
+            t = g[sd]; inj = t.setdefault("inj", [])
+            have = {nba_injury.norm(i["n"]): i for i in inj}
+            for k, v in rep["players"].items():
+                if not _same_game(v.get("game"), g) or not _team_side(v.get("tm"), t): continue
+                i = have.get(k)
+                if i is None:
+                    if v["s"] == "Available": continue
+                    i = {"n": v["n"], "p": "", "s": v["s"], "t": "", "d": "", "r": None}; inj.append(i)
+                i["s"], i["off"] = v["s"], rep["at"]
+                if v.get("why") and not i.get("d"): i["d"] = v["why"]
+                n += 1
+            t["inj"] = [i for i in inj if i.get("s") != "Available"]
+    return n
+
+
+def _same_game(code, g):
+    """'SAS@NOP' (the league's tricodes) vs ESPN's 'SA' / 'NO' / 'NY' / 'GS' / 'UTAH' / 'WSH'."""
+    if not code or "@" not in code: return False
+    to = kalshi.TO_ESPN
+    a, h = code.split("@")
+    return to.get(a, a) == g["away"]["abbr"] and to.get(h, h) == g["home"]["abbr"]
+
+
+def _team_side(name, t):
+    """'SanAntonioSpurs' / 'Philadelphia76ers' vs ESPN's short name ('Spurs', '76ers', 'Trail Blazers')."""
+    short = re.sub(r"[^a-z0-9]", "", (t.get("name") or "").lower())
+    return bool(name and short) and short in name.lower()
 
 
 def finish(props):
@@ -290,10 +327,16 @@ def main():
         for x in e["competitions"][0]["competitors"]:
             t = g["home" if x["homeAway"] == "home" else "away"]; t["logo"] = x["team"].get("logo")
         games.append(g)
+    off = nba_injury.latest()
+    n_off = apply_official(games, off)
     props = build_props(games, season)
     try: nk = kalshi.apply(games, props)
     except Exception as ex: print("kalshi failed", ex, file=sys.stderr); nk = 0
     finish(props)
+    try: nq = nba_q1.apply(games, kalshi)   # first-quarter moneyline: fair odds, Kalshi 1Q prices, watch-only lean
+    except Exception as ex: print("1Q failed", ex, file=sys.stderr); nq = 0
+    try: q1rep = nba_q1.record(games, season, sync.DATA, now)
+    except Exception as ex: print("1Q grading failed", ex, file=sys.stderr); q1rep = None
     try: nl = record_lines(games, props, now)
     except Exception as ex: print("line log failed", ex, file=sys.stderr); nl = 0
     try:   # price gaps: DraftKings (ESPN) vs Kalshi on moneylines, spreads and totals
@@ -312,7 +355,8 @@ def main():
     except Exception as ex: print("prop grading failed", ex, file=sys.stderr); report = None
     stamp = now.isoformat(timespec="seconds")
     slate = {"updatedAt": stamp, "sport": "nba", "propParts": 1, "analytics": None, "season": season, "week": None, "seasonType": stype,
-             "odds": {"source": "ESPN (DraftKings)"}, "report": report, "nbaModel": {"mktW": MKT_W}, "games": games, "arbs": gaps}
+             "odds": {"source": "ESPN (DraftKings)"}, "report": report, "nbaModel": {"mktW": MKT_W},
+             "injReport": {"at": off["at"], "url": off["url"], "n": n_off} if off else None, "q1": q1rep, "games": games, "arbs": gaps}
     sync.save(os.path.join(sync.OUT, "slate.json"), slate)
     sync.save(os.path.join(sync.OUT, "props-0.json"), {"sync": stamp, "part": 0, "games": props})
     sync.save(os.path.join(sync.OUT, "history.json"), hist)
@@ -322,7 +366,7 @@ def main():
                                                         {"collection": "results", "doc_id": str(season), "file": "results.json"},
                                                         {"collection": "props", "doc_id": "part-0", "file": "props-0.json"}])
     print(json.dumps({"sport": "nba", "season": season, "games": len(games), "players": sum(len(v) for v in props.values()),
-                      "props": sum(len(p["props"]) for v in props.values() for p in v), "kalshi": nk, "logged": nl}))
+                      "props": sum(len(p["props"]) for v in props.values() for p in v), "kalshi": nk, "logged": nl, "q1": nq, "official_inj": n_off}))
 
 
 if __name__ == "__main__":
