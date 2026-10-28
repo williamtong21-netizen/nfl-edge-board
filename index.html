@@ -756,6 +756,10 @@ table th{font:700 11px var(--f-body);letter-spacing:.8px;text-transform:uppercas
 .sendrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
 .sendrow .note{flex-basis:100%}
 .sendbook.kx{background:#00d395;color:#03140b}
+.kstraight{border:1px solid var(--line);border-radius:var(--r);padding:12px;margin:10px 0;background:var(--surface)}.kstraight h3{margin:0 0 4px}
+.kst-row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.kst-n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--line)}
+.kst-w b{display:block}.kst-w small{color:var(--muted);line-height:1.35}.kst-w small b{display:inline;color:inherit}.kst-row .sendbook{margin:0;white-space:nowrap}
 .kxlink{display:inline-flex;align-items:center;gap:4px;font:700 12px var(--f-body);color:#00d395;text-decoration:none;border:1.5px solid #00d395;border-radius:999px;padding:2px 9px}
 .kxlink:hover{background:#00d395;color:#03140b}
 .kxrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
@@ -4384,6 +4388,7 @@ function renderParlay() {
           : `<div class="bestbook">No single book in our data prices every leg${PAR.legs.some(l => l.m === 'Anytime TD') ? ' (most books don’t share TD prices in our free feed; Kalshi is the only quote)' : ''}. Pick your book and enter its odds below.</div>`}
         <div class="stake-row"><label class="bookpick">Book you’re using<select id="parBook"><option value="">Choose a book…</option>${names.map(n => `<option value="${esc(n)}"${n === mine ? ' selected' : ''}>${esc(n)}${esc(tag(n))}</option>`).join('')}</select></label></div>`; })()}
     ${sendButtons(PAR.legs, false)}
+    ${kalshiStraights(PAR.legs)}
     <div class="stake-row"><label>Bet amount ($)<input id="parStake" inputmode="decimal" placeholder="10" value="${esc(store.get('edge-parlay-stake') || '')}"></label>
       <label>Odds at your book<input id="parOdds" inputmode="numeric" placeholder="${fmtOdds(decToAm(d))}" value="${esc(PAR_VIEW.odds || '')}"></label>
       <div class="towin"><span>To win</span><b id="parToWin">${(() => { const st = +(store.get('edge-parlay-stake') || 0), o = +PAR_VIEW.odds || decToAm(d); return st ? '$' + (st * (amToDec(o) - 1)).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '–'; })()}</b></div></div>
@@ -4600,6 +4605,38 @@ function kalshiUrl(l) {
   if (l.kind === 'prop') return findProp(l.gid, l.pid, l.m).pr?.kx || null;
   const g = S.slate?.games.find(x => x.id === l.gid), u = g?.kalshi?.url || {};
   return ({ ml: u.ml, spread: u.spread, total: u.total, tt: u.tt })[l.kind] || null;
+}
+// one leg as a single Kalshi bet: which button to tap (Kalshi ladders are "5+" = over 4.5) and its price right now
+function kalshiLeg(l) {
+  const url = kalshiUrl(l); if (!url) return null;
+  const g = S.slate?.games.find(x => x.id === l.gid), K = g?.kalshi || {}, at = (rs, L) => (rs || []).find(r => Math.abs(r.l - L) < 0.01);
+  const over = l.side === 'over', n = Math.ceil(l.line ?? 0);
+  if (l.kind === 'prop') {
+    const { pl, pr } = findProp(l.gid, l.pid, l.m); if (!pr) return { url };
+    if (l.m === 'Anytime TD') { const r = at(pr.alt, 0.5); return { url, tap: `${over ? 'Yes' : 'No'} on ${pl.n} to score`, p: r && (over ? r.ya : r.na) }; }
+    const r = at(pr.alt, l.line);
+    return { url, tap: `${over ? 'Yes' : 'No'} on ${pl.n} ${n}+ ${pr.m.toLowerCase()}`, p: r && (over ? r.ya : r.na), miss: !r };
+  }
+  if (l.kind === 'total') { const r = at(K.total, l.line); return { url, tap: `${over ? 'Yes' : 'No'} on over ${l.line} points`, p: r && (over ? r.ya : r.na), miss: !r }; }
+  if (l.kind === 'ml') { const t = g?.[l.side]?.abbr, r = K.ml?.[t]; return { url, tap: `Yes on ${t} to win`, p: r?.ya }; }
+  if (l.kind === 'spread' && g) {
+    const t = g[l.side].abbr, o = g[l.side === 'home' ? 'away' : 'home'].abbr, L = l.line ?? (l.side === 'home' ? g.odds?.hs : -g.odds?.hs);
+    if (L == null) return { url };
+    if (L < 0) { const r = at(K.spread?.[t], -L); return { url, tap: `Yes on ${t} wins by over ${-L}`, p: r?.ya, miss: !r }; }
+    const r = at(K.spread?.[o], L); return { url, tap: `No on ${o} wins by over ${L}`, p: r?.na, miss: !r };
+  }
+  return { url };
+}
+function kalshiStraights(legs) {
+  const rows = legs.map(l => ({ l, k: kalshiLeg(l) })), on = rows.filter(r => r.k);
+  if (legs.length < 2 || !on.length) return '';
+  const stake = +(store.get('edge-parlay-stake') || 0), each = stake ? stake / legs.length : 0;
+  return `<div class="kstraight"><h3>Bet them as straights on Kalshi</h3>
+    <p class="note">Kalshi turns several picks into a combo, so open each one here and place it on its own. Tap the button shown, enter your amount, submit, then come back for the next. Don't hit "add to combo".${each ? ` Your $${stake} split evenly is <b>$${each.toFixed(2)} each</b>.` : ''}</p>
+    ${rows.map(({ l, k }, i) => `<div class="kst-row"><span class="kst-n">${i + 1}</span><span class="kst-w"><b>${esc(l.label)}</b>
+      <small>${k ? (k.tap ? `Tap <b>${esc(k.tap)}</b>${k.p ? ` · ${Math.round(k.p * 100)}¢ now (${fmtOdds(amOf(k.p))} before fees)` : k.miss ? ' · that exact line isn\'t listed: pick the nearest one' : ''}` : 'Find this bet on the market page') : 'No Kalshi market for this one. Bet it at a book instead.'}</small></span>
+      ${k ? `<a class="sendbook kx" href="${esc(k.url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}</div>`).join('')}
+    <p class="note">Straights pay less than a parlay if everything hits, but one miss doesn't sink the rest. Kalshi charges a small fee per contract, so the real price is a cent or two worse.</p></div>`;
 }
 const kxLink = (url, text = 'Kalshi') => url ? `<a class="kxlink" href="${esc(url)}" target="_blank" rel="noopener">${esc(text)} ↗</a>` : '';
 const MGM_STATE = () => store.get('edge-state') || 'nj';
