@@ -4609,21 +4609,23 @@ function kalshiUrl(l) {
 // one leg as a single Kalshi bet: which button to tap (Kalshi ladders are "5+" = over 4.5) and its price right now
 function kalshiLeg(l) {
   const url = kalshiUrl(l); if (!url) return null;
-  const g = S.slate?.games.find(x => x.id === l.gid), K = g?.kalshi || {}, at = (rs, L) => (rs || []).find(r => Math.abs(r.l - L) < 0.01);
-  const over = l.side === 'over', n = Math.ceil(l.line ?? 0);
+  // the exact rung, or Kalshi's nearest line (it only lists half points): {r, L, near}
+  const g = S.slate?.games.find(x => x.id === l.gid), K = g?.kalshi || {};
+  const at = (rs, L) => { const r = (rs || []).reduce((b, x) => !b || Math.abs(x.l - L) < Math.abs(b.l - L) ? x : b, null); return r && Math.abs(r.l - L) <= 1.5 ? { r, L: r.l, near: Math.abs(r.l - L) > 0.01 } : { r: null, L, near: false }; };
+  const over = l.side === 'over';
   if (l.kind === 'prop') {
     const { pl, pr } = findProp(l.gid, l.pid, l.m); if (!pr) return { url };
-    if (l.m === 'Anytime TD') { const r = at(pr.alt, 0.5); return { url, tap: `${over ? 'Yes' : 'No'} on ${pl.n} to score`, p: r && (over ? r.ya : r.na) }; }
-    const r = at(pr.alt, l.line);
-    return { url, tap: `${over ? 'Yes' : 'No'} on ${pl.n} ${n}+ ${pr.m.toLowerCase()}`, p: r && (over ? r.ya : r.na), miss: !r };
+    if (l.m === 'Anytime TD') { const { r } = at(pr.alt, 0.5); return { url, tap: `${over ? 'Yes' : 'No'} on ${pl.n} to score`, p: r && (over ? r.ya : r.na) }; }
+    const { r, L, near } = at(pr.alt, l.line);
+    return { url, tap: `${over ? 'Yes' : 'No'} on ${pl.n} ${Math.ceil(L)}+ ${pr.m.toLowerCase()}`, p: r && (over ? r.ya : r.na), near: near && `${over ? 'over' : 'under'} ${L}`, miss: !r };
   }
-  if (l.kind === 'total') { const r = at(K.total, l.line); return { url, tap: `${over ? 'Yes' : 'No'} on over ${l.line} points`, p: r && (over ? r.ya : r.na), miss: !r }; }
+  if (l.kind === 'total') { const { r, L, near } = at(K.total, l.line); return { url, tap: `${over ? 'Yes' : 'No'} on over ${L} points`, p: r && (over ? r.ya : r.na), near: near && `${over ? 'over' : 'under'} ${L}`, miss: !r }; }
   if (l.kind === 'ml') { const t = g?.[l.side]?.abbr, r = K.ml?.[t]; return { url, tap: `Yes on ${t} to win`, p: r?.ya }; }
   if (l.kind === 'spread' && g) {
     const t = g[l.side].abbr, o = g[l.side === 'home' ? 'away' : 'home'].abbr, L = l.line ?? (l.side === 'home' ? g.odds?.hs : -g.odds?.hs);
     if (L == null) return { url };
-    if (L < 0) { const r = at(K.spread?.[t], -L); return { url, tap: `Yes on ${t} wins by over ${-L}`, p: r?.ya, miss: !r }; }
-    const r = at(K.spread?.[o], L); return { url, tap: `No on ${o} wins by over ${L}`, p: r?.na, miss: !r };
+    if (L < 0) { const x = at(K.spread?.[t], -L); return { url, tap: `Yes on ${t} wins by over ${x.L}`, p: x.r?.ya, near: x.near && `${t} -${x.L}`, miss: !x.r }; }
+    const x = at(K.spread?.[o], L); return { url, tap: `No on ${o} wins by over ${x.L}`, p: x.r?.na, near: x.near && `${t} +${x.L}`, miss: !x.r };
   }
   return { url };
 }
@@ -4634,7 +4636,7 @@ function kalshiStraights(legs) {
   return `<div class="kstraight"><h3>Bet them as straights on Kalshi</h3>
     <p class="note">Kalshi turns several picks into a combo, so open each one here and place it on its own. Tap the button shown, enter your amount, submit, then come back for the next. Don't hit "add to combo".${each ? ` Your $${stake} split evenly is <b>$${each.toFixed(2)} each</b>.` : ''}</p>
     ${rows.map(({ l, k }, i) => `<div class="kst-row"><span class="kst-n">${i + 1}</span><span class="kst-w"><b>${esc(l.label)}</b>
-      <small>${k ? (k.tap ? `Tap <b>${esc(k.tap)}</b>${k.p ? ` · ${Math.round(k.p * 100)}¢ now (${fmtOdds(amOf(k.p))} before fees)` : k.miss ? ' · that exact line isn\'t listed: pick the nearest one' : ''}` : 'Find this bet on the market page') : 'No Kalshi market for this one. Bet it at a book instead.'}</small></span>
+      <small>${k ? (k.tap ? `Tap <b>${esc(k.tap)}</b>${k.p ? ` · ${Math.round(k.p * 100)}¢ now (${fmtOdds(amOf(k.p))} before fees)` : k.miss ? ' · Kalshi has no line close to this one: pick the nearest on the page' : ''}${k.near ? ` · <i>Kalshi's closest line is ${esc(k.near)}, not your exact number</i>` : ''}` : 'Find this bet on the market page') : 'No Kalshi market for this one. Bet it at a book instead.'}</small></span>
       ${k ? `<a class="sendbook kx" href="${esc(k.url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}</div>`).join('')}
     <p class="note">Straights pay less than a parlay if everything hits, but one miss doesn't sink the rest. Kalshi charges a small fee per contract, so the real price is a cent or two worse.</p></div>`;
 }
