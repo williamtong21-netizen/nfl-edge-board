@@ -429,6 +429,16 @@ details.nerd .usage{border-bottom:0}
 /* parlay slip */
 .slipbtn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;border:0;border-radius:999px;padding:12px 18px;font:700 15px var(--f-display);letter-spacing:1px;text-transform:uppercase;background:var(--accent);color:var(--surface);box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer}
 .slipbtn b{display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:999px;background:var(--surface);color:var(--accent);margin-left:6px;font-size:13px}
+.slipdrawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100vw);z-index:40;background:var(--bg,#0b1016);border-left:1px solid var(--line);box-shadow:-12px 0 40px rgba(0,0,0,.45);display:flex;flex-direction:column;transform:translateX(105%);transition:transform .22s ease;visibility:hidden}
+.slipdrawer.on{transform:none;visibility:visible}
+.sd-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}.sd-head b{flex:1;font:800 16px var(--f-display);text-transform:uppercase;letter-spacing:1px}
+.sd-x{border:0;background:none;color:inherit;font-size:18px;cursor:pointer;padding:4px 8px}
+.sd-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:12px 16px calc(90px + env(safe-area-inset-bottom,0px))}
+.sd-body .pleg{flex-wrap:wrap}
+.slipdim{position:fixed;inset:0;z-index:39;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s}
+.slipdim.on{opacity:1;pointer-events:auto}
+@media (min-width:1100px){.slipdim.on{background:transparent;pointer-events:none}}
+html.slip-open .slipbtn{z-index:41}
 .slip{position:fixed;right:16px;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:31;width:min(420px,calc(100vw - 32px));max-height:min(75vh,640px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.3);padding:14px}
 .slip h3{display:flex;justify-content:space-between;align-items:center}
 .leg{display:grid;grid-template-columns:minmax(0,1fr) 74px 26px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
@@ -4403,6 +4413,21 @@ function renderParlay() {
       <div class="panel"><h3>Weaknesses</h3>${rep.minus.length ? `<ul class="trapwhy">${rep.minus.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '<p class="note">No red flags.</p>'}</div></div>
     ${rep.tips.length ? `<div class="panel" style="margin-top:12px"><h3>Ways to improve it</h3>${rep.tips.map(t => `<div class="trow" style="grid-template-columns:minmax(0,1fr) auto"><div class="who">${esc(t.t)}</div><div class="val"><button class="btn small" data-partip="${t.act}">Apply</button></div></div>`).join('')}</div>` : ''}` : ''}`;
 }
+// the parlay opens over whatever you're looking at: the builder's #parlay box moves into a side drawer and back, so every handler keeps working
+function slipDrawer(open) {
+  let dr = $('#slipDrawer');
+  if (!dr) {
+    document.body.insertAdjacentHTML('beforeend', `<div class="slipdim" id="slipDim" data-slipclose></div><aside class="slipdrawer" id="slipDrawer" aria-label="Your parlay">
+      <div class="sd-head"><b>Your parlay</b><button class="backlink" data-slipfull>Full builder</button><button class="sd-x" data-slipclose aria-label="Close">✕</button></div><div class="sd-body" id="slipBody"></div></aside>`);
+    dr = $('#slipDrawer');
+  }
+  const box = $('#parlay'), home = $('#view-parlay');
+  if (open) { $('#slipBody').append(box); renderParlay(); }
+  else if (box && home && box.parentElement !== home) home.append(box);
+  dr.classList.toggle('on', !!open); $('#slipDim').classList.toggle('on', !!open);
+  document.documentElement.classList.toggle('slip-open', !!open);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#slipDrawer')?.classList.contains('on')) slipDrawer(false); });
 function renderSlip() {
   let btn = $('#slipBtn');
   if (!btn) { document.body.insertAdjacentHTML('beforeend', '<button class="slipbtn" id="slipBtn" hidden></button>'); btn = $('#slipBtn'); }
@@ -4415,7 +4440,9 @@ function addLeg(leg) {
   PAR.legs.push(leg); PAR_VIEW.graded = false; saveParlay(); renderSlip(); toast(`Added: ${leg.label}`);
 }
 document.addEventListener('click', e => {
-  if (e.target.closest('#slipBtn')) { e.stopImmediatePropagation(); setTab('parlay'); window.scrollTo(0, 0); return; }
+  if (e.target.closest('#slipBtn')) { e.stopImmediatePropagation(); slipDrawer(!$('#slipDrawer')?.classList.contains('on')); return; }
+  if (e.target.closest('[data-slipclose]')) { slipDrawer(false); return; }
+  if (e.target.closest('[data-slipfull]')) { slipDrawer(false); setTab('parlay'); window.scrollTo(0, 0); return; }
   const gr = e.target.closest('[data-grade]'); if (gr) { PAR_VIEW.graded = true; renderParlay(); return; }
   const fl = e.target.closest('[data-legflip]'); if (fl) { const l = PAR.legs[+fl.dataset.legflip]; l.side = l.side === 'over' ? 'under' : 'over'; l.manual = false; refreshLeg(l); saveParlay(); renderSlip(); return; }
   const dl = e.target.closest('[data-legdel2]'); if (dl) { PAR.legs.splice(+dl.dataset.legdel2, 1); saveParlay(); renderSlip(); return; }
@@ -6717,6 +6744,7 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#moreSheet')?.hidden) moreOpen(false); });
 
 function setTab(t) {
+  if ($('#slipDrawer')?.classList.contains('on')) slipDrawer(false);
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', b.dataset.tab === t);
   for (const v of ['live', 'picks', 'board', 'sims', 'lineups', 'props', 'fantasy', 'players', 'teams', 'shop', 'moves', 'money', 'tds', 'parlay', 'bets']) $('#view-' + v).hidden = v !== t;
   store.set('edge-tab', t);
