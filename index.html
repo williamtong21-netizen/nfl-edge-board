@@ -439,6 +439,8 @@ details.nerd .usage{border-bottom:0}
 .slipdim.on{opacity:1;pointer-events:auto}
 @media (min-width:1100px){.slipdim.on{background:transparent;pointer-events:none}}
 html.slip-open .slipbtn{z-index:41}
+[data-addleg].on::before{content:'✓ '}[data-addleg].on{border-style:solid!important}
+body.easy .pk-extra,body.easy details.q1,body.easy .howto,body.easy .mn-sort,body.easy .mn-h,body.easy .mn-games,body.easy .mn-ph,body.easy .mn-props,body.easy [data-mn^="more"]{display:none!important}
 .slip{position:fixed;right:16px;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:31;width:min(420px,calc(100vw - 32px));max-height:min(75vh,640px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.3);padding:14px}
 .slip h3{display:flex;justify-content:space-between;align-items:center}
 .leg{display:grid;grid-template-columns:minmax(0,1fr) 74px 26px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
@@ -2513,8 +2515,7 @@ function renderPicks() {
   const nS = PK.allSides ? 12 : 4, nP = PK.allProps ? 30 : 6;
   box.innerHTML = `${reportCard()}
     ${NBA ? nbaBest() : ''}
-    ${NBA ? q1Section() : ''}
-    ${gapSection()}
+    <div class="pk-extra">${gapSection()}
     <div class="sechead"><h2>Best prices</h2><small>${pe.length ? `${pe.length} bets · swipe →` : ''}</small></div>
     ${pe.length ? `<div class="vgrid">${pe.slice(0, 15).map(vPriceCard).join('')}</div>`
       : `<p class="note">Every book is priced about the same on the game lines right now.</p>`}
@@ -2523,8 +2524,8 @@ function renderPicks() {
     ${tdv.length ? `<div class="vgrid">${tdv.slice(0, 15).map(vTdCard).join('')}</div>`
       : `<p class="note tdhonest">No touchdown prices beat our numbers right now. New prices land Thursday morning and refresh through the week.</p>`}`}
     ${SPORT === 'nfl' && !FFM ? fadeSection() : ''}
-    <div id="trapMount"></div>
-    <details class="leans"${PK.leans ? ' open' : ''}><summary>Our model's leans</summary>
+    <div id="trapMount"></div></div>
+    <details class="leans"${PK.leans || document.body.classList.contains('easy') ? ' open' : ''}><summary>Our model's leans</summary>
     <p class="honest">Player-prop leans. Game sides and totals are left out: over 600+ games (2024–26) our team model never beat the closing line, so the app uses the market's number for games.</p>
     ${false && sides.length ? `<h2 style="margin-top:6px">Sides and totals</h2><div class="picks">${sides.slice(0, nS).map(pickCard).join('')}</div>
     ${PK.allSides ? `<button class="showmore" data-pk="allSides">Show fewer game picks</button>` : sides.length > nS ? `<button class="showmore" data-pk="allSides">Show all ${Math.min(12, sides.length)} game picks</button>` : ''}` : ''}
@@ -2532,7 +2533,8 @@ function renderPicks() {
     ${!NBA && !COL ? `<div class="row" style="margin-top:18px;gap:8px;align-items:center"><button class="chip" data-pk="lead" aria-pressed="${PK.lead}">Lead players only</button><small class="note">each team's WR1, TE1 and RB1</small></div>` : ''}
     ${props.length ? `<h2 style="margin-top:22px">Player props</h2><div class="picks">${props.slice(0, nP).map(pickCard).join('')}</div>
       ${PK.allProps ? `<button class="showmore" data-pk="allProps">Show fewer prop picks</button>` : props.length > nP ? `<button class="showmore" data-pk="allProps">Show all ${Math.min(30, props.length)} prop picks</button>` : ''}` : `<p class="note" style="margin-top:18px">Player props show up here once books post them, usually midweek.</p>`}
-    </details>`;
+    </details>
+    ${NBA ? q1Section() : ''}`;
 }
 // NBA: tonight's strongest prop leans up top, ranked by our chance (the 60%+ and 65%+ tiers are where the record is)
 const NBA_BEST = 0.6, NBA_TOP = 0.65;
@@ -2565,7 +2567,7 @@ function q1Section() {
         <span>Fair, ties refunded</span><span>${esc(A)} ${fmtOdds(amOf(q.two.a))} · ${esc(H)} ${fmtOdds(amOf(q.two.h))}</span>
         <span>Kalshi 1Q</span><span>${k.h || k.a ? `${k.url ? `<a href="${esc(k.url)}" target="_blank" rel="noopener">` : ''}${esc(A)} ${c(k.a?.ya)} · ${esc(H)} ${c(k.h?.ya)} · tie ${c(k.t?.ya)}${k.url ? '</a>' : ''}` : 'no market yet'}</span></div>
       ${L ? `<div class="q1lean"><span class="b ${L.st > 1 ? 'g' : 'y'}" style="font-size:10px">watch</span> <b>${esc(who)} 1Q</b> (${L.who}): ${esc(L.why)}.${L.edge != null ? ` With the pattern, ${esc(who)} is about ${pc(L.p)} vs Kalshi's ${c(L.p - L.edge)}${L.edge >= 0.03 ? ', worth a look' : ''}.` : ''}</div>` : ''}</div>`; };
-  return `<details class="leans q1"${PK.q1 ? ' open' : ''}><summary>1st-quarter moneyline</summary>
+  return `<details class="leans q1"${PK.q1 ? ' open' : ''}><summary>1st-quarter tracking <small class="note">(not a pick: we're grading the pattern)</small></summary>
     <p class="honest">Fair first-quarter odds from tonight's spread (a 1st quarter runs about a third of the full-game edge; about 1 in 20 end tied). Kalshi's 1Q prices have matched this almost exactly, so the price alone isn't an edge. The leans come from one pattern: big favorites (10+) win the 1st quarter more than the spread says, mid-size favorites (3.5–9.5) less. It held in both halves of last season and so far this year, but it's <b>watch-only</b> until it grades out live. Most sportsbooks refund a tied quarter; Kalshi pays the tie.</p>
     <p class="note">Live record: big favorites ${rec(R.favorite)} · mid-favorite fades ${rec(R.underdog)}${R.games ? ` · ${R.games} games graded, ${R.ties} ties${R.brierKx != null ? ` · accuracy (lower is better) ours ${R.brierOursKx} vs Kalshi ${R.brierKx}` : ''}` : ''}. Check confirmed starters ~30 minutes before tip: a 1st quarter is mostly starters.</p>
     ${games.map(row).join('')}</details>`;
@@ -2871,9 +2873,19 @@ function renderSlip() {
     <div class="row" style="margin-top:10px"><label class="note">Units <input id="slipUnits" inputmode="decimal" value="${units}" style="width:70px;font:14px var(--f-body);padding:5px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface2);color:var(--ink)"></label>
       <button class="btn primary" data-slip-track>Track parlay</button><button class="btn small" data-slip-clear>Clear</button></div>`;
 }
+const legKey = (gid, kind, side, pid, m) => [gid, kind, side, kind === 'prop' || kind === 'tt' ? pid || '' : '', kind === 'prop' ? m || '' : ''].join('|');
+const legKeyOf = l => legKey(l.gid, l.kind, l.side, l.kind === 'tt' ? l.team : l.pid, l.m);
+function addedLeg(b) {
+  const [gid, kind, side, pid, m, line] = b.dataset.addleg.split('|'), k = legKey(gid, kind, side, pid, m);
+  return PAR.legs.find(l => legKeyOf(l) === k && (line == null || line === '' || +line === l.line));
+}
+function markAdded() { for (const b of document.querySelectorAll('[data-addleg]')) b.classList.toggle('on', !!addedLeg(b)); }
+let markQ = false; new MutationObserver(() => { if (!markQ) { markQ = true; queueMicrotask(() => { markQ = false; markAdded(); }); } }).observe(document.body, { childList: true, subtree: true });
 document.addEventListener('click', async e => {
   const al = e.target.closest('[data-addleg]');
-  if (al) { const [gid, kind, side, pid, m, line] = al.dataset.addleg.split('|'); addLeg(makeLeg(gid, kind, side, pid, m, line)); return; }
+  if (al) { const had = addedLeg(al);
+    if (had) { PAR.legs.splice(PAR.legs.indexOf(had), 1); PAR_VIEW.graded = false; saveParlay(); renderSlip(); toast(`Removed: ${had.label}`); return; }
+    const [gid, kind, side, pid, m, line] = al.dataset.addleg.split('|'); addLeg(makeLeg(gid, kind, side, pid, m, line)); return; }
   if (e.target.closest('#slipBtn')) { PAR.open = !PAR.open; renderSlip(); return; }
   if (e.target.closest('[data-slip-close]')) { PAR.open = false; renderSlip(); return; }
   const del = e.target.closest('[data-legdel]'); if (del) { PAR.legs.splice(+del.dataset.legdel, 1); saveParlay(); renderSlip(); return; }
@@ -4137,7 +4149,7 @@ function tdCandidates() {
     }
   return out;
 }
-const inPar = (gid, pid) => PAR.legs.some(l => l.kind === 'prop' && l.gid === gid && l.pid === pid && l.m === 'Anytime TD');
+const inPar = (gid, pid) => PAR.legs.some(l => l.kind === 'prop' && l.gid === gid && l.pid === pid && l.m === 'Anytime TD' && l.side === 'over');
 function tdQuick(kind) {
   let c = tdCandidates().filter(x => x.p >= 0.2);
   const pick = [];
@@ -4167,9 +4179,14 @@ function renderTD() {
   // first TD: value when our chance beats Kalshi's price (after its fee) by 1+ point and 15%+, since these are long shots
   const ftVal = x => x.ft != null && x.ftCost != null && x.ft - x.ftCost >= 0.01 && x.ft / x.ftCost >= 1.15;
   if (FIRST) c = c.filter(x => x.ft != null).map(x => ({ ...x, p: x.ft, edge: x.ftCost != null ? x.ft - x.ftCost : null }));
+  // No TD: players with a real role (18-55% to score), so the "No" still pays something; priced off Kalshi's No at 0.5
+  const NOTD = TDB.kind === 'no';
+  if (NOTD) c = c.filter(x => x.p >= 0.18 && x.p <= 0.55).map(x => { const k = (x.pr.alt || []).find(a => a.l === 0.5), cost = k?.na && k.na < 0.99 ? kCost(k.na) : null;
+    return { ...x, p: 1 - x.p, noCost: cost, edge: cost != null ? 1 - x.p - cost : null }; });
   const muF = x => x.w ? x.w.rz * (1 + (x.w.dvp - 1) / 2) : 1;
   c.sort(TDB.sort === 'value' ? (a, b) => (b.edge ?? -9) - (a.edge ?? -9) || b.p - a.p
     : TDB.sort === 'matchup' ? (a, b) => (b.p >= 0.2) - (a.p >= 0.2) || muF(b) - muF(a) || b.p - a.p : (a, b) => b.p - a.p);
+  if (NOTD && TDB.sort !== 'matchup') c.sort((a, b) => (b.edge ?? -9) - (a.edge ?? -9) || b.p - a.p);
   if (DUE) c.sort((a, b) => (b.dt?.score ?? 1) * Math.min(b.rz, 4) - (a.dt?.score ?? 1) * Math.min(a.rz, 4));
   // the matchup in plain words: red-zone defense, how they give up TDs, the position matchup, and his scoring looks
   const mu = (x, full) => { const w = x.w; if (!w) return '';
@@ -4225,12 +4242,13 @@ function renderTD() {
   box.innerHTML = `<div class="tdb"><details class="howto"><summary>How these chances work</summary><span class="note">Our chance each player scores: his scoring rate (this season and last), red-zone, end-zone and goal-line looks, and his share of the offense times his team's expected points (mostly the betting market's implied team total), adjusted for the defense's red-zone record, whether it gives up TDs through the air or on the ground, its TDs allowed to his position, and game script.</span></details>
     <div class="tdb-bar">
       <select id="tdbGame" aria-label="Game"><option value="all">All upcoming games</option>${games.map(g => `<option value="${g.id}"${TDB.game === g.id ? ' selected' : ''}>${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</option>`).join('')}</select>
-      <div class="tdkind" role="group" aria-label="Market"><button data-tdkind="any" aria-pressed="${!FIRST}">Anytime</button><button data-tdkind="first" aria-pressed="${FIRST}">First TD</button></div>
+      <div class="tdkind" role="group" aria-label="Market"><button data-tdkind="any" aria-pressed="${!FIRST && !NOTD}">Anytime</button><button data-tdkind="first" aria-pressed="${FIRST}">First TD</button><button data-tdkind="no" aria-pressed="${NOTD}">No TD</button></div>
       ${['all', 'due', 'RB', 'WR', 'TE', 'QB'].map(k => `<button class="chip${k === 'due' ? ' duechip' : ''}" data-tdpos="${k}" aria-pressed="${TDB.pos === k}">${k === 'all' ? 'All' : k === 'due' ? 'Due' : k}</button>`).join('')}
       <select id="tdbSort" aria-label="Sort"><option value="chance"${TDB.sort === 'chance' ? ' selected' : ''}>Most likely</option><option value="value"${TDB.sort === 'value' ? ' selected' : ''}>Biggest gap vs price</option><option value="matchup"${TDB.sort === 'matchup' ? ' selected' : ''}>Softest matchup</option></select>
     </div>
     ${FIRST ? `<p class="note ftnote">First TD of the game: each player's share of all the touchdowns expected in the game. Tested on weeks 1-4 against Kalshi's first-TD prices: ours were slightly more accurate (51 first TDs, so still a small sample). Books rarely let you parlay these, so bet them one at a time and small: even the favorite usually hits less than 1 in 6.</p>` : ''}
-    ${FIRST ? '' : `<div class="tdb-quick"><span class="note">Quick build:</span>
+    ${NOTD ? `<p class="note ftnote">No TD: bet a player <b>not</b> to score. These hit most of the time, so they make steady parlay legs, and they pair naturally with the game's under. Each one pays little (often -200 to -400), and the edge only exists when our chance beats Kalshi's No price. Our TD chances lean 75% on the market, so this is the market's read with a nudge from ours, not a proven edge.</p>` : ''}
+    ${FIRST || NOTD ? '' : `<div class="tdb-quick"><span class="note">Quick build:</span>
       <button class="btn small" data-tdquick="safe2">Safest 2</button><button class="btn small" data-tdquick="safe3">Safest 3</button>
       <button class="btn small" data-tdquick="spread">Top scorer, 4 games</button><button class="btn small" data-tdquick="value">Biggest gaps 3</button>
       ${nTd ? `<button class="btn small primary" data-tab-go="parlay" style="margin-left:auto">Open parlay (${nTd}) →</button>` : ''}</div>`}
@@ -4240,16 +4258,17 @@ function renderTD() {
       // three tidy lines: name + chance | form and matchup tags | prices + add (phones keep the full width for lines 2-3)
       const beats = FIRST ? ftVal(x) : x.edge != null && x.edge >= x.edgeMin;
       const kx = (url, am) => url ? `<a class="kxlink" href="${esc(url)}" target="_blank" rel="noopener">Kalshi ${fmtOdds(am)} ↗</a>` : `<span>Kalshi <b>${fmtOdds(am)}</b></span>`;
-      const price = FIRST
+      const price = NOTD ? `<span>Fair <b>${fmtOdds(fairAm(x.p))}</b></span>${x.noCost != null ? kx(x.pr.kx, centsAm(x.noCost)).replace('Kalshi', 'Kalshi No') : '<span>no Kalshi No price</span>'}`
+        : FIRST
         ? `<span>Fair <b>${fmtOdds(fairAm(x.ft))}</b></span>${x.ftCost != null ? kx(x.ftUrl, centsAm(x.ftCost)) : ''}<span>Anytime <b>${Math.round(x.pr.pOver * 100)}%</b></span>`
         : `<span>Fair <b>${fmtOdds(fairAm(x.p))}</b></span>${x.book ? `<span>${esc(x.book.n)} <b>${fmtOdds(x.book.o)}</b></span>` : ''}${x.price != null ? kx(x.pr.kx, x.price) : ''}`;
       return `<div class="tdrow">
         <span class="tdlogo">${logo(x.team.abbr, 30)}</span>
         <div class="who"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(x.opp.abbr)} · ${tdKick(x.g)}</small>${tdS(x) ? `<small>${esc(tdS(x))}</small>` : ''}</div>
-        <div class="pct">${FIRST ? (x.ft * 100).toFixed(1) : Math.round(x.p * 100)}%<small>${FIRST ? 'first TD' : 'to score'}</small></div>
+        <div class="pct">${FIRST ? (x.ft * 100).toFixed(1) : Math.round(x.p * 100)}%<small>${FIRST ? 'first TD' : NOTD ? 'no TD' : 'to score'}</small></div>
         <div class="tdtags">${l10(x)}${mu(x)}${DUE ? dueLine(x) : ''}</div>
         <div class="tdprice">${price}${beats ? '<span class="val">Beats price</span>' : ''}</div>
-        ${FIRST ? '' : `<button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>`}
+        ${NOTD ? `<button class="addp" data-addleg="${x.g.id}|prop|under|${esc(x.pl.id)}|Anytime TD">+ No TD</button>` : FIRST ? '' : `<button class="addp${on ? ' on' : ''}" ${on ? 'disabled' : `data-addleg="${x.g.id}|prop|over|${esc(x.pl.id)}|Anytime TD"`}>${on ? '✓ In parlay' : '+ Add'}</button>`}
         ${TDB.open.has(x.pl.id) && x.last.length ? tdLog(x) : ''}</div>`; }).join('')}
     ${c.length > TDB.n ? `<button class="showmore" data-tdmore>Show more players (${c.length - TDB.n} left)</button>` : ''}
     <p class="note" style="margin-top:8px">"Fair" is the price that would be break-even at our chance. If your book pays more than that, the leg is worth it on its own. Touchdowns are long shots: even a 4-leg ticket of strong scorers usually misses, so size it small.</p></div>`;
@@ -5865,7 +5884,7 @@ function renderProps() {
   const box = $('#props'), sl = S.slate;
   if (!sl || !S.props) { box.innerHTML = `<div class="empty"><b>No props yet</b>${NBA ? 'Player lines show up here once DraftKings posts them, usually the morning of the game. Preseason games have no props.' : 'Player lines show up here after the sync picks them up. DraftKings usually posts yardage props midweek.'}</div>`; return; }
   const games = sl.games.filter(g => g.state === 'pre' && S.props[g.id]?.length).sort((a, b) => new Date(a.date) - new Date(b.date));
-  const gsel = $('#pf-game'), keep = PF.game;
+  const gsel = $('#pf-game'), keep = PF.picked || PF.game ? PF.game : games[0]?.id || '';
   gsel.innerHTML = `<option value="">All games</option>` + games.map(g => `<option value="${g.id}">${NBA ? new Date(g.date).toLocaleDateString([], { weekday: 'short' }) : 'Wk ' + g.week} · ${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</option>`).join('');
   gsel.value = games.some(g => g.id === keep) ? keep : '';
   PF.game = gsel.value;
@@ -5938,7 +5957,7 @@ document.addEventListener('click', e => {
   const k = b.dataset.propdrop; PF.open.has(k) ? PF.open.delete(k) : PF.open.add(k);
   renderProps();
 });
-$('#pf-game').onchange = e => { PF.game = e.target.value; renderProps(); };
+$('#pf-game').onchange = e => { PF.game = e.target.value; PF.picked = true; renderProps(); };
 $('#pf-market').onchange = e => { PF.market = e.target.value; renderProps(); };
 $('#pf-sort').onchange = e => { PF.sort = e.target.value; renderProps(); };
 $('#pf-all').addEventListener('click', e => { const b = e.target.closest('[data-pfall]'); if (!b) return; PF.all = b.dataset.pfall === '1';
@@ -6114,7 +6133,7 @@ function renderMoney() {
     </section>
     ${both.length ? `<section class="kflow"><h3>Both exchanges agree <small>new money leaning the same way on Kalshi and Polymarket</small></h3>
       ${both.map(x => `<div class="kflow-r">${logo(x.s.abbr || x.g.home.abbr, 20)}<span class="kflow-w"><b>${esc(x.s.txt)}</b><small>${esc(x.g.away.abbr)} @ ${esc(x.g.home.abbr)} · ${kick(x.g)}</small></span><span class="kflow-n"><small>Kalshi ${x.s.k}</small><small>Polymarket ${x.s.p}</small></span></div>`).join('')}
-      <p class="note" style="margin:6px 0 0">Two separate pools of real money pushing the same side is a stronger signal than either alone. It's still not a pick: check injury news, and the price has often already moved.</p></section>` : ''}
+      <details class="howto"><summary>How this works</summary><p class="note" style="margin:6px 0 0">Two separate pools of real money pushing the same side is a stronger signal than either alone. It's still not a pick: check injury news, and the price has often already moved.</p></details></section>` : ''}
     ${gsort.length ? `<h3 class="mn-h">Games</h3><div class="mn-games">${gsort.map(g => { const M = KM(g), P = g.poly || {}, t = ['ml', 'spread', 'total'].reduce((a, k) => a + (M[k]?.usd || 0) + (P[k]?.vol || 0), 0);
       return `<article class="mn-game"><div class="mn-gh">${logo(g.away.abbr, 22)}${logo(g.home.abbr, 22)}<b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b><small>${kick(g)}</small><span class="mn-gt">${kUSD(t)}</span></div>
         ${['ml', 'spread', 'total'].filter(k => M[k]).map(k => `<div class="mn-line"><span>${lbl[k]}</span><b>${kUSD(M[k].usd)}</b>${M[k].dusd ? `<i>+${kUSD(M[k].dusd)}</i>` : '<i></i>'}<em>${side(g, k, M[k]) || '<span class="note">no lean yet</span>'}</em></div>`).join('')}
@@ -6125,7 +6144,7 @@ function renderMoney() {
         <span class="mn-pn"><b>${kUSD(p.x.usd)}</b>${p.x.dusd >= 100 ? `<i>+${kUSD(p.x.dusd)}</i>` : ''}${td ? kPx(p.x) : kSide(p.x, 'over', 'under')}</span></div>`; }).join('')}</div>
       ${pr.length > MN.n ? `<button class="showmore" data-mn="more|1">Show more (${pr.length - MN.n})</button>` : ''}`
       : `<p class="note">${MN.show === 'all' ? 'No prop money yet.' : 'No props with a clear lean that way yet: leans show once new money arrives.'}</p>`}
-    <p class="note">Polymarket: dollars traded on each game line, and "% on" is the share of the last ~6 hours of money on each side (buying a side counts for it, selling it counts for the other side). Its prices track Kalshi's closely; the money is a second, separate crowd. Kalshi contracts traded × price, so dollars are rough. "% on" is Kalshi's own record of which side each new bettor took (shown when the line is near a coin flip); "pushing" means the price moved that way. Sportsbooks don't publish their money. Money and price moving together often means news or a sharp bettor: check the injury report before following it.</p>`;
+    <details class="howto"><summary>How this works</summary><p class="note">Polymarket: dollars traded on each game line, and "% on" is the share of the last ~6 hours of money on each side (buying a side counts for it, selling it counts for the other side). Its prices track Kalshi's closely; the money is a second, separate crowd. Kalshi contracts traded × price, so dollars are rough. "% on" is Kalshi's own record of which side each new bettor took (shown when the line is near a coin flip); "pushing" means the price moved that way. Sportsbooks don't publish their money. Money and price moving together often means news or a sharp bettor: check the injury report before following it.</p></details>`;
 }
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-mn]'); if (c) { const [k, v] = c.dataset.mn.split('|'); if (k === 'more') MN.n += 25; else { MN[k] = v; MN.n = 25; } renderMoney(); return; }
@@ -6481,7 +6500,7 @@ function foldHowTos() {
 }
 queueMicrotask(foldHowTos);
 // ------------------------------------------------------------ welcome sheet and easy mode
-function setEasy(on) { document.body.classList.toggle('easy', on); store.set('edge-easy', on ? '1' : ''); if (typeof navTidy === 'function') navTidy(); const c = $('#easyMode'); if (c) c.checked = on;
+function setEasy(on) { document.body.classList.toggle('easy', on); try { if (S.slate) renderPicks(); } catch (e) {} store.set('edge-easy', on ? '1' : ''); if (typeof navTidy === 'function') navTidy(); const c = $('#easyMode'); if (c) c.checked = on;
   if (on && ['shop', 'lineups', 'players', 'teams'].includes(store.get('edge-tab'))) setTab('picks'); }
 function showWelcome(on) { $('#welcome').hidden = !on; if (on) $('#welcomeGo').focus(); }
 queueMicrotask(() => {
@@ -6778,7 +6797,7 @@ document.addEventListener('click', e => {
   }
   const tgo = e.target.closest('[data-tab-go]'); if (tgo) { setTab(tgo.dataset.tabGo); window.scrollTo(0, 0); return; }
   const pg = e.target.closest('[data-props-go]');
-  if (pg) { PF.game = pg.dataset.propsGo; setTab('props'); renderProps(); window.scrollTo(0, 0); return; }
+  if (pg) { PF.game = pg.dataset.propsGo; PF.picked = true; setTab('props'); renderProps(); window.scrollTo(0, 0); return; }
   const lb = e.target.closest('[data-lineup]');
   if (lb) { LU.game = lb.dataset.lineup; LU.pick = null; setTab('lineups'); renderLineups(); window.scrollTo(0, 0); return; }
   const pp = e.target.closest('[data-prop]');
