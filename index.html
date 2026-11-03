@@ -439,6 +439,17 @@ details.nerd .usage{border-bottom:0}
 .slipdim.on{opacity:1;pointer-events:auto}
 @media (min-width:1100px){.slipdim.on{background:transparent;pointer-events:none}}
 html.slip-open .slipbtn{z-index:41}
+.fcheck{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0;background:var(--surface2,rgba(255,255,255,.02))}
+.fc-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;flex-wrap:wrap}.fc-h b{font:800 13px var(--f-display);text-transform:uppercase;letter-spacing:1px}.fc-h span{font-size:12px;color:var(--muted)}.fc-h i{font-style:normal;font-weight:700}
+.fc-p{color:var(--good)}.fc-c{color:var(--bad,#ff6b6b)}
+.fc-r{display:grid;grid-template-columns:18px minmax(0,1fr);gap:6px;padding:5px 0;border-top:1px solid var(--line);font-size:13px;line-height:1.4}.fc-r b{font-weight:700}
+.fc-d{font-weight:800;text-align:center}.fc-r.p .fc-d{color:var(--good)}.fc-r.c .fc-d{color:var(--bad,#ff6b6b)}.fc-r.n .fc-d{color:var(--muted)}
+.fc-m{margin:8px 0 0!important;font-size:12px}
+.scr-ctl{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}.scr-ctl .row{gap:6px;flex-wrap:wrap}
+.scr-list{display:flex;flex-direction:column}
+.scr-r{display:grid;grid-template-columns:26px minmax(0,1.4fr) minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.scr-r small{display:block;color:var(--muted);font-size:11.5px}.scr-w b,.scr-m b{display:block}.scr-h{text-align:right}.scr-h b{font-size:16px}
+@media (max-width:600px){.scr-r{grid-template-columns:26px minmax(0,1fr) auto;row-gap:4px}.scr-m{grid-column:2}.scr-h{grid-column:3;grid-row:1}.scr-r .addp{grid-column:3;grid-row:2;justify-self:end}}
 [data-addleg].on::before{content:'✓ '}[data-addleg].on{border-style:solid!important}
 body.easy .pk-extra,body.easy details.q1,body.easy .howto,body.easy .mn-sort,body.easy .mn-h,body.easy .mn-games,body.easy .mn-ph,body.easy .mn-props,body.easy [data-mn^="more"]{display:none!important}
 .slip{position:fixed;right:16px;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:31;width:min(420px,calc(100vw - 32px));max-height:min(75vh,640px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.3);padding:14px}
@@ -1414,7 +1425,7 @@ body.simopen{overflow:hidden}
         <button class="chip" data-pos="TE" aria-pressed="false">TE</button>
         <button class="chip" data-pos="LEAD" aria-pressed="false" title="Each team's WR1, TE1 and RB1">Leads</button>
       </div>
-      <div class="row" id="pf-all"><button class="chip" data-pfall="0" aria-pressed="true">Best leans</button><button class="chip" data-pfall="1" aria-pressed="false">All props</button></div>
+      <div class="row" id="pf-all"><button class="chip" data-pfall="0" aria-pressed="true">Best leans</button><button class="chip" data-pfall="1" aria-pressed="false">All props</button><button class="chip" id="pf-screen" aria-pressed="false">Hit-rate screener</button></div>
       <select id="pf-sort" aria-label="Sort props">
         <option value="game">By game</option>
         <option value="trend">Strongest reads</option>
@@ -4845,7 +4856,8 @@ function openBetSheet(gid, kind, side) {
   const leg = makeLeg(gid, kind, side, null, null, offers[0]?.line ?? ''), c = leg && legChance(leg);
   const title = kind === 'total' ? `${side === 'over' ? 'Over' : 'Under'} ${offers[0]?.line ?? g.odds?.t}` : kind === 'ml' ? `${nick(team)} to win` : `${nick(team)} ${fmtLine(offers[0]?.line)}`;
   sh.innerHTML = `<div class="bs-h">${team ? logo(team.abbr, 34) : logo(g.away.abbr, 26) + logo(g.home.abbr, 26)}<div><b>${esc(title)}</b><br><span class="note">${esc(g.away.abbr)} @ ${esc(g.home.abbr)} · ${kick(g)}</span></div><button class="btn small" data-closesheet>Close</button></div>
-    ${c ? `<p class="note" style="margin:8px 0 0">We give it <b>${Math.round(c.p * 100)}%</b>${c.mkt != null ? ` · the price says ${Math.round(c.mkt * 100)}%` : ''}.</p>` : ''}
+    ${factBox(sideFacts(g, kind, side))}
+    ${c ? `<p class="note" style="margin:8px 0 0">Our model gives it <b>${Math.round(c.p * 100)}%</b>${c.mkt != null ? ` · the price says ${Math.round(c.mkt * 100)}%` : ''}. One input, not the answer.</p>` : ''}
     <table>${offers.map((x, i) => `<tr class="${i === 0 ? 'best' : ''}"><td>${esc(x.book)}${i === 0 ? ' · best' : OFFSHORE.has(x.book) ? ' <span class="note">(offshore)</span>' : ''}</td><td class="n">${kind === 'ml' ? '' : kind === 'spread' ? fmtLine(x.line) : x.line}</td><td class="n">${fmtOdds(x.price)}</td></tr>`).join('')}</table>
     ${leg ? sendButtons([leg], 'ticket') : ''}
     <div class="acts">${leg ? `<button class="addp" data-addleg="${gid}|${kind}|${side}|||${offers[0]?.line ?? ''}">+ Parlay</button>` : ''}<button class="btn small" data-track="${gid}">Track this bet</button></div>`;
@@ -5767,6 +5779,173 @@ function propWhy(pl, pr, g, over, td) {
   const all = [...n.plus.map(t => ['plus', strip(t)]), ...n.minus.map(t => ['minus', strip(t)])];
   return `<div class="why pwhy">${lines.map(t => `<span>${esc(t)}</span>`).join('')}${all.map(([k, t]) => `<span class="${k}">${k === 'plus' ? '+ ' : '− '}${esc(t)}</span>`).join('')}${!lines.length && !all.length ? '<span>No strong reasons either way: this one is close to a coin flip.</span>' : ''}</div>`;
 }
+// ------------------------------------------------------------ fact check: plain facts for and against a bet, no model
+// each fact: { w: what it is, t: the fact (HTML), s: 1 for the bet, -1 against, 0 just context }
+function factBox(facts, model) {
+  const f = facts.filter(Boolean); if (!f.length) return '';
+  const pro = f.filter(x => x.s > 0).length, con = f.filter(x => x.s < 0).length;
+  return `<div class="fcheck"><div class="fc-h"><b>Fact check</b><span><i class="fc-p">${pro} for</i> · <i class="fc-c">${con} against</i> · ${f.length - pro - con} context</span></div>
+    ${f.map(x => `<div class="fc-r ${x.s > 0 ? 'p' : x.s < 0 ? 'c' : 'n'}"><span class="fc-d">${x.s > 0 ? '✓' : x.s < 0 ? '✗' : '•'}</span><span><b>${esc(x.w)}</b> ${x.t}</span></div>`).join('')}
+    ${model ? `<p class="note fc-m">${model}</p>` : ''}</div>`;
+}
+const fcPc = v => Math.round(v * 100) + '%';
+// a player's games for one prop, newest first: {v, y, o, home}
+function statGames(pl, pr) {
+  const page = S.players?.[pl.id], pk = PAGE_STAT[pr.m], k = PROP_STATS[pr.m] || [];
+  if (pk && page?.last?.length > (pl.log || []).length) return page.last.map(r => ({ v: pk.reduce((a, x) => a + (r[x] || 0), 0), y: r.y, w: r.w, o: r.o, home: !!r.h }));
+  return (pl.log || []).map(r => k.every(x => r.s?.[x] == null) ? null : { v: k.reduce((a, x) => a + (r.s?.[x] || 0), 0), y: r.y, w: r.w, o: r.o, home: r.at === 'vs' }).filter(Boolean);
+}
+// every game he's played against this opponent that we have (player page history + recent log), newest first
+function vsGames(pl, pr, opp) {
+  const page = S.players?.[pl.id], pk = PAGE_STAT[pr.m], seen = new Set(), out = [];
+  const add = x => { const id = x.y + '-' + x.w; if (!seen.has(id)) { seen.add(id); out.push(x); } };
+  statGames(pl, pr).filter(x => x.o === opp).forEach(add);
+  if (pk) (page?.vs || []).filter(r => r.o === opp).forEach(r => add({ v: pk.reduce((a, x) => a + (r[x] || 0), 0), y: r.y, w: r.w, o: r.o, home: !!r.h }));
+  return out.sort((a, b) => b.y - a.y || b.w - a.w);
+}
+const RECV = new Set(['Rec yds', 'Receptions', 'Long rec', 'Rush+rec yds']), RUSH = new Set(['Rush yds', 'Carries']);
+function propFacts(pl, pr, g, over) {
+  const td = pr.m === 'Anytime TD', L = td ? 0.5 : pr.l;
+  const want = d => d === 0 ? 0 : (d > 0) === over ? 1 : -1;
+  const team = pl.side === 'home' ? g.home : g.away, opp = pl.side === 'home' ? g.away : g.home, o = g.odds || {}, F = [];
+  // the line
+  if (!td && pr.o != null && pr.o !== pr.l) { const d = pr.l - pr.o;
+    F.push({ w: 'Line move', t: `opened ${pr.o}, now <b>${pr.l}</b>. Books moved it ${d > 0 ? 'up' : 'down'}, so the betting has been on the ${d > 0 ? 'over' : 'under'}.`, s: want(d) }); }
+  else if (!td) F.push({ w: 'Line move', t: `none since it opened at ${pr.l}.`, s: 0 });
+  // real money
+  const kv = pr.kv;
+  if (kv?.usd >= 200 && kv.ys != null) { const lean = Math.abs(kv.ys - 0.5) >= 0.08;
+    F.push({ w: 'Real money', t: `${kUSD(kv.usd)} traded on Kalshi, <b>${fcPc(kv.ys >= 0.5 ? kv.ys : 1 - kv.ys)} on the ${kv.ys >= 0.5 ? (td ? 'yes' : 'over') : td ? 'no' : 'under'}</b>.`, s: lean ? want(kv.ys - 0.5) : 0 }); }
+  // recent form against today's line
+  const vals = statGames(pl, pr).map(x => x.v);
+  if (vals.length >= 3) { const l10 = vals.slice(0, 10), l5 = vals.slice(0, 5), hit = a => a.filter(v => over ? v > L : v < L).length, r = hit(l10) / l10.length;
+    F.push({ w: 'Recent form', t: `${td ? (over ? 'scored' : 'held out') : (over ? 'over' : 'under') + ' ' + L} in <b>${hit(l10)} of his last ${l10.length}</b>${l10.length > l5.length ? `, ${hit(l5)} of the last ${l5.length}` : ''}.`, s: r >= 0.7 ? 1 : r <= 0.4 ? -1 : 0 }); }
+  // against the line he actually had each week (books adjust lines, so this is the fairer record)
+  const past = !td && (pl.past?.[pr.m] || []).filter(x => x[2] != null && x[2] !== x[1]);
+  if (past && past.length >= 3) { const k = past.filter(x => over ? x[2] > x[1] : x[2] < x[1]).length, r = k / past.length;
+    F.push({ w: 'Vs. his weekly lines', t: `went ${over ? 'over' : 'under'} the line he had in <b>${k} of ${past.length}</b> games this season.`, s: r >= 0.65 ? 1 : r <= 0.35 ? -1 : 0 }); }
+  // role: last 3 games vs his season
+  const yr = S.slate?.season, log = (pl.log || []).filter(r => r.y === yr && r.us), pg = posGroup(pl.p);
+  const uk = RECV.has(pr.m) ? ['tgt', 'targets'] : RUSH.has(pr.m) ? ['car', 'carries'] : td && pg !== 'QB' ? (pg === 'RB' ? ['car', 'carries'] : ['tgt', 'targets']) : null;
+  if (NBA) { const mins = (pl.log || []).map(r => r.s?.minutes).filter(v => v != null);
+    if (mins.length >= 4) { const avg = a => a.reduce((x, y) => x + y, 0) / a.length, a3 = avg(mins.slice(0, 3)), aS = avg(mins), d = aS ? (a3 - aS) / aS : 0;
+      F.push({ w: 'Minutes', t: `${a3.toFixed(1)} a game over his last 3 vs ${aS.toFixed(1)} over his last ${mins.length}. ${Math.abs(d) >= 0.12 ? `<b>Minutes ${d > 0 ? 'up' : 'down'}.</b>` : 'Steady.'}`, s: Math.abs(d) >= 0.12 ? want(d) : 0 }); } }
+  if (!NBA && uk && log.length >= 4) { const v = log.map(r => r.us[uk[0]] ?? 0), avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+    const a3 = avg(v.slice(0, 3)), aS = avg(v), d = aS ? (a3 - aS) / aS : 0, sn = log.slice(0, 3).map(r => r.us.snap).filter(x => x != null);
+    F.push({ w: 'Role', t: `${a3.toFixed(1)} ${uk[1]} a game over his last 3 vs ${aS.toFixed(1)} on the season${sn.length ? `, ${fcPc(avg(sn))} of snaps lately` : ''}. ${Math.abs(d) >= 0.15 ? `<b>Role ${d > 0 ? 'growing' : 'shrinking'}.</b>` : 'Steady.'}`, s: Math.abs(d) >= 0.15 ? want(d) : 0 }); }
+  // the defense
+  const [dp, dk, dl] = DVP_FOR(pr.m, pg), dv = AN()[opp.abbr]?.dvp?.[dp];
+  if (dv?.[dk] != null) { const rk = dv.rk?.[dk], l3 = dv.l3?.[dk];
+    F.push({ w: 'Matchup', t: `${esc(opp.abbr)} allow ${dv[dk]} ${esc(dl)} a game to ${esc(dp)}s (<b>${ord(rk)} most</b>)${l3 != null ? `, ${+l3.toFixed(1)} over their last 3` : ''}.`, s: rk <= 8 ? want(1) : rk >= 25 ? want(-1) : 0 }); }
+  // game script
+  const imp = pl.side === 'home' ? o.hImp : o.aImp, sp = pl.side === 'home' ? o.hs : o.hs != null ? -o.hs : null, big = RUSH.has(pr.m) && sp != null && Math.abs(sp) >= 6;
+  if (imp != null) F.push({ w: 'Game script', t: `${esc(team.abbr)} expected to score <b>${Math.round(imp)}</b>${sp != null ? ` as ${sp < 0 ? `a ${-sp}-point favorite` : sp > 0 ? `a ${sp}-point underdog` : 'a pick’em'}` : ''}${big ? ` (${sp < 0 ? 'big favorites run more late' : 'big underdogs pass more late'})` : ''}.`,
+    s: (imp >= 26 ? want(1) : imp <= 19 ? want(-1) : 0) || (big ? want(sp < 0 ? 1 : -1) : 0) });
+  // injuries around him
+  const inj = team.inj || [], me = inj.find(i => i.n === pl.n);
+  if (me && !isOut(me.s)) F.push({ w: 'His status', t: `listed <b>${esc(me.s)}</b>${me.t ? ` (${esc(me.t)})` : ''}. He could be limited or ruled out late.`, s: over ? -1 : 0 });
+  const outs = inj.filter(i => i.n !== pl.n && isOut(i.s) && (NBA || ['WR', 'TE', 'RB'].includes(posGroup(i.p)) && (posGroup(i.p) === pg || RECV.has(pr.m) && i.p !== 'RB')));
+  if (outs.length) F.push({ w: 'Teammates out', t: `${outs.map(i => `${esc(i.n)} (${esc(i.p)})`).join(', ')}: more ${NBA ? 'shots and minutes' : RUSH.has(pr.m) ? 'carries' : 'targets'} to go around.`, s: want(1) });
+  if (pl.lc?.length) F.push({ w: 'Lineup', t: esc(pl.lc.join(' · ')), s: 0 });
+  // weather
+  const air = RECV.has(pr.m) || /Pass|Completions/.test(pr.m);
+  if (NBA) {}
+  else if (g.indoor) F.push({ w: 'Weather', t: 'indoors.', s: 0 });
+  else if (g.wx) { const bad = g.wx.wind >= WIND_MIN || g.wx.pop >= 50;
+    F.push({ w: 'Weather', t: `${Math.round(g.wx.temp)}°F, wind ${Math.round(g.wx.wind)} mph${g.wx.pop >= 30 ? `, ${g.wx.pop}% rain` : ''}${bad && air ? '. <b>Wind and rain usually cut passing.</b>' : '.'}`, s: bad && air ? want(-1) : bad && RUSH.has(pr.m) ? want(1) : 0 }); }
+  // head to head
+  const h2h = vsGames(pl, pr, opp.abbr).slice(0, 6).map(x => x.v);
+  if (h2h.length) { const k = h2h.filter(v => over ? v > L : v < L).length;
+    F.push({ w: `Vs. ${opp.abbr} before`, t: `${h2h.map(v => Number.isInteger(v) ? v : v.toFixed(1)).join(', ')} (${td ? (over ? 'scored' : 'held out') : over ? 'over' : 'under'} in ${k} of ${h2h.length}).`, s: h2h.length >= 2 ? (k / h2h.length >= 0.75 ? 1 : k / h2h.length <= 0.25 ? -1 : 0) : 0 }); }
+  return F;
+}
+function propModelLine(pr, over) {
+  if (pr.pOver == null) return '';
+  const td = pr.m === 'Anytime TD', p = over ? pr.pOver : 1 - pr.pOver;
+  return `Our model: ${fcPc(p)} ${td ? (over ? 'to score' : 'no TD') : over ? 'over' : 'under'}${pr.proj != null && !td ? `, projects ${pr.proj}` : ''}. One input, not the answer: weigh it with the facts above.`;
+}
+function sideFacts(g, kind, side) {
+  const o = g.odds || {}, A = g.away, H = g.home, F = [], t = kind === 'total' ? null : g[side];
+  const want = d => d === 0 ? 0 : d > 0 ? 1 : -1;
+  // line move, from this bet's point of view
+  if (kind === 'total' && o.to != null && o.t != null && o.to !== o.t) { const d = o.t - o.to;
+    F.push({ w: 'Line move', t: `total opened ${o.to}, now <b>${o.t}</b>: the betting has been on the ${d > 0 ? 'over' : 'under'}.`, s: want(side === 'over' ? d : -d) }); }
+  else if (kind !== 'total' && o.hso != null && o.hs != null && o.hso !== o.hs) { const mine = side === 'home' ? o.hs : -o.hs, open = side === 'home' ? o.hso : -o.hso, d = open - mine;
+    F.push({ w: 'Line move', t: `${esc(t.abbr)} opened ${fmtLine(open)}, now <b>${fmtLine(mine)}</b>: moved ${d > 0 ? 'toward' : 'against'} ${esc(t.abbr)}.`, s: want(d) }); }
+  else if (kind === 'total' ? o.to != null : o.hso != null) F.push({ w: 'Line move', t: 'none since it opened.', s: 0 });
+  // Polymarket money, last ~6 hours
+  const px = g.poly?.[kind], sh = pShare(kind, px);
+  if (sh != null) { const mine = kind === 'total' ? (side === 'over' ? sh : 1 - sh) : side === 'home' ? sh : 1 - sh;
+    F.push({ w: 'Real money', t: `<b>${fcPc(mine)}</b> of the last ~6 hours of Polymarket money (${kUSD(px.dusd)}) is on this side.`, s: mine >= 0.6 ? 1 : mine <= 0.4 ? -1 : 0 }); }
+  // quarterbacks, and how many players are out
+  for (const tm of [A, H]) { const q = (tm.inj || []).filter(i => i.p === 'QB' && isOut(i.s)); if (!q.length) continue;
+    F.push({ w: `${tm.abbr} QB`, t: `${q.map(i => esc(i.n)).join(', ')} out.`, s: kind === 'total' ? (side === 'under' ? 1 : -1) : tm === t ? -1 : 1 }); }
+  const nOut = tm => (tm.inj || []).filter(i => isOut(i.s)).length;
+  const pn = n => `${n} player${n === 1 ? '' : 's'}`;
+  if (A.inj || H.inj) F.push({ w: 'Injuries', t: `${esc(A.abbr)} have ${pn(nOut(A))} out, ${esc(H.abbr)} have ${pn(nOut(H))} out.`, s: 0 });
+  // records and spots
+  if (A.rec || H.rec) F.push({ w: 'Records', t: `${esc(A.abbr)} ${esc(A.rec || '–')}${A.roadRec ? ` (${esc(A.roadRec)} on the road)` : ''} · ${esc(H.abbr)} ${esc(H.rec || '–')}${H.homeRec ? ` (${esc(H.homeRec)} at home)` : ''}.`, s: 0 });
+  const TAG = { short: 'short week', after_loss: 'coming off a loss', after_win: 'coming off a win', prime: 'prime time', div: 'division game', bye: 'off a bye' };
+  const tags = tm => (g.trend?.[tm === H ? 'home' : 'away'] || []).map(k => TAG[k]).filter(Boolean);
+  if (tags(A).length || tags(H).length) F.push({ w: 'Spot', t: `${esc(A.abbr)}: ${tags(A).join(', ') || '–'} · ${esc(H.abbr)}: ${tags(H).join(', ') || '–'}.`, s: 0 });
+  // last meetings
+  const h2h = (g.trend?.h2h || []).slice(-4);
+  if (h2h.length) F.push({ w: 'Last meetings', t: h2h.map(m => `${m.y}: ${esc(m.a)} ${m.as} @ ${esc(m.h)} ${m.hs}${m.line != null ? ` (${esc(m.h)} ${fmtLine(m.line)}${m.tl != null ? `, total ${m.tl}` : ''})` : ''}`).join(' · '), s: 0 });
+  // weather (football only)
+  if (NBA || SPORT === 'cbb') {}
+  else if (g.indoor) F.push({ w: 'Weather', t: 'indoors.', s: 0 });
+  else if (g.wx) { const bad = g.wx.wind >= WIND_MIN || g.wx.pop >= 50;
+    F.push({ w: 'Weather', t: `${Math.round(g.wx.temp)}°F, wind ${Math.round(g.wx.wind)} mph${g.wx.pop >= 30 ? `, ${g.wx.pop}% rain` : ''}${bad && kind === 'total' ? '. <b>Bad weather usually means fewer points.</b>' : '.'}`, s: bad && kind === 'total' ? (side === 'under' ? 1 : -1) : 0 }); }
+  if (o.hImp != null) F.push({ w: 'Expected score', t: `${esc(A.abbr)} ${Math.round(o.aImp)} · ${esc(H.abbr)} ${Math.round(o.hImp)} (from the spread and total).`, s: 0 });
+  return F;
+}
+// ------------------------------------------------------------ hit-rate screener: every prop on the slate by plain results vs today's line
+const SCR = { n: 10, min: 0.7, side: '', ha: false, yr: false };
+function renderScreener(box, games) {
+  const yr = S.slate?.season, rows = [];
+  for (const g of games) {
+    if (PF.game && g.id !== PF.game) continue;
+    for (const pl of S.props[g.id] || []) {
+      if (PF.pos === 'LEAD' ? !leadRole(g.id, pl) : PF.pos && pl.p !== PF.pos) continue;
+      const opp = pl.side === 'home' ? g.away : g.home, at = pl.side === 'home' ? 'vs' : '@';
+      for (const pr of pl.props) {
+        if (PF.market && pr.m !== PF.market) continue;
+        const td = pr.m === 'Anytime TD', L = td ? 0.5 : pr.l;
+        const gs = statGames(pl, pr).filter(r => (!SCR.ha || r.home === (at === 'vs')) && (!SCR.yr || r.y === yr)).slice(0, SCR.n).map(r => r.v);
+        if (gs.length < Math.min(SCR.n, SCR.ha ? 3 : 4)) continue;
+        const o = gs.filter(v => v > L).length, u = gs.filter(v => v < L).length;
+        // No TD only for players with a real scoring role (backups and QBs "never score" and would flood the list)
+        for (const sd of (SCR.side ? [SCR.side] : ['over', 'under']).filter(sd => !(td && sd === 'under' && (pr.pOver ?? 0) < 0.18))) {
+          const k = sd === 'over' ? o : u, r = k / gs.length; if (r < SCR.min) continue;
+          const vs = vsGames(pl, pr, opp.abbr).slice(0, 6).map(x => x.v);
+          rows.push({ g, pl, pr, sd, k, n: gs.length, r, avg: gs.reduce((a, v) => a + v, 0) / gs.length, vs, td, L }); }
+      }
+    }
+  }
+  // rank by how sure the record is, not just the rate: 9 of 10 beats 5 of 5 (Wilson lower bound, ~90%)
+  const sure = x => { const z = 1.645, n = x.n, ph = x.k / n; return (ph + z * z / (2 * n) - z * Math.sqrt(ph * (1 - ph) / n + z * z / (4 * n * n))) / (1 + z * z / n); };
+  rows.sort((a, b) => sure(b) - sure(a) || b.n - a.n);
+  const ch = (k, v, lbl, on) => `<button class="chip" data-scr="${k}|${v}" aria-pressed="${on}">${lbl}</button>`;
+  const f1 = v => Number.isInteger(v) ? v : v.toFixed(1);
+  box.innerHTML = `<div class="scr"><div class="scr-ctl">
+      <div class="row">${[5, 10].map(n => ch('n', n, 'Last ' + n, SCR.n === n)).join('')}</div>
+      <div class="row">${[[0.6, '60%+'], [0.7, '70%+'], [0.8, '80%+'], [1, 'Every game']].map(([v, l]) => ch('min', v, l, SCR.min === v)).join('')}</div>
+      <div class="row">${[['', 'Overs & unders'], ['over', 'Overs'], ['under', 'Unders']].map(([v, l]) => ch('side', v, l, SCR.side === v)).join('')}</div>
+      <div class="row">${ch('ha', !SCR.ha, 'Same home/away as tonight', SCR.ha)}${ch('yr', !SCR.yr, 'This season only', SCR.yr)}</div></div>
+    <p class="note">Plain results against today's line, no model. ${rows.length} prop${rows.length === 1 ? '' : 's'} match. Small samples fool people: 4 of 5 happens by luck all the time, so Last 10 or more is the better filter.</p>
+    ${rows.length ? `<div class="scr-list">${rows.slice(0, 80).map(x => { const team = x.pl.side === 'home' ? x.g.home : x.g.away, opp = x.pl.side === 'home' ? x.g.away : x.g.home;
+      const vsk = x.vs.filter(v => x.sd === 'over' ? v > x.L : v < x.L).length;
+      return `<div class="scr-r">${logo(team.abbr, 26)}<span class="scr-w"><b>${esc(x.pl.n)}</b><small>${esc(x.pl.p)} · ${x.pl.side === 'home' ? 'vs' : '@'} ${esc(opp.abbr)} · ${kick(x.g)}</small></span>
+        <span class="scr-m"><b>${x.td ? (x.sd === 'over' ? 'Scores a TD' : 'No TD') : `${x.sd === 'over' ? 'Over' : 'Under'} ${x.L}`}</b><small>${esc(x.td ? 'Anytime TD' : x.pr.m)}</small></span>
+        <span class="scr-h"><b>${x.k}/${x.n}</b><small>${fcPc(x.r)} · avg ${f1(x.avg)}</small>${x.vs.length ? `<small>vs ${esc(opp.abbr)}: ${vsk}/${x.vs.length}</small>` : ''}</span>
+        <button class="addp" data-addleg="${x.g.id}|prop|${x.sd}|${esc(x.pl.id)}|${esc(x.pr.m)}">+ Parlay</button></div>`; }).join('')}</div>
+      ${rows.length > 80 ? `<p class="note">Showing the top 80. Pick a game, market or position above to narrow it.</p>` : ''}`
+      : `<div class="empty"><b>Nothing matches</b>Loosen a filter: try 60%+ or Last 5.</div>`}</div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-scr]'); if (!b) return;
+  const [k, v] = b.dataset.scr.split('|'); SCR[k] = k === 'side' ? v : v === 'true' ? true : v === 'false' ? false : +v; renderProps();
+});
 function propDrop(pl, pr, g, over) {
   const page = S.players?.[pl.id], td = pr.m === 'Anytime TD', L = td ? 0.5 : pr.l;
   let games = [];
@@ -5805,6 +5984,7 @@ function propDrop(pl, pr, g, over) {
     <p class="note" style="margin:0 0 4px"><b>${td ? (over ? 'Scored' : 'Held out') : over ? 'Over' : 'Under'} ${td ? '' : L + ' '}in ${nHit} of last ${games.length}</b>${pr.proj != null && !td ? ` · we project <b>${pr.proj}</b>` : ''}${pr.alt?.length ? ` · ${pr.alt.length} alt lines on the player page` : ''}</p>
     ${vsThen.length >= 2 ? `<p class="note" style="margin:2px 0 4px">Against the line he actually had: <b>over in ${overThen} of ${vsThen.length}</b> this season (the chart compares with today's line).</p>` : ''}
     ${svg}<div class="tbl"><table><tr><th>Game</th><th>${esc(pr.m)}</th>${td ? '' : '<th>Line then</th>'}<th>Result</th><th>${NBA ? 'Min' : 'Snap'}</th></tr>${rows}</table></div>
+    ${factBox(propFacts(pl, pr, g, over), propModelLine(pr, over))}
     ${propWhy(pl, pr, g, over, td)}
     <div class="acts"><button class="whybtn" data-why>Why ▾</button><button class="addp" data-addleg="${g.id}|prop|over|${esc(pl.id)}|${esc(pr.m)}">+ Parlay ${td ? 'Yes' : 'Over'}</button>${td ? '' : `<button class="addp" data-addleg="${g.id}|prop|under|${esc(pl.id)}|${esc(pr.m)}">+ Parlay Under</button>`}
       ${NBA ? '' : `<button class="btn small" data-player="${esc(pl.id)}" data-openprop="${esc(pr.m)}">Player page &amp; alt lines →</button>`}</div></div>`;
@@ -5894,6 +6074,8 @@ function renderProps() {
   gsel.hidden = games.length <= 1;
   const msel = $('#pf-market');
   if (msel.options.length === 1) msel.insertAdjacentHTML('beforeend', PROP_ORDER.map(m => `<option>${m}</option>`).join(''));
+  $('#pf-screen')?.setAttribute('aria-pressed', !!PF.screen);
+  if (PF.screen) { renderScreener(box, games); return; }
   const rows = [];
   for (const g of games) {
     if (PF.game && g.id !== PF.game) continue;
@@ -5957,6 +6139,7 @@ document.addEventListener('click', e => {
   const k = b.dataset.propdrop; PF.open.has(k) ? PF.open.delete(k) : PF.open.add(k);
   renderProps();
 });
+$('#pf-screen').onclick = () => { PF.screen = !PF.screen; renderProps(); };
 $('#pf-game').onchange = e => { PF.game = e.target.value; PF.picked = true; renderProps(); };
 $('#pf-market').onchange = e => { PF.market = e.target.value; renderProps(); };
 $('#pf-sort').onchange = e => { PF.sort = e.target.value; renderProps(); };
