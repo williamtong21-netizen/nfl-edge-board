@@ -439,6 +439,11 @@ details.nerd .usage{border-bottom:0}
 .slipdim.on{opacity:1;pointer-events:auto}
 @media (min-width:1100px){.slipdim.on{background:transparent;pointer-events:none}}
 html.slip-open .slipbtn{z-index:41}
+.lgoffers{margin-top:10px}.lgoffers h4{margin:6px 0}
+.lgoffer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.lgoffer .lgmeta{grid-column:1/-1;font-size:12.5px}.lgoffer .btn{grid-column:2;grid-row:1}
+.lgtag{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:6px;border:1px solid var(--line)}
+.lgtag.good{color:var(--good);border-color:var(--good)}.lgtag.ok{color:inherit}.lgtag.bad{color:var(--bad,#ff6b6b);border-color:var(--bad,#ff6b6b)}
 .fcheck{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0;background:var(--surface2,rgba(255,255,255,.02))}
 .fc-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;flex-wrap:wrap}.fc-h b{font:800 13px var(--f-display);text-transform:uppercase;letter-spacing:1px}.fc-h span{font-size:12px;color:var(--muted)}.fc-h i{font-style:normal;font-weight:700}
 .fc-p{color:var(--good)}.fc-c{color:var(--bad,#ff6b6b)}
@@ -5479,6 +5484,40 @@ function lgTrades(D, pos, rank, rows) {
     x.why = `They're ${ffOrd(r[pos])} at ${pos}` + gp.filter(p => p !== pos).map(p => `, ${ffOrd(r[p])} at ${p}`).join('') + (x.give.every(pid => !myBest.has(pid)) ? '. You only give up bench players' : '') + (x.dThem > 0.3 ? '; their lineup gets better too.' : '.'); }
   return keep;
 }
+// what you could offer one team for specific players of theirs: your players (one or two) close in rest-of-season value,
+// ranked by how much your weekly lineup gains, with credit when their lineup doesn't lose (a deal they'd actually take)
+function lgOffersFor(D, t, get) {
+  const me = D.me, base = lgLineup(me.players, D).pts, tBase = lgLineup(t.players, D).pts, vGet = get.reduce((a, p) => a + lgVal(p, D), 0);
+  const mine = me.players.filter(pid => D.ppg(pid) > 0 && !get.includes(pid));
+  const gives = [...mine.map(a => [a]), ...mine.flatMap((a, i) => mine.slice(i + 1).map(b => [a, b]))];
+  const out = [];
+  for (const give of gives) {
+    const vGive = give.reduce((a, pid) => a + lgVal(pid, D), 0);
+    if (vGet > 0.3 ? vGive < vGet * 0.8 || vGive > vGet * 1.6 : vGive > 1.5) continue;
+    const dMe = lgLineup(me.players.filter(x => !give.includes(x)).concat(get), D).pts - base;
+    const dThem = lgLineup(t.players.filter(x => !get.includes(x)).concat(give), D).pts - tBase;
+    if (dMe < -1 || dThem < -2) continue;
+    out.push({ give, dMe, dThem, over: vGet > 0.3 ? vGive / vGet : 1, score: dMe + 0.7 * Math.min(dThem, 2) - 0.3 * (give.length - 1) - (dThem < -0.5 ? 1 : 0) });
+  }
+  out.sort((a, b) => (b.dMe >= 0) - (a.dMe >= 0) || b.score - a.score);
+  // one offer per main piece: "Love" and "Love + a bench guy who changes nothing" are the same offer
+  const seen = new Set(), keep = [];
+  for (const x of out) { const k = x.give.slice().sort((a, b) => lgVal(b, D) - lgVal(a, D))[0]; if (seen.has(k)) continue; seen.add(k); keep.push(x); if (keep.length >= 6) break; }
+  const helps = keep.some(x => x.dMe >= 0), list = helps ? keep.filter(x => x.dMe >= 0) : keep.slice(0, 3);
+  list.helps = helps || !list.length; return list;
+}
+function lgOfferList(D, t, get) {
+  const offers = lgOffersFor(D, t, get), who = get.map(p => esc(D.V[p]?.n || p)).join(' + ');
+  const tag = x => x.dThem >= 0.3 ? ['good', 'They should like it'] : x.dThem >= -0.5 ? ['ok', 'Fair'] : ['bad', 'Tough sell: hurts their lineup'];
+  return `<div class="lgoffers"><h4>What you can offer for ${who}</h4>
+    ${offers.length && !offers.helps ? `<p class="note"><b>None of these make your lineup better</b>: ${who} would be a depth or bye-week move for you. Closest swaps:</p>` : ''}
+    ${offers.length ? offers.map(x => { const [k, l] = tag(x);
+      return `<div class="lgoffer"><div class="lgside"><span class="lbl">You give</span>${x.give.map(p => `<b data-ffcard="${p}" class="cardlink">${esc(D.V[p].n)}</b> <small>${esc(D.V[p].pos)} · ${D.ppg(p).toFixed(1)}/wk</small>`).join('<br>')}</div>
+        <div class="lgmeta"><span class="lgtag ${k}">${l}</span> your lineup <span class="${x.dMe >= 0 ? 'pos' : 'neg'}">${x.dMe >= 0 ? '+' : ''}${x.dMe.toFixed(1)}</span>/wk · theirs <span class="${x.dThem >= 0 ? 'pos' : 'neg'}">${x.dThem >= 0 ? '+' : ''}${x.dThem.toFixed(1)}</span>/wk${x.over >= 1.25 ? ' · you\'d be paying extra' : ''}</div>
+        <button class="btn small" data-lgtry="${esc(String(t.id))}|${get.join(',')}|${x.give.join(',')}">Open in analyzer</button></div>`; }).join('')
+      : `<p class="note">Nothing on your roster lines up in value for ${who} without wrecking your lineup or theirs.</p>`}
+    <p class="note">Offers are your players (one or two) close to ${who}'s rest-of-season value. "Your lineup" and "theirs" are the change in each best weekly lineup after the trade.</p></div>`;
+}
 function lgPl(pid, D, wk) {
   const v = D.V[pid], w = wk?.[pid];
   const tag = w?.tag === 'bye' ? ' · <span class="neg">bye</span>' : w?.tag === 'out' ? ' · <span class="neg">out</span>' : w?.tag === 'played' ? ' · played' : '';
@@ -5579,7 +5618,7 @@ function lgTradeView(D, rank, my, need) {
     <p class="note">Build any trade: pick a team, then the players on each side.</p>
     <select id="anTeam" aria-label="Trade partner"><option value="">Pick a team…</option>${D.teams.filter(t => t.id !== D.me.id).map(t => `<option value="${esc(String(t.id))}" ${String(t.id) === A.team ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
     ${other ? `<div class="lgan"><div><span class="lbl">You give</span><div class="row">${chips(D.me, A.give, 'data-angive')}</div></div>
-      <div><span class="lbl">You get</span><div class="row">${chips(other, A.get, 'data-anget')}</div></div></div>${verdict}` : ''}
+      <div><span class="lbl">You get</span><div class="row">${chips(other, A.get, 'data-anget')}</div></div></div>${verdict}${A.get.size && !A.give.size ? lgOfferList(D, other, [...A.get]) : ''}` : ''}
     <p class="note">Values: points per game this season (recent games count more) blended with this week's prop lines, times schedule strength (how many points his remaining opponents allow to his position; green = soft, red = tough), scaled by games left. Injured players count less. Week ${D.week} data.</p>`;
 }
 // rest-of-season points per game for a player outside any league context (PPR, schedule-adjusted)
@@ -5600,7 +5639,7 @@ function ffCard(pid) {
     if (mine) { const inBest = lgLineup(D.me.players, D, q => (W[q] || {}).pts || 0).out.some(o => o.pid === pid); advice = inBest ? `<b class="pos">Start him</b> this week: he's in our best lineup.` : `<b>Bench</b> this week: you have better options at his spots.`; }
     else if (!own) { const worst = D.me.players.filter(q => D.V[q].pos === v.pos).sort((a, b) => D.ppg(a) - D.ppg(b))[0];
       advice = worst && ros > D.ppg(worst) + 0.5 ? `<b class="pos">Pick him up</b>: ${ros.toFixed(1)}/wk beats ${esc(D.V[worst].n)} (${D.ppg(worst).toFixed(1)}).` : `Free agent, but not better than what you have at ${esc(v.pos)}.`; }
-    else advice = `On <b>${esc(own.name)}</b>. <button class="btn small" data-lgtarget="${esc(String(own.id))}|${pid}">Trade for him →</button>`;
+    else advice = `On <b>${esc(own.name)}</b>. <button class="btn small" data-lgtarget="${esc(String(own.id))}|${pid}">Build a trade →</button>${lgOfferList(D, own, [pid])}`;
   }
   return `<div class="ffcard"><div class="ffch">${slpHead(pid, SLP_TM[v.tm] || v.tm, 64)}<div><h3>${esc(v.n)}</h3><small>${esc(v.pos)} · ${esc(v.tm || 'FA')}${v.inj ? ` · <span class="neg">${esc(v.inj)}</span>` : ''} · ${own ? (mine ? 'your team' : esc(own.name)) : D ? 'free agent' : ''}</small></div><button class="btn small" data-ffclose>✕</button></div>
     ${advice ? `<p class="guide">${advice}</p>` : ''}
@@ -5721,7 +5760,7 @@ document.addEventListener('click', e => {
   const tg = e.target.closest('[data-lgtarget]'); if (tg) { const [t, pid] = tg.dataset.lgtarget.split('|'); LG.an = { team: t, get: new Set([pid]), give: new Set() }; FF.card = null; FF.view = 'trades'; store.set('edge-ff-view', 'trades'); renderFantasy(); $('#anTeam')?.scrollIntoView({ block: 'center' }); return; }
   const nd = e.target.closest('[data-lgneed]'); if (nd) { LG.need = nd.dataset.lgneed; renderLeague(); return; }
   const ag = e.target.closest('[data-angive],[data-anget]'); if (ag) { const set = ag.dataset.angive ? LG.an.give : LG.an.get, pid = ag.dataset.angive || ag.dataset.anget; set.has(pid) ? set.delete(pid) : set.add(pid); renderLeague(); return; }
-  const tr = e.target.closest('[data-lgtry]'); if (tr) { const [t, get, give] = tr.dataset.lgtry.split('|'); LG.an = { team: t, get: new Set([get]), give: new Set(give.split(',')) }; renderLeague(); $('#anTeam')?.scrollIntoView({ block: 'center' }); return; }
+  const tr = e.target.closest('[data-lgtry]'); if (tr) { const [t, get, give] = tr.dataset.lgtry.split('|'); LG.an = { team: t, get: new Set(get.split(',')), give: new Set(give.split(',')) }; FF.card = null; FF.view = 'trades'; store.set('edge-ff-view', 'trades'); renderFantasy(); $('#anTeam')?.scrollIntoView({ block: 'center' }); return; }
   if (e.target.closest('[data-lgyahoo]')) { lgYahoo(); return; }
   const yt = e.target.closest('[data-yhteam]'); if (yt) { store.set('edge-yh-team', yt.dataset.yhteam); lgYahoo(); return; }
   if (e.target.closest('[data-lgout]')) { LG.data = null; LG.league = ''; LG.leagues = null; LG.src = ''; store.set('edge-slp-league', ''); store.set('edge-lg-src', ''); renderLeague(); }
