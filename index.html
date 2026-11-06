@@ -2436,13 +2436,13 @@ function reportCard() {
   for (const v of Object.values(R.pbt2 || {})) for (const [m, d] of Object.entries(v.mk || {})) { const x = mk2[m] ||= { n: 0, w: 0, l: 0, sse: 0, kse: 0 }; for (const k in x) x[k] += d[k]; }
   const mk2rows = Object.entries(mk2).sort((a, b) => b[1].n - a[1].n).map(([m, d]) => `<tr><td>${esc(m)}</td><td class="n">${d.w}–${d.l}${d.w + d.l ? ` (${Math.round(d.w / (d.w + d.l) * 100)}%)` : ''}</td><td class="n">${(d.sse / d.n).toFixed(3)}</td><td class="n">${(d.kse / d.n).toFixed(3)}</td></tr>`);
   // no spread / total record: the game numbers copy the market line (GAME_MKT_W = 1), so that record only graded noise
-  const line = [['prop picks 60%+', strong], ['all prop leans', R.props.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
+  const line = [['prop picks 60%+', strong], ['prop leans 55%+', R.props.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
   const recapWk = Math.max(0, ...Object.keys(R.tdbt || {}).map(Number));
   return `${recapWk ? `<button class="btn small recapbtn" data-recap="${recapWk}">Share Week ${recapWk} recap</button>` : ''}<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
-    <div class="rc-chips">${chip('Prop leans', R.props.all)}${chip('Strong leans (60%+)', strong)}${tdbt.chip ? `<div class="rc-chip"><span>TD price picks</span><b class="${tdbt.chip.pl > 0 ? 'pos' : 'neg'}">${tdbt.chip.pl > 0 ? '+' : '−'}$${Math.abs(tdbt.chip.pl).toFixed(0)}</b><span>${tdbt.chip.w}–${tdbt.chip.l}, $10 each</span></div>` : ''}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
+    <div class="rc-chips">${chip('Prop leans (55%+)', R.props.all)}${chip('Strong leans (60%+)', strong)}${tdbt.chip ? `<div class="rc-chip"><span>TD price picks</span><b class="${tdbt.chip.pl > 0 ? 'pos' : 'neg'}">${tdbt.chip.pl > 0 ? '+' : '−'}$${Math.abs(tdbt.chip.pl).toFixed(0)}</b><span>${tdbt.chip.w}–${tdbt.chip.l}, $10 each</span></div>` : ''}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
     <details><summary>Full breakdown</summary><div class="rc-grid">
-      <div><h4>Props by confidence</h4>${tbl(['Our chance', 'Record', 'Hit'], conf)}<p class="note">If the reads are honest, higher confidence should hit more often.</p></div>
-      <div><h4>Props by market</h4>${tbl(['Market', 'Record', 'Hit'], mk)}</div>
+      <div><h4>Props by confidence</h4>${tbl(['Our chance', 'Record', 'Hit'], conf)}<p class="note">If the reads are honest, higher confidence should hit more often. 50–55% reads are coin flips and aren't counted as leans.</p></div>
+      <div><h4>Leans by market (55%+)</h4>${tbl(['Market', 'Record', 'Hit'], mk)}</div>
       ${td.length ? `<div><h4>Touchdown calibration</h4>${tbl(['Our chance', 'Avg we gave', 'Scored'], td)}<p class="note">Good TD reads score about as often as we said they would.</p></div>` : ''}
       ${miss.length ? `<div><h4>Biggest misses</h4>${tbl(['Read', 'Our chance', 'Actual'], miss)}</div>` : ''}
       ${tdbt.rows.length ? `<div><h4>TD reads vs Kalshi, week by week</h4>${tbl(['Week', 'Scored', 'Most accurate', 'Value bets', 'P/L ($10 each)'], tdbt.rows)}

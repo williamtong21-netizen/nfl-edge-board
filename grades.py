@@ -75,7 +75,8 @@ def report(readings, results):
             if pr["a"] == pr["l"]: continue          # push
             over, conf = pr["p"] >= 0.5, max(pr["p"], 1 - pr["p"])
             hit = (pr["a"] > pr["l"]) == over
-            for d in (props[bucket(conf, CONF)], market[pr["m"]], week[rec["w"]], props["all"]):
+            # a lean = 55%+ (50-55% reads are coin flips and only show in the by-confidence table), same as the NBA card
+            for d in (props[bucket(conf, CONF)],) + ((market[pr["m"]], week[rec["w"]], props["all"]) if conf >= 0.55 else ()):
                 d[0 if hit else 1] += 1
             if not hit and conf >= 0.6:
                 misses.append({"g": f'{rec["a"]} @ {rec["h"]}', "w": rec["w"], "n": pr["n"], "m": pr["m"], "l": pr["l"],
