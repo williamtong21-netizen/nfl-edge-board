@@ -67,7 +67,7 @@ jobs:
           git commit -q -m "News check $(date -u +%Y-%m-%dT%H:%MZ)"
           # the data sync pushes at the same minutes: retry with a random wait, and never leave a half-done rebase behind
           for i in 1 2 3 4 5 6; do
-            git pull --rebase -X theirs -q || git rebase --abort 2>/dev/null
+            git pull --rebase --autostash -X theirs -q || { git rebase --abort 2>/dev/null; true; }   # caches the step changed but doesn't save must not block the pull
             git push -q && exit 0
             sleep $((RANDOM % 20 + 5))
           done
