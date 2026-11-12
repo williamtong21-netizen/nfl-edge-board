@@ -2405,13 +2405,15 @@ function keyPrice(K, who, grpLabel) {
   const a = K?.all;
   if (!a) return { chip: '', line: '', block: '' };
   const n = a.w + a.l, up = a.pct > a.mkt;
-  const roi = d => `<b class="${d.roi > 0 ? 'pos' : 'neg'}">${d.roi > 0 ? '+' : '−'}${Math.abs(Math.round(d.roi * 100))}%</b>`;
-  const row = (k, d) => `<tr><td>${esc(k)}</td><td class="n">${d.w}–${d.l}</td><td class="n">${Math.round(d.pct * 100)}%</td><td class="n">${Math.round(d.mkt * 100)}%</td><td class="n">${roi(d)}</td></tr>`;
-  const rows = Object.entries(K).filter(([k]) => k !== 'all').sort((x, y) => grpLabel(x[0]) - grpLabel(y[0]) || (grpLabel(x[0]) === 2 ? (y[0].localeCompare(x[0], undefined, { numeric: true })) : (y[1].w + y[1].l) - (x[1].w + x[1].l))).map(([k, d]) => row(k, d));
+  const pctS = v => { const r = Math.round(v * 100); return r === 0 ? '0%' : `${r > 0 ? '+' : '−'}${Math.abs(r)}%`; };
+  const roi = d => `<b class="${Math.round(d.roi * 100) > 0 ? 'pos' : Math.round(d.roi * 100) < 0 ? 'neg' : ''}">${pctS(d.roi)}</b>`;
+  const label = k => /^\d{4}-\d\d-\d\d$/.test(k) ? new Date(k + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }) : k;
+  const row = (k, d) => `<tr><td>${esc(label(k))}</td><td class="n">${d.w}–${d.l}</td><td class="n">${Math.round(d.pct * 100)}%</td><td class="n">${Math.round(d.mkt * 100)}%</td><td class="n">${roi(d)}</td></tr>`;
+  const rows = Object.entries(K).filter(([k]) => k !== 'all').sort((x, y) => grpLabel(x[0]) - grpLabel(y[0]) || (grpLabel(x[0]) === 2 ? (y[0].localeCompare(x[0], undefined, { numeric: true })) : (y[1].w + y[1].l) - (x[1].w + x[1].l))).filter(([k], i, arr) => grpLabel(k) !== 2 || arr.filter(([j]) => grpLabel(j) === 2).findIndex(([j]) => j === k) < 7).map(([k, d]) => row(k, d));
   return {
-    chip: `<div class="rc-chip"><span>Key bets vs the price</span><b class="${a.roi > 0 ? 'pos' : 'neg'}">${a.roi > 0 ? '+' : '−'}${Math.abs(Math.round(a.roi * 100))}%</b><span>hit ${Math.round(a.pct * 100)}% · price said ${Math.round(a.mkt * 100)}%</span></div>`,
-    line: `key bets ${a.w}–${a.l}, ${a.roi > 0 ? '+' : '−'}${Math.abs(Math.round(a.roi * 100))}% at the price`,
-    block: `<div class="rc-key"><h4>Key bets vs the price</h4><p class="note">Only ${who}. A lean has to hit more often than its price says just to break even, so the real test is <b>Hit</b> vs <b>Price</b>. ${up ? 'Right now we hit a bit more often than the price said' : "Right now we hit less often than the price said, so there's no edge yet"} (${n} leans, still a small sample).</p>
+    chip: `<div class="rc-chip"><span>Key bets vs the price</span>${roi(a)}<span>hit ${Math.round(a.pct * 100)}% · price said ${Math.round(a.mkt * 100)}%</span></div>`,
+    line: `key bets ${a.w}–${a.l}, ${pctS(a.roi)} at the price`,
+    block: `<div class="rc-key"><h4>Key bets vs the price</h4><p class="note">Only ${who}. A lean has to hit more often than its price says just to break even, so the real test is <b>Hit</b> vs <b>Price</b>. ${up ? 'Right now we hit a bit more often than the price said' : "Right now we hit less often than the price said, so there's no edge yet"} (${n} leans${n < 300 ? ', still a small sample' : ''}).</p>
       <table><tr><th></th><th class="n">Record</th><th class="n">Hit</th><th class="n">Price</th><th class="n">Profit / bet</th></tr>${row('All key leans', a)}${rows.join('')}</table>
       <p class="note">Price = the market's chance at kickoff plus a normal book's cut (−110 on a 50/50 line). Profit is per $1 at that price.</p></div>`,
   };
