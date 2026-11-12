@@ -2389,6 +2389,23 @@ function cfbReportCard() {   // college: how our number has done against the clo
     <details><summary>Week by week</summary><table><tr><th>Week</th><th class="n">Spreads</th><th class="n">Totals</th></tr>${wk.join('')}</table>
     <p class="note">Top 25 and Power 4 games, graded against the last line before kickoff. Breaking even takes about 52.4% at normal -110 prices. Weeks before this one were replayed using only games played up to then. Early weeks lean mostly on last season, which is why they're weakest.</p></details></details>`;
 }
+// key bets graded against the price (grades.vs_price / nba_sync.prop_report "key"): hit rate next to what the price
+// implied, so a 58% record on heavy favorites doesn't look like an edge it isn't
+function keyPrice(K, who, grpLabel) {
+  const a = K?.all;
+  if (!a) return { chip: '', line: '', block: '' };
+  const n = a.w + a.l, up = a.pct > a.mkt;
+  const roi = d => `<b class="${d.roi > 0 ? 'pos' : 'neg'}">${d.roi > 0 ? '+' : '−'}${Math.abs(Math.round(d.roi * 100))}%</b>`;
+  const row = (k, d) => `<tr><td>${esc(k)}</td><td class="n">${d.w}–${d.l}</td><td class="n">${Math.round(d.pct * 100)}%</td><td class="n">${Math.round(d.mkt * 100)}%</td><td class="n">${roi(d)}</td></tr>`;
+  const rows = Object.entries(K).filter(([k]) => k !== 'all').sort((x, y) => grpLabel(x[0]) - grpLabel(y[0]) || (grpLabel(x[0]) === 2 ? (y[0].localeCompare(x[0], undefined, { numeric: true })) : (y[1].w + y[1].l) - (x[1].w + x[1].l))).map(([k, d]) => row(k, d));
+  return {
+    chip: `<div class="rc-chip"><span>Key bets vs the price</span><b class="${a.roi > 0 ? 'pos' : 'neg'}">${a.roi > 0 ? '+' : '−'}${Math.abs(Math.round(a.roi * 100))}%</b><span>hit ${Math.round(a.pct * 100)}% · price said ${Math.round(a.mkt * 100)}%</span></div>`,
+    line: `key bets ${a.w}–${a.l}, ${a.roi > 0 ? '+' : '−'}${Math.abs(Math.round(a.roi * 100))}% at the price`,
+    block: `<div class="rc-key"><h4>Key bets vs the price</h4><p class="note">Only ${who}. A lean has to hit more often than its price says just to break even, so the real test is <b>Hit</b> vs <b>Price</b>. ${up ? 'Right now we hit a bit more often than the price said' : "Right now we hit less often than the price said, so there's no edge yet"} (${n} leans, still a small sample).</p>
+      <table><tr><th></th><th class="n">Record</th><th class="n">Hit</th><th class="n">Price</th><th class="n">Profit / bet</th></tr>${row('All key leans', a)}${rows.join('')}</table>
+      <p class="note">Price = the market's chance at kickoff plus a normal book's cut (−110 on a 50/50 line). Profit is per $1 at that price.</p></div>`,
+  };
+}
 // NBA: every prop number saved before tip, graded against the box score (nba_sync.py prop_report)
 function nbaReportCard() {
   const R = S.slate?.report;
@@ -2405,9 +2422,11 @@ function nbaReportCard() {
   const A = R.acc, best = A && ['pm', 'po', 'km'].reduce((a, k) => A[k] < A[a] ? k : a, 'po');
   const acc = A ? [['pm', 'Our model alone'], ['po', `What the app shows (${Math.round((S.slate.nbaModel?.mktW ?? 0.8) * 100)}% market)`], ['km', "Kalshi's price"]]
     .map(([k, l]) => `<tr><td>${l}</td><td class="n">${k === best ? `<b class="pos">${A[k].toFixed(4)}</b>` : A[k].toFixed(4)}</td></tr>`) : [];
-  const line = [['prop picks 60%+', strong], ['all leans', R.props.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
+  const KP = keyPrice(R.key, 'starters and real scorers (points line 17.5+), on props Kalshi priced', k => /^\d{4}-/.test(k) ? 2 : /%/.test(k) ? 0 : 1);
+  const line = KP.line || [['prop picks 60%+', strong], ['all leans', R.props.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
   return `<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
-    <div class="rc-chips">${chip('Prop picks 60%+', strong)}${chip('All leans (55%+)', R.props.all)}</div>
+    <div class="rc-chips">${KP.chip}${chip('Prop picks 60%+', strong)}${chip('All leans (55%+)', R.props.all)}</div>
+    ${KP.block}
     <p class="note">Hit rate, not profit: a lean that hits 58% can still lose money if the price was steep. Breaking even at normal -110 prices takes 52.4%. Graded at the last line we saved before tip, the same over/under on the app. Pushes and players who sat don't count.</p>
     <details><summary>Full breakdown</summary><div class="rc-grid">
       <div><h4>Props by confidence</h4>${tbl(['Our chance', 'Record', 'Hit'], conf)}<p class="note">If the reads are honest, higher confidence should hit more often. 50–55% reads are coin flips and aren't counted as leans.</p></div>
@@ -2437,9 +2456,11 @@ function reportCard() {
   const mk2rows = Object.entries(mk2).sort((a, b) => b[1].n - a[1].n).map(([m, d]) => `<tr><td>${esc(m)}</td><td class="n">${d.w}–${d.l}${d.w + d.l ? ` (${Math.round(d.w / (d.w + d.l) * 100)}%)` : ''}</td><td class="n">${(d.sse / d.n).toFixed(3)}</td><td class="n">${(d.kse / d.n).toFixed(3)}</td></tr>`);
   // no spread / total record: the game numbers copy the market line (GAME_MKT_W = 1), so that record only graded noise
   const line = [['prop picks 60%+', strong], ['prop leans 55%+', R.props.all]].filter(([, d]) => d && d.w + d.l).map(([k, d]) => `${k} ${recS2(d)}`).join(' · ');
+  const KP = keyPrice(R.key, 'starting QBs, lead backs and real receivers (pass yds 175.5+, rush yds 44.5+, rec yds 39.5+ lines) on passing yards and TDs, rushing yards, receiving yards and receptions', k => /^Week/.test(k) ? 2 : /%/.test(k) ? 0 : 1);
   const recapWk = Math.max(0, ...Object.keys(R.tdbt || {}).map(Number));
-  return `${recapWk ? `<button class="btn small recapbtn" data-recap="${recapWk}">Share Week ${recapWk} recap</button>` : ''}<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
-    <div class="rc-chips">${chip('Prop leans (55%+)', R.props.all)}${chip('Strong leans (60%+)', strong)}${tdbt.chip ? `<div class="rc-chip"><span>TD price picks</span><b class="${tdbt.chip.pl > 0 ? 'pos' : 'neg'}">${tdbt.chip.pl > 0 ? '+' : '−'}$${Math.abs(tdbt.chip.pl).toFixed(0)}</b><span>${tdbt.chip.w}–${tdbt.chip.l}, $10 each</span></div>` : ''}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
+  return `${recapWk ? `<button class="btn small recapbtn" data-recap="${recapWk}">Share Week ${recapWk} recap</button>` : ''}<details class="rc"><summary class="rc-h"><b>Our record</b><small>${esc(KP.line || line)} · ${R.games} game${R.games === 1 ? '' : 's'} graded ▾</small></summary>
+    <div class="rc-chips">${KP.chip}${chip('Prop leans (55%+)', R.props.all)}${chip('Strong leans (60%+)', strong)}${tdbt.chip ? `<div class="rc-chip"><span>TD price picks</span><b class="${tdbt.chip.pl > 0 ? 'pos' : 'neg'}">${tdbt.chip.pl > 0 ? '+' : '−'}$${Math.abs(tdbt.chip.pl).toFixed(0)}</b><span>${tdbt.chip.w}–${tdbt.chip.l}, $10 each</span></div>` : ''}${chip('Fading traps · sides', R.traps?.side)}${chip('Fading traps · totals', R.traps?.total)}</div>
+    ${KP.block}
     <details><summary>Full breakdown</summary><div class="rc-grid">
       <div><h4>Props by confidence</h4>${tbl(['Our chance', 'Record', 'Hit'], conf)}<p class="note">If the reads are honest, higher confidence should hit more often. 50–55% reads are coin flips and aren't counted as leans.</p></div>
       <div><h4>Leans by market (55%+)</h4>${tbl(['Market', 'Record', 'Hit'], mk)}</div>

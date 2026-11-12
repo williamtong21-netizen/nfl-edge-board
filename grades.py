@@ -34,6 +34,9 @@ def freeze(games, props, readings):
                 # can test later whether "the money says over" predicts anything beyond the price itself
                 kv = pr.get("kv") or {}
                 if kv: row["kv"] = {k: kv[k] for k in ("usd", "dusd", "ys", "dp") if kv.get(k) is not None}
+                # the market's own chance of the over at kickoff (left off when it sat at 50/50), so leans can be graded vs the price
+                mk = pr.get("pMkt") if pr["m"] == "Anytime TD" else pr.get("pMkt", 0.5)
+                if mk is not None: row["mk"] = mk
                 rec["props"].append(row)
         readings["games"][g["id"]] = rec
 
@@ -54,6 +57,41 @@ def grade(games, summaries, readings):
     return n
 
 
+# "key bets": the props people actually bet, on the players who matter. A player counts when his own line says he's a
+# featured piece that week (starting QB, lead back, real receiver); backups and 1.5-catch tight ends are left out.
+KEY_LINE = {"Pass yds": 175.5, "Rush yds": 44.5, "Rec yds": 39.5}            # his line must be at least this
+KEY_BY = {"Pass yds": "Pass yds", "Pass TD": "Pass yds", "Rush yds": "Rush yds", "Rec yds": "Rec yds", "Receptions": "Rec yds"}
+
+
+def key_rows(rec):
+    """The graded rows of one game that are key bets (market in KEY_BY and the player's matching line is big enough)."""
+    lines = {(r["id"], r["m"]): r["l"] for r in rec["props"]}
+    return [r for r in rec["props"] if r["m"] in KEY_BY and (lines.get((r["id"], KEY_BY[r["m"]])) or 0) >= KEY_LINE[KEY_BY[r["m"]]]]
+
+
+VIG = 1.0476   # a -110 / -110 line: you pay 52.4% for a 50/50 bet
+
+
+def vs_price(rows, lean=0.55):
+    """Leans graded against the price: record, how often the market said our side would hit, and profit at that price.
+    rows: (our chance of over, market chance of over or None, over hit, groups). A lean only counts when the market
+    priced it, so "hit 58%" can be read next to "the price said 57%". mkt = what you'd actually pay (the fair market
+    chance plus a normal book's cut), roi = profit per $1 bet at that price."""
+    out = defaultdict(lambda: {"w": 0, "l": 0, "mkt": 0.0, "pl": 0.0})
+    for p, mk, over, grps in rows:
+        c = max(p, 1 - p)
+        if c < lean or mk is None or not 0.03 < mk < 0.97: continue
+        side_mk = min(0.97, (mk if p >= 0.5 else 1 - mk) * VIG)
+        hit = over == (p >= 0.5)
+        for k in ("all", *grps, "60%+" if c >= 0.6 else "55–60%"):
+            d = out[k]; d["w" if hit else "l"] += 1; d["mkt"] += side_mk; d["pl"] += (1 / side_mk - 1) if hit else -1
+    res = {}
+    for k, d in out.items():
+        n = d["w"] + d["l"]
+        res[k] = {"w": d["w"], "l": d["l"], "pct": round(d["w"] / n, 3), "mkt": round(d["mkt"] / n, 3), "roi": round(d["pl"] / n, 3)}
+    return res
+
+
 def _rate(w, l): return round(w / (w + l), 3) if w + l else None
 
 
@@ -63,11 +101,14 @@ def report(readings, results):
     td = defaultdict(lambda: [0, 0, 0.0])        # bin -> [scored, players, sum of our chances]
     sides = defaultdict(lambda: [0, 0, 0]); totals = defaultdict(lambda: [0, 0, 0])
     misses, graded = [], 0
+    key = []                                     # key bets, for the vs-the-price record
     for gid, rec in readings["games"].items():
         res = rec.get("res")
         if not res: continue
         graded += 1
         margin, pts = res["h"] - res["a"], res["h"] + res["a"]
+        key += [(pr["p"], pr.get("mk"), pr["a"] > pr["l"], (pr["m"], "Week " + str(rec["w"]))) for pr in key_rows(rec)
+                if pr.get("a") is not None and pr["a"] != pr["l"]]
         for pr in rec["props"]:
             if pr.get("a") is None: continue
             if pr["m"] == "Anytime TD":
@@ -117,5 +158,6 @@ def report(readings, results):
         "sides": {k: {**wl(v), "push": v[2]} for k, v in sides.items()},
         "totals": {k: {**wl(v), "push": v[2]} for k, v in totals.items()},
         "traps": {k: {**wl(v), "push": v[2]} for k, v in traps.items() if sum(v)},
+        "key": vs_price(key),
         "misses": sorted(misses, key=lambda x: (-x["w"], -x["p"]))[:6],
     }

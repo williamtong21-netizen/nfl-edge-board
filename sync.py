@@ -864,6 +864,10 @@ def main():
     report = None
     try:
         rd = load(f"readings_{season}.json", {"season": season, "games": {}})
+        # market prices recovered from git history for games frozen before rows carried "mk" (one-off backfill file)
+        for gid, px in load(f"readings_mk_{season}.json", {}).items():
+            for r in (rd["games"].get(gid) or {}).get("props", []):
+                if "mk" not in r and f'{r["id"]}|{r["m"]}|{r["l"]}' in px: r["mk"] = px[f'{r["id"]}|{r["m"]}|{r["l"]}']
         graded = grades.grade(games, sums, rd)
         grades.freeze(games, props, rd)
         save(os.path.join(DATA, f"readings_{season}.json"), rd)

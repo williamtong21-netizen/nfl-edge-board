@@ -281,6 +281,9 @@ def grade_props(season, now):
     return gr
 
 
+KEY_PTS = 17.5    # "key player" = points line at least this (starters / real scorers); bench guys aren't a priority
+
+
 def prop_report(gr):
     """The NBA report card: leans by confidence, market and night, plus accuracy (Brier) of model, blend and Kalshi."""
     bucket = lambda v: next(lbl for lo, hi, lbl in CONF if lo <= v < hi)
@@ -288,9 +291,14 @@ def prop_report(gr):
     acc = {"n": 0, "pm": 0.0, "po": 0.0, "km": 0.0}
     rate = lambda w, l: round(w / (w + l), 3) if w + l else None
     games = 0
+    import grades
+    key = []      # key bets: players whose points line says they're a featured scorer (KEY_PTS+), graded vs Kalshi's price
     for g in gr["games"].values():
         if g.get("pre") or not g["props"]: continue
         games += 1
+        pts = {r["pid"]: r["l"] for r in g["props"] if r["m"] == "Points"}
+        key += [(r["po"], r.get("km"), r["a"] > r["l"], (r["m"], g["d"])) for r in g["props"]
+                if (pts.get(r["pid"]) or 0) >= KEY_PTS and r.get("km") is not None and 0.2 < r["km"] < 0.8]
         for r in g["props"]:
             # a sportsbook main line sits near 50/50: Kalshi at 80%+ or 20%- on it means a bad ladder line (see clean_ladder)
             if r.get("km") is not None and not 0.2 < r["km"] < 0.8: continue
@@ -305,6 +313,7 @@ def prop_report(gr):
     return {"games": games, "props": {k: wl(v) for k, v in conf.items()},
             "markets": {k: wl(v) for k, v in sorted(mk.items(), key=lambda x: -sum(x[1]))},
             "nights": {k: wl(v) for k, v in sorted(night.items())},
+            "key": grades.vs_price(key),
             "acc": {"n": acc["n"], **{k: round(acc[k] / acc["n"], 4) for k in ("pm", "po", "km")}} if acc["n"] else None}
 
 
