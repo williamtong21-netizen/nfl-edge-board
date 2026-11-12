@@ -2279,6 +2279,15 @@ function trendBlock(g) {
 }
 
 // ------------------------------------------------------------ picks: our numbers vs the books
+// Picks only cover key bets: the major markets on featured players (same rule as the report card, grades.key_rows /
+// nba_sync.KEY_PTS). Backups and side players stay on the Props tab but aren't a priority for picks.
+const KEY_LINE = { 'Pass yds': 175.5, 'Rush yds': 44.5, 'Rec yds': 39.5 }, KEY_BY = { 'Pass yds': 'Pass yds', 'Pass TD': 'Pass yds', 'Rush yds': 'Rush yds', 'Rec yds': 'Rec yds', Receptions: 'Rec yds' }, KEY_PTS = 17.5;
+function keyBet(pl, pr) {
+  const lineOf = m => pl.props.find(x => x.m === m)?.l || 0;
+  if (NBA) return lineOf('Points') >= KEY_PTS;
+  const by = KEY_BY[pr.m];
+  return !!by && lineOf(by) >= KEY_LINE[by];
+}
 function propPicks() {
   const out = [];
   for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) for (const pl of S.props?.[g.id] || []) {
@@ -2287,6 +2296,7 @@ function propPicks() {
     for (const pr of pl.props) {
       // longest reception left Picks Oct 2026: its 60%+ leans went 21-19 through week 7 (still on the Props tab)
       if (pr.pOver == null || pr.m === 'Anytime TD' || pr.m === 'Long rec') continue;
+      if (!keyBet(pl, pr)) continue;
       const x = propRow(pl, pr, g), edge = pr.pOver - 0.5;
       if (Math.abs(edge) < PROP_EDGE || x.n < 3) continue;
       const over = edge > 0, d = dueRead(x);
@@ -2585,11 +2595,11 @@ function nbaBest() {
   const R = S.slate?.report?.props || {}, rec = d => d && d.w + d.l ? `${d.w}–${d.l} (${Math.round(d.w / (d.w + d.l) * 100)}%)` : null;
   const top = all.filter(p => conf(p) >= NBA_TOP), rest = all.filter(p => conf(p) < NBA_TOP), n = PK.nbaAll ? 40 : 8;
   const tier = (lbl, r, list) => list.length ? `<div class="sechead"><h2>${lbl}</h2><small>${list.length} lean${list.length > 1 ? 's' : ''}${r ? ` · record ${r}` : ''}</small></div><div class="picks">${list.map(pickCard).join('')}</div>` : '';
-  if (!all.length) return `<div class="sechead"><h2>Tonight's best leans</h2></div><p class="note">No 60%+ leans right now. Tonight's props post by early afternoon.</p>`;
+  if (!all.length) return `<div class="sechead"><h2>Tonight's best leans</h2></div><p class="note">No 60%+ leans on key players (points line 17.5+) right now. Tonight's props post by early afternoon; everyone else is on the Props tab.</p>`;
   const shownTop = top.slice(0, n), shownRest = rest.slice(0, Math.max(0, n - shownTop.length));
   return `${tier('Strongest leans (65%+)', rec(R['65%+']), shownTop)}${tier(top.length ? 'Strong leans (60–65%)' : "Tonight's best leans (60%+)", rec(R['60–65%']), shownRest)}
     ${all.length > n ? `<button class="showmore" data-pk="nbaAll">Show all ${Math.min(40, all.length)} leans</button>` : PK.nbaAll && all.length > 8 ? `<button class="showmore" data-pk="nbaAll">Show fewer</button>` : ''}
-    <p class="note">Hit rate isn't profit: at -110 you need 52.4%. Our number is 80% the market, so these are the market's lean plus ours, not a hidden edge.</p>`;
+    <p class="note">Key players only (points line 17.5+). Hit rate isn't profit: a lean has to beat its price, and the report card shows that record. Our number is 80% the market, so these are the market's lean plus ours, not a hidden edge.</p>`;
 }
 // NBA first-quarter moneyline (nba_q1.py): fair odds from the spread, Kalshi's 3-way 1Q prices, and the favorite-size lean
 const amOf = p => p > 0 && p < 1 ? (p >= 0.5 ? Math.round(-100 * p / (1 - p)) : Math.round(100 * (1 - p) / p)) : null;
