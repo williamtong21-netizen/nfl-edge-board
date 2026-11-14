@@ -144,3 +144,38 @@
 {"t":"2026-11-14T05:53:24+00:00","g":"401909999","tip":"2026-11-17T01:00Z","outs":{"home":["Anthony Edwards","Donte DiVincenzo"],"away":["Chris Youngblood","Ja Morant","Shaedon Sharpe","Vit Krejci"]}}
 {"t":"2026-11-14T05:53:24+00:00","g":"401910000","tip":"2026-11-17T01:00Z","outs":{"home":["Bryce McGowens","Dejounte Murray","Trendon Watford","Trey Murphy III","Yves Missi"],"away":["Brandon Williams","Jimmy Butler III","Kristaps Porzingis","Moses Moody","Stephen Curry"]}}
 {"t":"2026-11-14T05:53:24+00:00","g":"401910001","tip":"2026-11-17T02:00Z","outs":{"home":["Julian Strawther"],"away":["Mark Williams"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909980","tip":"2026-11-15T00:00Z","outs":{"home":["Bryce McGowens","Dejounte Murray","Trendon Watford","Trey Murphy III","Yves Missi"],"away":["Cam Whitmore","DaRon Holmes II","Julian Strawther","Ryan Nembhard"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909981","tip":"2026-11-15T00:30Z","outs":{"home":["Evan Mobley","Nae'Qwan Tomlin","Sam Merrill"],"away":["Dereck Lively II","Sergio de Larrea","Tarik Biberovic"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","tip":"2026-11-15T01:00Z","outs":{"home":["Klay Thompson","Pelle Larsson"],"away":["Chaz Lanier","Ebuka Okorie","Isaiah Joe","Jalen Duren","Ugonna Onyenso"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"4278053","n":"Davion Mitchell","tm":"MIA","m":"Points","l":14.5,"dk":"+102","km":0.47,"po":0.476,"pm":0.5,"pr":14.5}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"4278053","n":"Davion Mitchell","tm":"MIA","m":"Threes","l":2.5,"dk":"+143","km":0.285,"po":0.292,"pm":0.319,"pr":2.0}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"4066261","n":"Bam Adebayo","tm":"MIA","m":"Points","l":17.5,"dk":"-113","km":null,"po":0.511,"pm":0.552,"pr":18.5}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"4066261","n":"Bam Adebayo","tm":"MIA","m":"Threes","l":0.5,"dk":"-234","km":0.68,"po":0.657,"pm":0.565,"pr":0.9}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"5107199","n":"Daniss Jenkins","tm":"DET","m":"Points","l":14.5,"dk":"-103","km":null,"po":0.485,"pm":0.511,"pr":14.7}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"5107199","n":"Daniss Jenkins","tm":"DET","m":"Threes","l":1.5,"dk":"-137","km":null,"po":0.558,"pm":0.609,"pr":2.3}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"4432166","n":"Cade Cunningham","tm":"DET","m":"Points","l":25.5,"dk":"-106","km":null,"po":0.492,"pm":0.519,"pr":26.0}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"4432166","n":"Cade Cunningham","tm":"DET","m":"Threes","l":2.5,"dk":"+100","km":null,"po":0.456,"pm":0.395,"pr":2.3}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"3032977","n":"Giannis Antetokounmpo","tm":"MIA","m":"Points","l":28.5,"dk":"-107","km":null,"po":0.477,"pm":0.432,"pr":26.8}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"3908845","n":"John Collins","tm":"DET","m":"Points","l":10.5,"dk":"-113","km":null,"po":0.518,"pm":0.586,"pr":11.7}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"3157465","n":"Duncan Robinson","tm":"DET","m":"Points","l":15.5,"dk":"-110","km":null,"po":0.513,"pm":0.59,"pr":17.1}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"3157465","n":"Duncan Robinson","tm":"DET","m":"Threes","l":3.5,"dk":"-101","km":null,"po":0.483,"pm":0.521,"pr":4.1}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909982","pid":"4684742","n":"Ausar Thompson","tm":"DET","m":"Points","l":9.5,"dk":"-119","km":null,"po":0.514,"pm":0.523,"pr":9.8}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909983","tip":"2026-11-15T01:00Z","outs":{"home":["Quinten Post","Richie Saunders","Scotty Pippen Jr.","Zach Edey"],"away":["Ben Saraf","Grant Nelson","Joshua Jefferson","Tyler Bilodeau"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909984","tip":"2026-11-15T01:00Z","outs":{"home":["Anthony Edwards","Donte DiVincenzo"],"away":["Caleb Wilson","Dailyn Swain","Tobe Awaka"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909985","tip":"2026-11-15T18:00Z","outs":{"home":["Adem Bona","Ariel Hukporti","Dominick Barlow"],"away":["Ben Sheppard","Johnny Furphy","Tyrese Haliburton"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909986","tip":"2026-11-15T21:00Z","outs":{"home":["Mark Williams"],"away":[]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909987","tip":"2026-11-15T21:30Z","outs":{"home":["Bradley Beal","Brandon Ingram","Jordan Miller","Yanic Konan Niederhauser"],"away":["Dennis Schroder","Kon Knueppel"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909988","tip":"2026-11-15T22:00Z","outs":{"home":["Jaren Jackson Jr.","Jusuf Nurkic","Lauri Markkanen","Trey Alexander"],"away":["Jayden Quaintance","Tobias Harris"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909989","tip":"2026-11-15T23:00Z","outs":{"home":[],"away":["Dereck Lively II","Sergio de Larrea","Tarik Biberovic"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909990","tip":"2026-11-15T23:00Z","outs":{"home":["Kawhi Leonard","Nate Bittle","Scottie Barnes"],"away":[]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909991","tip":"2026-11-16T00:00Z","outs":{"home":["Jamir Watkins","Justin Champagnie","Reece Beekman","Tristan Vukcevic"],"away":["Clint Capela","Steven Adams"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909992","tip":"2026-11-16T01:00Z","outs":{"home":[],"away":["Asa Newell","Henri Veesaar","Keshon Gilbert","Mouhamed Gueye"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909993","tip":"2026-11-16T02:00Z","outs":{"home":["Ben Simmons","Maxime Raynaud","Precious Achiuwa"],"away":["Ajay Mitchell","Cason Wallace","Chet Holmgren","Jaylin Williams","Thomas Sorber"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909994","tip":"2026-11-17T00:00Z","outs":{"home":[],"away":["Izaiyah Nelson","Jonathan Isaac","Noah Penda","Paolo Banchero"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909995","tip":"2026-11-17T00:00Z","outs":{"home":["Evan Mobley","Nae'Qwan Tomlin","Sam Merrill"],"away":["Caleb Wilson","Dailyn Swain","Tobe Awaka"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909996","tip":"2026-11-17T00:00Z","outs":{"home":["Jamir Watkins","Justin Champagnie","Reece Beekman","Tristan Vukcevic"],"away":["Quinten Post","Richie Saunders","Scotty Pippen Jr.","Zach Edey"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909997","tip":"2026-11-17T00:30Z","outs":{"home":[],"away":["Adem Bona","Ariel Hukporti","Dominick Barlow"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909998","tip":"2026-11-17T00:30Z","outs":{"home":["Klay Thompson","Pelle Larsson"],"away":["Clint Capela","Steven Adams"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401909999","tip":"2026-11-17T01:00Z","outs":{"home":["Anthony Edwards","Donte DiVincenzo"],"away":["Chris Youngblood","Ja Morant","Shaedon Sharpe","Vit Krejci"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401910000","tip":"2026-11-17T01:00Z","outs":{"home":["Bryce McGowens","Dejounte Murray","Trendon Watford","Trey Murphy III","Yves Missi"],"away":["Brandon Williams","Jimmy Butler III","Kristaps Porzingis","Moses Moody","Stephen Curry"]}}
+{"t":"2026-11-14T06:32:56+00:00","g":"401910001","tip":"2026-11-17T02:00Z","outs":{"home":["Julian Strawther"],"away":["Mark Williams"]}}
