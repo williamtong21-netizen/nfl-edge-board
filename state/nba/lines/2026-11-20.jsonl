@@ -529,3 +529,38 @@
 {"t":"2026-11-20T03:52:13+00:00","g":"401910026","tip":"2026-11-22T01:00Z","outs":{"home":["Anthony Edwards","Donte DiVincenzo","Jaylen Clark"],"away":["GG Jackson","Scotty Pippen Jr.","Ty Jerome","Zach Edey"]}}
 {"t":"2026-11-20T03:52:13+00:00","g":"401910027","tip":"2026-11-22T01:00Z","outs":{"home":["Dylan Harper","Jayden Quaintance","Tobias Harris"],"away":["Bennedict Mathurin","Bryce McGowens","Dejounte Murray","Trendon Watford","Trey Murphy III"]}}
 {"t":"2026-11-20T03:52:13+00:00","g":"401910028","tip":"2026-11-22T03:00Z","outs":{"home":["Ben Simmons","Maxime Raynaud"],"away":[]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909305","tip":"2026-11-21T00:00Z","outs":{"home":["Asa Newell","CJ McCollum","Henri Veesaar","Jock Landale","Mouhamed Gueye"],"away":["Dennis Schroder","Grant Williams","Grayson Allen","Kon Knueppel","Kylan Boswell","Michael Ajayi"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909306","tip":"2026-11-21T00:30Z","outs":{"home":["Grant Nelson"],"away":["Izaiyah Nelson","Jonathan Isaac","Noah Penda","Paolo Banchero"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909307","tip":"2026-11-21T00:30Z","outs":{"home":["Ernest Udeh Jr.","Evan Mobley","Jaylon Tyson","Khalifa Diop","Nae'Qwan Tomlin"],"away":["Ben Sheppard","Johnny Furphy","Tyrese Haliburton"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909308","tip":"2026-11-21T00:30Z","outs":{"home":["Duncan Robinson","Ebuka Okorie","Jalen Duren","Ronald Holland II","Taurean Prince","Ugonna Onyenso"],"away":["Collin Murray-Boyles","Jaden Bradley","Kawhi Leonard","Kevin McCullar Jr.","Nate Bittle","RJ Barrett"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","tip":"2026-11-21T01:00Z","outs":{"home":["Caleb Wilson","Dailyn Swain","Jaylin Sellers","Orlando Robinson","Tobe Awaka"],"away":["Jamir Watkins","Justin Champagnie","Reece Beekman","Tristan Vukcevic"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4711294","n":"Matas Buzelis","tm":"CHI","m":"Points","l":16.5,"dk":"-110","km":null,"po":0.511,"pm":0.578,"pr":18.0}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4711294","n":"Matas Buzelis","tm":"CHI","m":"Rebounds","l":5.5,"dk":"-112","km":null,"po":0.496,"pm":0.489,"pr":5.8}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4711294","n":"Matas Buzelis","tm":"CHI","m":"Assists","l":2.5,"dk":"+143","km":null,"po":0.391,"pm":0.398,"pr":2.3}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4711294","n":"Matas Buzelis","tm":"CHI","m":"Threes","l":2.5,"dk":"+163","km":null,"po":0.372,"pm":0.425,"pr":2.5}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4397189","n":"Jalen Smith","tm":"CHI","m":"Points","l":15.5,"dk":"-110","km":null,"po":0.483,"pm":0.438,"pr":14.5}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4397189","n":"Jalen Smith","tm":"CHI","m":"Rebounds","l":9.5,"dk":"+114","km":null,"po":0.426,"pm":0.366,"pr":8.6}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4397189","n":"Jalen Smith","tm":"CHI","m":"Assists","l":1.5,"dk":"-193","km":null,"po":0.621,"pm":0.619,"pr":2.3}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4397189","n":"Jalen Smith","tm":"CHI","m":"Threes","l":1.5,"dk":"-174","km":null,"po":0.589,"pm":0.551,"pr":2.0}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4432822","n":"Isaac Okoro","tm":"CHI","m":"Points","l":10.5,"dk":"-117","km":null,"po":0.484,"pm":0.386,"pr":9.1}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4432822","n":"Isaac Okoro","tm":"CHI","m":"Rebounds","l":3.5,"dk":"+120","km":null,"po":0.415,"pm":0.359,"pr":3.0}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4432822","n":"Isaac Okoro","tm":"CHI","m":"Assists","l":2.5,"dk":"+145","km":null,"po":0.384,"pm":0.381,"pr":2.3}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4432822","n":"Isaac Okoro","tm":"CHI","m":"Threes","l":1.5,"dk":"+123","km":null,"po":0.402,"pm":0.317,"pr":1.2}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4871145","n":"Josh Giddey","tm":"CHI","m":"Points","l":13.5,"dk":"-113","km":null,"po":0.488,"pm":0.434,"pr":12.5}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4871145","n":"Josh Giddey","tm":"CHI","m":"Rebounds","l":7.5,"dk":"+116","km":null,"po":0.432,"pm":0.414,"pr":7.2}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4871145","n":"Josh Giddey","tm":"CHI","m":"Assists","l":9.5,"dk":"+117","km":null,"po":0.44,"pm":0.461,"pr":9.7}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"4871145","n":"Josh Giddey","tm":"CHI","m":"Threes","l":1.5,"dk":"+113","km":null,"po":0.435,"pm":0.405,"pr":1.4}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"2595516","n":"Norman Powell","tm":"CHI","m":"Points","l":24.5,"dk":"+108","km":null,"po":0.448,"pm":0.423,"pr":22.8}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"2595516","n":"Norman Powell","tm":"CHI","m":"Rebounds","l":2.5,"dk":"-149","km":null,"po":0.566,"pm":0.571,"pr":3.2}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"2595516","n":"Norman Powell","tm":"CHI","m":"Assists","l":2.5,"dk":"+101","km":null,"po":0.474,"pm":0.491,"pr":2.8}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909309","pid":"2595516","n":"Norman Powell","tm":"CHI","m":"Threes","l":2.5,"dk":"-122","km":null,"po":0.5,"pm":0.424,"pr":2.5}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909310","tip":"2026-11-21T01:00Z","outs":{"home":["Cason Wallace","Chet Holmgren","Jalen Williams","Nikola Topic","Thomas Sorber"],"away":["Bennedict Mathurin","Bryce McGowens","Dejounte Murray","Julian Reese","Malik Dia","Trendon Watford"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909311","tip":"2026-11-21T02:30Z","outs":{"home":["Harrison Ingram","Jaren Jackson Jr.","Jonas Aidoo","Jusuf Nurkic","Kobe Bufkin","Lauri Markkanen"],"away":["Mark Williams"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909312","tip":"2026-11-21T03:00Z","outs":{"home":["Bryce Hopkins","Cam Whitmore","DaRon Holmes II","Julian Strawther"],"away":["Bruce Thornton","Clint Capela","Julian Phillips","Quadir Copeland"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401909313","tip":"2026-11-21T03:00Z","outs":{"home":["Austin Reaves"],"away":["Ben Simmons","Jonathan Mogbo","Maxime Raynaud","Precious Achiuwa","Sean Pedulla"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401910023","tip":"2026-11-21T18:00Z","outs":{"home":["Adem Bona","Dominick Barlow","Jaylen Brown"],"away":["Ousmane Dieng"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401910024","tip":"2026-11-22T00:30Z","outs":{"home":[],"away":["Chris Youngblood","Deni Avdija","Ja Morant","Robert Williams III","Vit Krejci"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401910025","tip":"2026-11-22T01:00Z","outs":{"home":["Dereck Lively II","Sergio de Larrea","Tarik Biberovic"],"away":["Bradley Beal","Brandon Ingram","Jordan Miller"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401910026","tip":"2026-11-22T01:00Z","outs":{"home":["Anthony Edwards","Donte DiVincenzo","Jaylen Clark"],"away":["GG Jackson","Scotty Pippen Jr.","Ty Jerome"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401910027","tip":"2026-11-22T01:00Z","outs":{"home":["Dylan Harper","Jayden Quaintance","Tobias Harris"],"away":["Bennedict Mathurin","Bryce McGowens","Dejounte Murray","Trendon Watford","Trey Murphy III"]}}
+{"t":"2026-11-20T04:05:19+00:00","g":"401910028","tip":"2026-11-22T03:00Z","outs":{"home":["Ben Simmons","Maxime Raynaud"],"away":[]}}
