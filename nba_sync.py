@@ -281,6 +281,10 @@ def grade_props(season, now):
     return gr
 
 
+# Value bets (Nov 24 2026): only Assists. Taking our raw model's side when it disagrees with Kalshi by 10+ points went
+# 69-53, +9.5% at the price on key players, positive in both halves of the season. Points, rebounds and threes
+# disagreements lost to the price, so they stay leans.
+VALUE_MKTS = {"Assists"}
 KEY_PTS = 17.5    # "key player" = points line at least this (starters / real scorers); bench guys aren't a priority
 
 
@@ -292,11 +296,14 @@ def prop_report(gr):
     rate = lambda w, l: round(w / (w + l), 3) if w + l else None
     games = 0
     import grades
+    value = []    # value bets: Assists where our raw model and Kalshi disagree by 10+ points (see VALUE_MKTS)
     key = []      # key bets: players whose points line says they're a featured scorer (KEY_PTS+), graded vs Kalshi's price
     for g in gr["games"].values():
         if g.get("pre") or not g["props"]: continue
         games += 1
         pts = {r["pid"]: r["l"] for r in g["props"] if r["m"] == "Points"}
+        value += [(r.get("pm"), r["km"], r["a"] > r["l"], (g["d"],)) for r in g["props"] if r["m"] in VALUE_MKTS
+                  and (pts.get(r["pid"]) or 0) >= KEY_PTS and r.get("km") is not None and 0.2 < r["km"] < 0.8]
         key += [(r["po"], r.get("km"), r["a"] > r["l"], (r["m"], g["d"])) for r in g["props"]
                 if (pts.get(r["pid"]) or 0) >= KEY_PTS and r.get("km") is not None and 0.2 < r["km"] < 0.8]
         for r in g["props"]:
@@ -314,6 +321,7 @@ def prop_report(gr):
             "markets": {k: wl(v) for k, v in sorted(mk.items(), key=lambda x: -sum(x[1]))},
             "nights": {k: wl(v) for k, v in sorted(night.items())},
             "key": grades.vs_price(key),
+            "value": grades.value_record(value),
             "acc": {"n": acc["n"], **{k: round(acc[k] / acc["n"], 4) for k in ("pm", "po", "km")}} if acc["n"] else None}
 
 

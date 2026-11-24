@@ -92,6 +92,25 @@ def vs_price(rows, lean=0.55):
     return res
 
 
+VALUE_GAP = 0.10   # a value bet: our raw model and the market disagree by this much or more
+
+
+def value_record(rows, gap=VALUE_GAP):
+    """Value bets graded at the price: take our model's side when it disagrees with the market by `gap`+.
+    rows: (our raw model's chance of over, market chance of over, over hit, groups). Unlike vs_price, the side is
+    model vs market (not over/under 50%), so this measures what our model knows that the price doesn't."""
+    out = defaultdict(lambda: {"w": 0, "l": 0, "mkt": 0.0, "pl": 0.0})
+    for p, mk, over, grps in rows:
+        if p is None or mk is None or not 0.03 < mk < 0.97 or abs(p - mk) < gap: continue
+        side = p > mk
+        price = min(0.97, (mk if side else 1 - mk) * VIG)
+        hit = over == side
+        for k in ("all", *grps):
+            d = out[k]; d["w" if hit else "l"] += 1; d["mkt"] += price; d["pl"] += (1 / price - 1) if hit else -1
+    return {k: {"w": d["w"], "l": d["l"], "pct": round(d["w"] / (d["w"] + d["l"]), 3), "mkt": round(d["mkt"] / (d["w"] + d["l"]), 3),
+                "roi": round(d["pl"] / (d["w"] + d["l"]), 3)} for k, d in out.items()}
+
+
 def _rate(w, l): return round(w / (w + l), 3) if w + l else None
 
 

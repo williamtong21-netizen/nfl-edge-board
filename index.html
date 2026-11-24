@@ -2592,16 +2592,46 @@ function nbaBest() {
   const mktAt = pr => { const k = (pr.alt || []).find(r => r.l === pr.l && r.ya != null && r.yb != null && r.ya - r.yb <= LADDER_SPREAD);
     if (k) return kMid(k); const b = (pr.books || []).find(x => x.l === pr.l && x.o != null); return b ? impl(b.o) / 1.045 : null; };
   const even = p => { const m = mktAt(p.pr); return m == null || (m > 0.2 && m < 0.8); };
-  const per = {}, all = propPicks().filter(p => conf(p) >= NBA_BEST && even(p)).sort((a, b) => conf(b) - conf(a))
+  // threes leans left Picks Nov 2026: 285-228 but -11% at the price (still on the Props tab)
+  const per = {}, all = propPicks().filter(p => conf(p) >= NBA_BEST && even(p) && p.pr.m !== 'Threes').sort((a, b) => conf(b) - conf(a))
     .filter(p => (per[p.pl.id] = (per[p.pl.id] || 0) + 1) <= 2);
   const R = S.slate?.report?.props || {}, rec = d => d && d.w + d.l ? `${d.w}–${d.l} (${Math.round(d.w / (d.w + d.l) * 100)}%)` : null;
   const top = all.filter(p => conf(p) >= NBA_TOP), rest = all.filter(p => conf(p) < NBA_TOP), n = PK.nbaAll ? 40 : 8;
   const tier = (lbl, r, list) => list.length ? `<div class="sechead"><h2>${lbl}</h2><small>${list.length} lean${list.length > 1 ? 's' : ''}${r ? ` · record ${r}` : ''}</small></div><div class="picks">${list.map(pickCard).join('')}</div>` : '';
-  if (!all.length) return `<div class="sechead"><h2>Tonight's best leans</h2></div><p class="note">No 60%+ leans on key players (points line 17.5+) right now. Tonight's props post by early afternoon; everyone else is on the Props tab.</p>`;
+  const V = valueSection(mktAt);
+  if (!all.length) return `${V}<div class="sechead"><h2>Tonight's best leans</h2></div><p class="note">No 60%+ leans on key players (points line 17.5+) right now. Tonight's props post by early afternoon; everyone else is on the Props tab.</p>`;
   const shownTop = top.slice(0, n), shownRest = rest.slice(0, Math.max(0, n - shownTop.length));
-  return `${tier('Strongest leans (65%+)', rec(R['65%+']), shownTop)}${tier(top.length ? 'Strong leans (60–65%)' : "Tonight's best leans (60%+)", rec(R['60–65%']), shownRest)}
+  return `${V}${tier('Strongest leans (65%+)', rec(R['65%+']), shownTop)}${tier(top.length ? 'Strong leans (60–65%)' : "Tonight's best leans (60%+)", rec(R['60–65%']), shownRest)}
     ${all.length > n ? `<button class="showmore" data-pk="nbaAll">Show all ${Math.min(40, all.length)} leans</button>` : PK.nbaAll && all.length > 8 ? `<button class="showmore" data-pk="nbaAll">Show fewer</button>` : ''}
-    <p class="note">Key players only (points line 17.5+). Hit rate isn't profit: a lean has to beat its price, and the report card shows that record. Our number is 80% the market, so these are the market's lean plus ours, not a hidden edge.</p>`;
+    <p class="note">Key players only (points line 17.5+); threes are left out (they lost 11% at the price). Hit rate isn't profit: a lean has to beat its price, and the report card shows that record. Our number is 80% the market, so these are the market's lean plus ours, not a hidden edge. The value bets above are the ones that have beaten the price.</p>`;
+}
+// NBA value bets: the one spot our model has beaten the price. Assists on key players where our raw model and the
+// market disagree by 10+ points; take the model's side. 69-53, +9.5% at the price through Nov 23 2026, positive in both
+// halves of the season (nba_sync.VALUE_MKTS, graded live as report.value). Points/rebounds/threes disagreements lost.
+const VALUE_GAP = 0.10, VALUE_MKTS = ['Assists'];
+function valueSection(mktAt) {
+  const out = [], pc = v => Math.round(v * 100) + '%';
+  for (const g of (S.slate?.games || []).filter(g => g.state === 'pre')) for (const pl of S.props?.[g.id] || []) {
+    const team = pl.side === 'home' ? g.home : g.away;
+    if (ruledOut(g, pl, team)) continue;
+    for (const pr of pl.props) {
+      if (!VALUE_MKTS.includes(pr.m) || pr.pModel == null || !keyBet(pl, pr)) continue;
+      const m = mktAt(pr);
+      if (m == null || m <= 0.2 || m >= 0.8 || Math.abs(pr.pModel - m) < VALUE_GAP) continue;
+      const over = pr.pModel > m;
+      out.push({ g, pl, pr, team, over, us: over ? pr.pModel : 1 - pr.pModel, mk: over ? m : 1 - m, best: bestProp(pr, over ? 'over' : 'under') });
+    }
+  }
+  out.sort((a, b) => (b.us - b.mk) - (a.us - a.mk));
+  const R = S.slate?.report?.value || {}, A = R.all, ds = Object.keys(R).filter(k => /^\d{4}-/.test(k)).sort().slice(-7);
+  const w7 = ds.reduce((t, d) => t + R[d].w, 0), l7 = ds.reduce((t, d) => t + R[d].l, 0);
+  const rec = A ? `record ${A.w}–${A.l} · ${A.roi >= 0 ? '+' : '−'}${Math.abs(Math.round(A.roi * 100))}% at the price${w7 + l7 ? ` · last 7 nights ${w7}–${l7}` : ''}` : 'grading starts tonight';
+  const head = `<div class="sechead"><h2>Value bets</h2><small>${rec}</small></div>`;
+  if (!out.length) return `${head}<p class="note">No value bets tonight: no key player's assists line where our model and the market disagree by 10+ points. That's normal; most nights have a few, some have none.</p>`;
+  return `${head}<p class="note">The one spot our model has beaten the price: assists on key players where our model and the market disagree by 10+ points. We take our model's side even when it's the underdog side. Small stakes; it's about 120 bets of evidence.</p>
+    <div class="fadelist">${out.slice(0, PK.valAll ? 30 : 8).map(x => `<div class="faderow">${logo(x.team.abbr, 26)}<div class="fadewho"><b>${esc(x.pl.n)} ${x.over ? 'over' : 'under'} ${x.pr.l} assists</b><small>${esc(x.g.away.abbr)} @ ${esc(x.g.home.abbr)} · ${kick(x.g)} · our model ${pc(x.us)} vs market ${pc(x.mk)}${x.best?.price != null && x.best.line === x.pr.l ? ` · best ${fmtOdds(x.best.price)} ${esc(x.best.book)}` : ''}</small></div>
+      <button class="addp" data-addleg="${x.g.id}|prop|${x.over ? 'over' : 'under'}|${esc(x.pl.id)}|${esc(x.pr.m)}">+ Parlay</button></div>`).join('')}</div>
+    ${out.length > 8 ? `<button class="showmore" data-pk="valAll">${PK.valAll ? 'Show fewer' : `Show all ${Math.min(30, out.length)}`}</button>` : ''}`;
 }
 // NBA first-quarter moneyline (nba_q1.py): fair odds from the spread, Kalshi's 3-way 1Q prices, and the favorite-size lean
 const amOf = p => p > 0 && p < 1 ? (p >= 0.5 ? Math.round(-100 * p / (1 - p)) : Math.round(100 * (1 - p) / p)) : null;
